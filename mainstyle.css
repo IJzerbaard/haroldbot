@@ -1,0 +1,101 @@
+body {
+  color: #444;
+  background-color: #eee;
+  font-family: 'Trebuchet MS', sans-serif;
+  font-size: 90%;
+}
+h1 {}
+h2 { font-size: 1.2em; }
+#header {
+  width: 750px;
+  margin: 3px auto;
+  padding: 0px;
+}
+#querybar {
+  background-color: #333;
+  width: 750px;
+  margin: 0px auto;
+  padding: 12px;
+  box-shadow:0px 5px 10px #aaa;
+}
+#page {
+  background-color: #fff;
+  width: 750px;
+  margin: 3px auto;
+  padding: 12px;
+  box-shadow:0px 5px 10px #aaa;
+}
+#footer {
+  width: 750px;
+  margin: 3px auto;
+  padding: 12px;
+  font-size:10pt;
+  color:#555;
+  text-align:center;
+}
+#page a{
+  color:#f55a2d;
+}
+#querybox {
+  padding: 10px ;
+  background-color: #fff;
+  color: #FFFFFF;
+  border-radius:5px;
+}
+#q {
+  width: 618px;
+  padding: 5px;
+  height:18px;
+  color: #000;
+}
+#submit {
+  width: 90px;
+  padding: 5px;
+  background-color: #2dc8f5;
+  color: #000;
+  border: 0px solid white;
+  border-radius:5px;
+  text-shadow: -1px 1px #fff;
+}
+.varassignment {
+  border: none;
+  border-collapse: collapse;
+  overflow-y: auto;
+  display: block;
+  max-height: 209px;
+}
+.varassignment td {
+  min-width: 40px;
+  text-align: center;
+  padding-left: 3px;
+  padding-right: 3px;
+}
+.varassignment tr:nth-child(even) td {
+  background-color: #eee;
+}
+.varassignment tr:hover td {
+  background-color: #ddf;
+}
+legend {
+  font-size: 15pt;
+}
+input[type=checkbox], input[type=radio] {
+    vertical-align: middle;
+    position: relative;
+    bottom: 1px;
+}
+fieldset {   
+  border-radius: 7px;  
+}
+#exprdebug {
+  width: 100%;
+  overflow: hidden;
+  font-family: Consolas,monospace;
+}
+#exprdebug0 {
+  float: left;
+  width: 375px;
+}
+#exprdebug1 {
+  margin-left: 375px;
+}

@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>haroldbot</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<link rel="shortcut icon" href="/favicon.ico" />
+<link rel="stylesheet" type="text/css" href="mainstyle.css" />
+<script type="text/javascript" src="jquery-1.11.0.min.js"></script>
+<script type="text/javascript" src="jquery.color-2.1.2.min.js"></script>
+<script type="text/javascript" src="expr.js"></script>
+<script type="text/javascript" src="parser.js"></script>
+<script type="text/javascript" src="bigint.js"></script>
+<script type="text/javascript" src="bdd.js"></script>
+<script type="text/javascript" src="bddfunction.js"></script>
+<script type="text/javascript" src="sat.js"></script>
+<script type="text/javascript" src="circuit.js"></script>
+<script type="text/javascript" src="circuitfunction.js"></script>
+<script type="text/javascript" src="prooffinder.js"></script>
+<script type="text/javascript">
+var id = 0;
+var ops = [, "&", "|", "^", "+", "-", "<<", ">>", "<<<", ">>>", "/", "*", , , , , , , , , "==", "!=", "<=", "<", ">=", ">", "=>", , , , ">>s", ">>u", "/s", "/u", "%s", "%u", , , , , "<=s", "<=u", "<s", "<u", ">=s", ">=u", ">s", ">u", ,,,,,,, "$min_u", "$min_s", "$max_u", "$max_s"];
+var associative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , false, false, false, false, false, false, false, , , , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true];
+var commutative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , true, true, false, false, false, false, false, , , , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true];
+
+function precedence(index) {
+  var pre = [ 0, 16, 14, 15, 18, 18, 17, 17, 17, 17, 19, 19, 20, 20, 0, 0, 0, 0, 0, 0, 13, 13, 13, 13, 13, 13, 12, 0, 0, 0, 17, 17, 19, 19, 19, 19, 20, 20, 20, 20, 13, 13, 13, 13, 13, 13, 13, 13 ];
+  if (index < 0 || index > pre.length)
+    return 20;
+  return pre[index];
+}
+function toHexUnsigned(x) {
+  x = (x|0) + 0xFFFFFFFF + 1;
+  var s = x.toString(16);
+  return ("00000000" + s).substr(-8);
+}
+function toDecUnsigned(x) {
+  x = (x|0) + 0xFFFFFFFF + 1;
+  return x.toString(10);
+}
+function toDecSigned(x) {
+   return (x|0).toString(10);
+}
+function formatConstant(x) {
+  if (x >= -2 && x <= 16)
+    return toDecSigned(x);
+  if ((x & (x - 1)) == 0 && x > 0 && x <= 256)
+    return toDecSigned(x);
+  var nx = -x;
+  if ((nx & (nx - 1)) == 0 && nx > 0 && nx <= 256)
+    return toDecSigned(x);
+  if (x < 0)
+    return toHexUnsigned(x);
+  var s = (x | 0).toString(16);
+  if (s.length == 2 || s.length == 4 || s.length == 8) return "0x" + s;
+  if (s.length == 3) return "0x0" + s;
+  return ("00000000" + s).substr(-8);
+}
+
+function insertionSort(array, cmp) {
+  for (var i = 1; i < array.length; i++) {
+    var j = i;
+    while (j > 0 && cmp(array[j - 1], array[j]) > 0) {
+      var temp = array[j];
+      array[j] = array[j - 1];
+      array[j - 1] = temp;
+      j = j - 1;
+    }
+  }
+}
+
+function performQuery(input) {
+  var p = parse(input);
+  var expr = p[0];
+  var varmap = p[1];
+  var msg = p[2];
+
+  var bddf;
+  var circuitf;
+  try {
+    //throw "BDD full";
+    bddf = expr.toBddFunc();
+  }
+  catch (err) {
+    if (err == "BDD full")
+      circuitf = expr.toCircuitFunc();
+    else
+      throw err;
+  }
+
+  if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 26 || expr.op >= 40)) {
+    // comparison
+    data = (bddf||circuitf).AnalyzeTruth(expr.removeDummy(), varmap, function () {
+      update();
+    }, function (exprc, backwards) {
+      if (backwards) {
+        $('#exprdebug1').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
+      }
+      else {
+        $('#exprdebug0').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
+      }
+    });
+    update();
+  }
+  else {
+    data = {
+      simp: bddf.Identify(varmap),
+      varmap: varmap
+    };
+    update();
+  }
+}
+
+function formatVariableAssignment(assignment, varmap) {
+  var table = $('<table class="varassignment"></table>');
+  for (var i = 0; i < varmap.length; i++) {
+    var row = $('<tr></tr>');
+    row.append($('<td>' + varmap[i] + '</td>'));
+    row.append("=");
+    row.append($('<td>' + formatConstant(assignment[i]) + '</td>'));
+    table.append(row);
+  }
+  return table;
+}
+
+function formatVariableAssignments(assignment, varmap) {
+  var wrapper = $('<div/>');
+  var table = $('<table class="varassignment"></table>');
+  var headers = $('<tr/>');
+  if (varmap.length > 1) {
+    for (var i = 0; i < varmap.length; i++)
+      headers.append($('<th>' + varmap[i] + '</th>'));
+    table.append(headers);
+  }
+  var first = 0;
+  var last = 0;
+  while (last < 4) {
+    var asign = assignment(last++);
+    if (asign == undefined)
+      break;
+    var row = $('<tr/>');
+    for (var i = 0; i < varmap.length; i++) {
+      var col = $('<td>' + formatConstant(asign[i]) + '</td>');
+      row.append(col);
+    }
+    table.append(row);
+  }
+
+  var morebutton = null;
+  if (assignment(last) != undefined) {
+    morebutton = $('<button/>');
+    morebutton.text('...');
+    morebutton.css('border-radius', '5px');
+    morebutton.click(function () {
+      for (var end = last + 4; last < end; last++) {
+        var asign = assignment(last);
+        if (asign == undefined)
+          break;
+        var row = $('<tr/>');
+        for (var i = 0; i < varmap.length; i++) {
+          row.append($('<td>' + formatConstant(asign[i]) + '</td>'));
+        }
+        table.append(row);
+      }
+      table.animate({scrollTop: table.prop('scrollHeight') - table.height()}, 100);
+    });
+    morebutton.bind('contextmenu', function() {
+      if (last == 0)
+        return false;
+      var end = last - 4;
+      while (last > 1 && last > end) {
+        last--;
+        $('tr:last', table).remove();
+      }
+      return false;
+    });
+  }
+  wrapper.append(table);
+  if (morebutton != null)
+  wrapper.append(morebutton);
+  return wrapper;
+}
+
+function formatexpr(expr, ix, varmap) {
+  varmap[0];
+  var res = $("<span />").addClass("e" + ix + "_" + expr.id);
+  res.css("border-radius", "5px");
+  if (expr[0] == "#") {
+    res.append(formatexpr(expr[2], ix, varmap));
+    return res;
+  }
+  if (expr.type == 'var') {
+    if (expr.index >= 0)
+      res.append(varmap[expr.index]);
+    else
+      res.append(['x', 'y', 'z', 'w', 'p', 'q', 'r', 's', 't', 'u', 'v'][~expr.index]);
+    return res;
+  }
+  if (expr.type == 'const') {
+    res.append(formatConstant(expr.value));
+    return res;
+  }
+  var parens = $('#explicitparens').is(':checked');
+  if (expr.type == 'un') {
+    var inner = formatexpr(expr.value, ix, varmap);
+    res.append(['~', '-'][expr.op]);
+    if ((expr.value.type == 'bin' && expr.value.op < 55) || expr.value.type == 'ter') {
+      res.append('(');
+      res.append(inner);
+      res.append(')');
+    }
+    else
+      res.append(inner);
+    return res;
+  }
+  if (expr.type == 'bin') {
+    var l = formatexpr(expr.l, ix, varmap);
+    var r = formatexpr(expr.r, ix, varmap);
+
+    if (ops[expr.op].indexOf('$') == 0) {
+      return res.append(ops[expr.op].substr(1) + '(').append(l).append(', ').append(r).append(')');
+    }
+
+    if (expr.l.type == 'bin' && (parens || precedence(expr.op) > precedence(expr.l.op)) || expr.l.type == 'ter') {
+      res.append('(');
+      res.append(l);
+      res.append(')');
+    }
+    else
+      res.append(l);
+    
+    res.append(" " + escapeHtml(ops[expr.op]) + " ");
+    
+    if (expr.r.type == 'bin' && (parens || precedence(expr.op) > precedence(expr.r.op)) || expr.r.type == 'ter') {
+      res.append('(');
+      res.append(r);
+      res.append(')');
+    }
+    else
+      res.append(r);
+      
+    return res;
+  }
+  if (expr.type == 'ter') {
+    var cond = formatexpr(expr.cond, ix, varmap);
+    var t = formatexpr(expr.t, ix, varmap);
+    var f = formatexpr(expr.f, ix, varmap);
+
+    return res.append(cond).append(" ? ").append(t).append(" : ").append(f);
+  }
+  debugger;
+}
+var randh = Math.random();
+function randomColor() {
+  do {
+    randh += 0.618033988749895;
+    randh %= 1;
+  } while (randh > 0.75 && randh < 0.945);
+  return hsvToRgb(randh, 0.5, 0.95);
+}
+function hsvToRgb(h, s, v) {
+  var r, g, b, i, f, p, q, t;
+  i = Math.floor(h * 6);
+  f = h * 6 - i;
+  p = v * (1 - s);
+  q = v * (1 - f * s);
+  t = v * (1 - (1 - f) * s);
+  switch (i % 6) {
+    case 0: r = v, g = t, b = p; break;
+    case 1: r = q, g = v, b = p; break;
+    case 2: r = p, g = v, b = t; break;
+    case 3: r = p, g = q, b = v; break;
+    case 4: r = t, g = p, b = v; break;
+    case 5: r = v, g = p, b = q; break;
+  }
+  r = Math.floor(r * 255);
+  g = Math.floor(g * 255);
+  b = Math.floor(b * 255);
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+function parseproofstep(proofstep, ix, varmap) {
+  varmap[0];
+  var container = $('<div/>').addClass("proofj");
+  container.attr("id", "proofj" + (ix + 1));
+  container.append(proofstep[0]);
+  if (proofstep.length > 1) {
+    container.append(", ");
+    var pattern = formatexpr(["#",-1,proofstep[1].l], ix, varmap);
+    var patternr = formatexpr(["#",-1,proofstep[1].r], ix + 2, varmap);
+    var patternholder = $('<span/>');
+    patternholder.css('font-family', 'Consolas,monospace');
+    patternholder.append(pattern).append(" " + ops[proofstep[1].op] + " ").append(patternr);
+    container.append(patternholder);
+    pattern.find('span').each(function(index, elem) {
+      var cl = "." + $(elem).attr('class');
+      var color = randomColor();
+      $(elem).hover(function() {
+        $("#proofj" + ix + ", #proofj" + (ix + 1)).find(cl).stop().animate({backgroundColor:color}, 300);
+      }, function() {
+        $(cl).find('span').andSelf().stop().css("background-color", "");
+      });
+    });
+    patternr.find('span').each(function(index, elem) {
+      var cl = "." + $(elem).attr('class');
+      var color = randomColor();
+      $(elem).hover(function() {
+        $("#proofj" + (ix + 1) + ", #proofj" + (ix + 2)).find(cl).stop().animate({backgroundColor:color}, 300);
+      }, function () {
+        $(cl).find('span').andSelf().stop().css("background-color", "");
+      });
+    });
+  }
+  return container;
+}
+function formatproof(parent, proofarray, varmap) {
+  varmap[0];
+  var assocsteps = $('#explicitparens').is(':checked');
+  var proofcontainer = $('<p/>');
+  proofcontainer.append($('<p>proof:</p>'));
+  var havesteps = false;
+  for (var i = 0; i < proofarray.length; i++) {
+    if (i % 2 == 0) {
+      var container = $('<div/>');
+      container.attr("id", "proofj" + i);
+      var exprholder = $('<b/>');
+      exprholder.css('font-family', 'Consolas,monospace');
+      container.append(exprholder.append(formatexpr(proofarray[i], i, varmap)));
+      proofcontainer.append(container);
+    }
+    else {
+      if (!assocsteps && proofarray[i][0] && proofarray[i][0].indexOf('associativity') == 0)
+        i++;
+      else {
+        proofcontainer.append(parseproofstep(proofarray[i], i - 1, varmap));
+        havesteps = true;
+      }
+    }
+  }
+  $('#displayoptions').show();
+  if (havesteps)
+    parent.append(proofcontainer);
+}
+
+var data = null;
+
+function update() {
+  $('#resultDiv').empty();
+  
+  if (data == null || data == undefined) {
+    $('#resultDiv').append("Query Failed");
+    return;
+  }
+  
+  if (data['msg']) {
+    $('#resultDiv').append('<p>' + data['msg'] + '</p>');
+  }
+  if (data['true']) {
+    var truecontainer = $('<fieldset/>');
+    truecontainer.append($('<legend>true</legend>'));
+    if (data['true']['count'] == "always") {
+      truecontainer.append('<p>always</p>');
+      if (data['true']['proof'])
+        formatproof(truecontainer, data['true']['proof'], data.varmap);
+    }
+    else if (data['true']['count'] == "1") {
+      if (data['true']['examples']) {
+        var varassign = formatVariableAssignment(data['true']['examples'](0), data.varmap);
+        truecontainer.append($('<p>once, namely:</p>').append(varassign));
+      }
+      else
+        truecontainer.append('<p>once</p>');
+    }
+    else if (data['true']['count']) {
+      truecontainer.append('<p>in ' + data['true']['count'] + ' cases</p>');
+      if (data['true']['examples'])
+        truecontainer.append($('<p>for example:</p>').append(formatVariableAssignments(data['true']['examples'], data.varmap)));
+    }
+    else {
+      truecontainer.append('<p>true (trivially)</p>');
+    }
+    
+    $('#resultDiv').append(truecontainer);
+  }
+  if (data['false']) {
+    var truecontainer = $('<fieldset/>');
+    truecontainer.append($('<legend>false</legend>'));
+    if (data['false']['count'] == "always") {
+      truecontainer.append('<p>always</p>');
+      if (data['false']['proof'])
+        formatproof(truecontainer, data['false']['proof'], data.varmap);
+    }
+    else if (data['false']['count'] == "1") {
+      if (data['false']['examples']) {
+        var varassign = formatVariableAssignment(data['false']['examples'](0), data.varmap);
+        truecontainer.append($('<p>once, namely:</p>').append(varassign));
+      }
+      else
+        truecontainer.append('<p>once</p>');
+    }
+    else if (data['false']['count']) {
+      truecontainer.append('<p>in ' + data['false']['count'] + ' cases</p>');
+      if (data['false']['examples'])
+        truecontainer.append($('<p>for example:</p>').append(formatVariableAssignments(data['false']['examples'], data.varmap)));
+    }
+    else {
+      truecontainer.append('<p>false (trivially)</p>');
+    }
+    
+    $('#resultDiv').append(truecontainer);
+  }
+  if (data['simp']) {
+    $('#displayoptions').show();
+    var simplificationcontainer = $('<p></p>');
+    simplificationcontainer.append($('<p>simplified:</p>'));
+    simplificationcontainer.append($('<b></b>').append(formatexpr(data['simp'], 1000000, data.varmap)));
+    if (data['proof'])
+      formatproof(simplificationcontainer, data['proof']);
+    
+    $('#resultDiv').append(simplificationcontainer);
+  }
+}
+
+function doquery(f) {
+  if (f === undefined || f == null || f.length == 0)
+    return;
+  $('#displayoptions').hide();
+  $('#q').val(decodeURIComponent(f.replace(/\+/g, " ")));
+  $('#resultDiv').empty();
+  $('#resultDiv').text('Waiting for result...');
+  bdd.reset();
+  circuit.reset();
+  performQuery(decodeURIComponent(f.replace(/\+/g, " ")));
+}
+function urlParam(name) {
+  var results = new RegExp('[\\?&]' + name + '=([^&#]*)').exec(window.location.href);
+  if (results == null) {
+    return null;
+  }
+  else {
+    return results[1] || 0;
+  }
+}
+var entityMap = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': '&quot;',
+  "'": '&#39;',
+  "/": '&#x2F;'
+};
+function escapeHtml(string) {
+  return String(string).replace(/[&<>"'\/]/g, function (s) {
+    return entityMap[s];
+  });
+}
+ls = {
+  getCookie:function(c_name){
+    var i,x,y,ARRcookies=document.cookie.split(";");
+    for (i=0;i<ARRcookies.length;i++) {
+      x=ARRcookies[i].substr(0,ARRcookies[i].indexOf("="));
+      y=ARRcookies[i].substr(ARRcookies[i].indexOf("=")+1);
+      x=x.replace(/^\s+|\s+$/g,"");
+      if (x==c_name)
+        return unescape(y);
+    }
+  },
+  setCookie:function(c_name,value,exdays) {
+    var exdate=new Date();
+    exdate.setDate(exdate.getDate() + exdays);
+    var c_value=escape(value) + ((exdays==null) ? "" : "; expires="+exdate.toUTCString());
+    document.cookie=c_name + "=" + c_value;
+  },
+  support:function(){
+    try{
+      return 'localStorage' in window && window['localStorage'] !== null;
+    }catch(e){
+      return false;
+    }
+  },
+  get:function(name){
+    if(this.support()){
+      return localStorage.getItem(name);
+    }
+    return this.getCookie(name);
+  },
+  set:function(name,value){
+    if(this.support()){
+      localStorage.setItem(name,value);
+    }else{
+      this.setCookie(name,value,30);
+    }
+  }
+}
+$(document).ready(function(){
+  if (ls.get('explicitparens'))
+    $('#explicitparens').prop('checked', ls.get('explicitparens') == 2);
+  $(':checkbox').change(function() {
+    ls.set('explicitparens', $('#explicitparens').is(':checked') ? 2 : 1);
+    update();
+  });
+});
+</script>
+</head>
+<body onload="doquery(urlParam('q'))">
+<div id="header"><h1>haroldbot</h1></div>
+<div id="querybar">
+  <div id="querybox">
+    <form method="get">
+      <input type="text" placeholder="query" name="q" id="q" autofocus/>
+      <input type="submit" value="ask" id="submit"/>
+    </form>
+  </div>
+</div>
+<div id="page">
+  <div id="displayoptions" style="display:none">
+    <label><input type="checkbox" id="explicitparens" />show more parentheses</label>
+  </div>
+  <div id="resultDiv"></div>
+  <div id="exprdebug">
+    <div id="exprdebug0"></div>
+    <div id="exprdebug1"></div>
+  </div>
+</div>
+<div id="footer">
+  haroldbot &copy; Harold Aptroot 2014-2015 <a rel="license"  href="http://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>
+</div>
+</body>
+</html>
