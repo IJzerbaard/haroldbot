@@ -404,6 +404,109 @@ function ProofFinder(op) {
 			["|", ["&", [a(0)], [a(2)]], [a(1)]],
 			true, "or distributes over and", ,
 		],
+		[
+			["*", [a(0)], ["+", [a(1)], [a(2)]]],
+			["+", ["*", [a(0)], [a(1)]], ["*", [a(0)], [a(2)]]],
+			true, "multiplication distributes over addition", ,
+		],
+		[
+			["+", ["*", [a(0)], [a(1)]], ["*", [a(2)], [a(1)]]],
+			["*", ["+", [a(0)], [a(2)]], [a(1)]],
+			true, "multiplication distributes over addition", ,
+		],
+		// shifts over or
+		[
+			["<<" ["|", [a(0)], [a(1)]], [a(2)]],
+			["|", ["<<", [a(0)], [a(2)]], ["<<", [a(1)], [a(2)]]],
+			true, "left shift distributes over or", ,
+		],
+		[
+			["|", ["<<", [a(0)], [a(1)]], ["<<", [a(2)], [a(1)]]],
+			["<<" ["|", [a(0)], [a(2)]], [a(1)]],
+			true, "left shift distributes over or", ,
+		],
+		[
+			[">>u" ["|", [a(0)], [a(1)]], [a(2)]],
+			["|", [">>u", [a(0)], [a(2)]], [">>u", [a(1)], [a(2)]]],
+			true, "right shift distributes over or", ,
+		],
+		[
+			["|", [">>u", [a(0)], [a(1)]], [">>u", [a(2)], [a(1)]]],
+			[">>u" ["|", [a(0)], [a(2)]], [a(1)]],
+			true, "right shift distributes over or", ,
+		],
+		[
+			[">>s" ["|", [a(0)], [a(1)]], [a(2)]],
+			["|", [">>s", [a(0)], [a(2)]], [">>s", [a(1)], [a(2)]]],
+			true, "right shift distributes over or", ,
+		],
+		[
+			["|", [">>s", [a(0)], [a(1)]], [">>s", [a(2)], [a(1)]]],
+			[">>s" ["|", [a(0)], [a(2)]], [a(1)]],
+			true, "right shift distributes over or", ,
+		],
+		// shifts over and
+		[
+			["<<" ["&", [a(0)], [a(1)]], [a(2)]],
+			["&", ["<<", [a(0)], [a(2)]], ["<<", [a(1)], [a(2)]]],
+			true, "left shift distributes over and", ,
+		],
+		[
+			["&", ["<<", [a(0)], [a(1)]], ["<<", [a(2)], [a(1)]]],
+			["<<" ["&", [a(0)], [a(2)]], [a(1)]],
+			true, "left shift distributes over and", ,
+		],
+		[
+			[">>u" ["&", [a(0)], [a(1)]], [a(2)]],
+			["&", [">>u", [a(0)], [a(2)]], [">>u", [a(1)], [a(2)]]],
+			true, "right shift distributes over and", ,
+		],
+		[
+			["&", [">>u", [a(0)], [a(1)]], [">>u", [a(2)], [a(1)]]],
+			[">>u" ["&", [a(0)], [a(2)]], [a(1)]],
+			true, "right shift distributes over and", ,
+		],
+		[
+			[">>s" ["&", [a(0)], [a(1)]], [a(2)]],
+			["&", [">>s", [a(0)], [a(2)]], [">>s", [a(1)], [a(2)]]],
+			true, "right shift distributes over and", ,
+		],
+		[
+			["&", [">>s", [a(0)], [a(1)]], [">>s", [a(2)], [a(1)]]],
+			[">>s" ["&", [a(0)], [a(2)]], [a(1)]],
+			true, "right shift distributes over and", ,
+		],
+		// shifts over xor
+		[
+			["<<" ["^", [a(0)], [a(1)]], [a(2)]],
+			["^", ["<<", [a(0)], [a(2)]], ["<<", [a(1)], [a(2)]]],
+			true, "left shift distributes over xor", ,
+		],
+		[
+			["^", ["<<", [a(0)], [a(1)]], ["<<", [a(2)], [a(1)]]],
+			["<<" ["^", [a(0)], [a(2)]], [a(1)]],
+			true, "left shift distributes over xor", ,
+		],
+		[
+			[">>u" ["^", [a(0)], [a(1)]], [a(2)]],
+			["^", [">>u", [a(0)], [a(2)]], [">>u", [a(1)], [a(2)]]],
+			true, "right shift distributes over xor", ,
+		],
+		[
+			["^", [">>u", [a(0)], [a(1)]], [">>u", [a(2)], [a(1)]]],
+			[">>u" ["^", [a(0)], [a(2)]], [a(1)]],
+			true, "right shift distributes over xor", ,
+		],
+		[
+			[">>s" ["^", [a(0)], [a(1)]], [a(2)]],
+			["^", [">>s", [a(0)], [a(2)]], [">>s", [a(1)], [a(2)]]],
+			true, "right shift distributes over xor", ,
+		],
+		[
+			["^", [">>s", [a(0)], [a(1)]], [">>s", [a(2)], [a(1)]]],
+			[">>s" ["^", [a(0)], [a(2)]], [a(1)]],
+			true, "right shift distributes over xor", ,
+		],
 		// everything distributes over mux
 		[
 			["~", ["?", [a(0)], [a(1)], [a(2)]]],
