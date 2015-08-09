@@ -116,7 +116,13 @@ function Unary(op, val) {
 	this.hash2 = (op + 1 & 15) | ((val.hash2 & 15) << 4);
 	this.op = op;
 	this.value = val;
-	this.weight = (op == 0 ? 1.0 : 1.1) + val.weight;
+	this.weight = val.weight;
+	if (op == 0)
+		this.weight += 1.0;
+	else if (op == 1)
+		this.weight += 1.1;
+	else
+		this.weight += 3.0;
 	this.type = 'un';
 }
 

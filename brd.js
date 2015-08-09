@@ -1,214 +1,139 @@
 /*
-	3d relational domain
-	relation for (x,y,z) =
-				  0 0 0		a
-				  0 0 1		b
-				  0 1 0		c
-				  0 1 1		d
-				  1 0 0		e
-				  1 0 1		f
-				  1 1 0		g
-				  1 1 1		h
+	2D relational domain, based on Miné graph based abstract domains
+	but instead of having every element be a constraint on a difference,
+	it's a set of "allowed combinations" per bit.
 
+	So per bit there are four possibilities,
+
+	relation for (x,y) =
+				  0 0	a
+				  0 1   b
+				  1 0   c
+				  1 1   d
+
+    in the element, a,b,c and d will be 32bit integers as a tuple in that
+    order, indicating whether that combination is possible for that bit.
+    A bit being one means a combination is not allowed.
+    For example, [-1, 0, 0, -1] indicates that the variables it refers to
+    must be different in every bit.
 	
+	The data is a 2D matrix where entry[i][j] holds a relation between
+	variable i and j in that order (order matters for the b and c parts).
+	The matrix is lower-triangular, in that entries i,j with j>i are not
+	stored.
 
 */
 
 function BRD() {
-	this.w = [];
-
-	if (!Int32Array.of) {
-		Int32Array.of = function () { return new Int32Array(arguments); };
-	}
+	this.a = [];
+	this.b = [];
+	this.c = [];
+	this.d = [];
+	this.rename = [];
+	this.nextindex = 0;
 }
+
+BRD.prototype.rn = function(x) {
+	var r = this.rename[x];
+	if (r == undefined) {
+		r = this.nextindex++;
+		this.rename[x] = r;
+	}
+	return r;
+};
+
+BRD.prototype.check = function(x, y, z) {
+	var max = Math.max(x, y, z);
+	for (var i = this.a.length; i <= max; i++) {
+		this.a.push(new Int32Array(i + 1));
+		this.b.push(new Int32Array(i + 1));
+		this.c.push(new Int32Array(i + 1));
+		this.d.push(new Int32Array(i + 1));
+		this.b[i][i] = -1;
+		this.c[i][i] = -1;
+	}
+};
+
+BRD.prototype.closure = function() {
+	// use Floyd–Warshall, optimized for symmetry
+	for (var k = 0; k < this.a.length; k++) {
+		for (var i = 0; i <= k; i++) {
+			for (var j = 0; j <= i; j++) {
+				// j <= i <= k
+				// find path from i to j via k
+				//                       0 -> 0 -> 0                     0 -> 1 -> 0
+				this.a[i][j] |= (this.a[k][i] | this.a[k][j]) & (this.c[k][i] | this.c[k][j]);
+				//                       0 -> 0 -> 1                     0 -> 1 -> 1
+				this.b[i][j] |= (this.a[k][i] | this.b[k][j]) & (this.c[k][i] | this.d[k][j]);
+				//                       1 -> 1 -> 0                     1 -> 0 -> 0
+				this.c[i][j] |= (this.d[k][i] | this.c[k][j]) & (this.b[k][i] | this.a[k][j]);
+				//                       1 -> 1 -> 1                     1 -> 0 -> 1
+				this.d[i][j] |= (this.d[k][i] | this.d[k][j]) & (this.b[k][i] | this.b[k][j]);
+			}
+		}
+	}
+};
 
 
 // z = x & y
 BRD.prototype.and = function(x, y, z) {
-	var v = new Int32Array(8);
-	var vxy = this.get(x, x, y);
-	v[0] = vxy[0];
-	v[2] = vxy[1];
-	v[4] = vxy[6];
-	v[7] = vxy[7];
-	this.set(x, y, z, v);
-};
-
-// y = x & c, c is constant
-BRD.prototype.andc = function(x, c, y) {
-	var v = new Int32Array(8);
-	var vx = this.get(x, x, x);
-	v[0] = vx[0] & ~c;
-	v[6] = vx[7] & ~c;
-	v[7] = vx[7] & c;
-	this.set(x, x, y);
+	x = this.rn(x);
+	y = this.rn(y);
+	z = this.rn(z);
+	if (x > y) {
+		var t = x; x = y; y = t;
+	}
+	this.check(x, y, z);
+	// z cannot be one if an operand is zero
+	this.c[z][x] = -1;
+	this.c[z][y] = -1;
+	// z cannot be zero if neither operand can be zero
+	this.a[z][z] |= this.a[x][x] & this.a[y][y];
+	// z cannot be one if the operands cannot be one simultaneously
+	this.d[z][z] |= this.d[y][x];
 };
 
 // z = x | y
 BRD.prototype.or = function(x, y, z) {
-	var v = new Int32Array(8);
-	var vxy = this.get(x, x, y);
-	v[0] = vxy[0];
-	v[3] = vxy[1];
-	v[5] = vxy[6];
-	v[7] = vxy[7];
-	this.set(x, y, z, v);
+	x = this.rn(x);
+	y = this.rn(y);
+	z = this.rn(z);
+	if (x > y) {
+		var t = x; x = y; y = t;
+	}
+	this.check(x, y, z);
+	// z cannot be zero if an operand is one
+	this.b[z][x] = -1;
+	this.b[z][y] = -1;
+	// z cannot be one if neither operand can be one
+	this.d[z][z] |= this.d[x][x] & this.d[y][y];
+	// z cannot be zero if the operands cannot be zero simultaneously
+	this.a[z][z] |= this.a[y][x];
 };
 
 // z = x ^ y
 BRD.prototype.xor = function(x, y, z) {
-	var v = new Int32Array(8);
-	var vxy = this.get(x, x, y);
-	v[0] = vxy[0];
-	v[3] = vxy[1];
-	v[5] = vxy[6];
-	v[6] = vxy[7];
-	this.set(x, y, z, v);
-};
-
-BRD.prototype.closure = function() {
-
-	function cmp(a, b) {
-		return a - b;
+	x = this.rn(x);
+	y = this.rn(y);
+	z = this.rn(z);
+	if (x > y) {
+		var t = x; x = y; y = t;
 	}
-
-	function union(a, b) {
-		a.sort(cmp);
-		b.sort(cmp);
-		var i = 0;
-		var j = 0;
-		var res = [];
-		while (i < a.length && j < b.length) {
-			if (a[i] < b[j])
-				res.push(a[i++]);
-			else if (a[i] > b[j])
-				res.push(b[j++]);
-			else {
-				res.push(a[i++]);
-				j++;
-			}
-		}
-		while (i < a.length)
-			res.push(a[i++]);
-		while (j < b.length)
-			res.push(b[j++]);
-		return res;
-	}
-
-	var changed = false;
-	for (var x1 = 0; x1 < this.w.length; x1++) {
-		if (!this.w[x1]) continue;
-		for (var y1 = x1; y1 < this.w[x1].length; y1++) {
-			if (!this.w[x1][y1]) continue;
-			for (var z1 = y1; z1 < this.w[x1][y1].length; z1++) {
-				if (!this.w[x1][y1][z1]) continue;
-
-			}
-		}
-	}
-};
-
-// get relation for (x,y,z)
-BRD.prototype.get = function(x, y, z) {
-	function swp(array, i, j) {
-		var t = array[i];
-		array[i] = array[j];
-		array[j] = t;
-	}
-	if (x <= y && y <= z) {
-		var r = null;
-		if (this.w[x] && this.w[x][y] && this.w[x][y][z])
-		    r = this.w[x][y][z];
-		if (!r) {
-			// implicit relation
-			if (x == z) {
-				r = Int32Array.of(-1, 0, 0, 0,
-								   0, 0, 0,-1);
-			} else if (y == z) {
-				r = new Int32Array(8);
-				var vx = this.get(x, x, x);
-				var vy = this.get(y, y, y);
-				r[0] = vx[0] & vy[0];
-				r[3] = vx[0] & vy[7];
-				r[4] = vx[7] & vy[0];
-				r[7] = vx[7] & vy[7];
-			} else if (x == y) {
-				r = new Int32Array(8);
-				var vx = this.get(x, x, x);
-				var vz = this.get(z, z, z);
-				r[0] = vx[0] & vz[0];
-				r[1] = vx[0] & vz[7];
-				r[6] = vx[7] & vz[0];
-				r[7] = vx[7] & vz[7];
-			} else {
-				r = new Int32Array(8);
-				var vx = this.get(x, x, x);
-				var vy = this.get(y, y, y);
-				var vz = this.get(z, z, z);
-				for (var i = 0; i < 8; i++) {
-					r[i] = vx[(i << 29 >> 31) & 7] &
-						   vy[(i << 30 >> 31) & 7] &
-						   vz[(i << 31 >> 31) & 7];
-				}
-			}
-		} else {
-			r = new Int32Array(r);
-		}
-		return r;
-	} else if (x > y) {
-		var v = this.get(y, x, z);
-		swp(v, 2, 4);
-		swp(v, 3, 5);
-		return v;
-	} else if (y > z) {
-		var v = this.get(x, z, y);
-		swp(v, 1, 2);
-		swp(v, 5, 6);
-		return v;
-	}
-};
-
-BRD.prototype.set = function(x, y, z, v) {
-	function is_different(a, b) {
-		for (var i = 0; i < 8; i++) {
-			if (a[i] != b[i])
-				return true;
-		}
-		return false;
-	}
-	function swp(array, i, j) {
-		var t = array[i];
-		array[i] = array[j];
-		array[j] = t;
-	}
-
-	do {
-		if (x <= y && y <= z) {
-			// only add unknown information
-			var vxyz = this.get(x, y, z);
-			for (var i = 0; i < 8; i++)
-				v[i] &= vxyz[i];
-			if (is_different(v, vxyz)) {
-				if (!this.w[x])
-					this.w[x] = [];
-				if (!this.w[x][y])
-					this.w[x][y] = [];
-				this.w[x][y][z] = v;
-				return true;
-			}
-			return false;
-		} else if (x > y) {
-			swp(v, 2, 4);
-			swp(v, 3, 5);
-			var t = x;
-			x = y;
-			y = t;
-		} else if (y > z) {
-			swp(v, 1, 2);
-			swp(v, 5, 6);
-			var t = z;
-			z = y;
-			y = t;
-		}
-	} while (true);
+	this.check(x, y, z);
+	// z cannot be zero if the operands cannot be equal
+	this.a[z][z] |= this.a[y][x] & this.d[y][x];
+	// z cannot be one if the operands cannot differ
+	this.d[z][z] |= this.b[y][x] & this.c[y][x];
+	// z and x cannot be the same if y cannot be zero
+	this.a[z][x] |= this.a[y][y] | this.a[x][x];
+	this.d[z][x] |= this.a[y][y] | this.d[x][x];
+	// z and x cannot differ if y cannot be one
+	this.b[z][x] |= this.d[y][y] | this.d[x][x];
+	this.c[z][x] |= this.d[y][y] | this.a[x][x];
+	// x and y cannot be the same if x cannot be zero
+	this.a[z][y] |= this.a[x][x] | this.a[y][y];
+	this.d[z][y] |= this.a[x][x] | this.d[y][y];
+	// z and y cannot differ if x cannot be one
+	this.b[z][y] |= this.d[x][x] | this.d[y][y];
+	this.c[z][y] |= this.d[x][x] | this.a[y][y];
 };
