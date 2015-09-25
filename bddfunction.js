@@ -205,6 +205,36 @@ BDDFunction.mul = function(x, y) {
 	return r;
 }
 
+BDDFunction.ctz = function (x) {
+	x = BDDFunction.and(BDDFunction.not(x), BDDFunction.add(x, BDDFunction.constant(-1)));
+	return BDDFunction.popcnt(x);
+}
+
+BDDFunction.clz = function (x) {
+	x = BDDFunction.or(x, BDDFunction.shruc(x, 1));
+	x = BDDFunction.or(x, BDDFunction.shruc(x, 2));
+	x = BDDFunction.or(x, BDDFunction.shruc(x, 4));
+	x = BDDFunction.or(x, BDDFunction.shruc(x, 8));
+	x = BDDFunction.or(x, BDDFunction.shruc(x, 16));
+	return BDDFunction.popcnt(BDDFunction.not(x));
+}
+
+BDDFunction.popcnt = function (x) {
+	var one = BDDFunction.constant(1);
+	var r = BDDFunction.shruc(x, 31);
+	for (var i = 30; i >= 0; i--) {
+		r = BDDFunction.add(r, BDDFunction.and(BDDFunction.shruc(x, i), one));
+	}
+	return r;
+}
+
+BDDFunction.reverse = function (x) {
+	var bits = new Int32Array(32);
+	for (var i = 0; i < 32; i++)
+		bits[i] = x._bits[i ^ 31];
+	return new BDDFunction(bits, x._divideError);
+}
+
 BDDFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallback) {
 	var res = new Object();
 	res.varmap = vars;
