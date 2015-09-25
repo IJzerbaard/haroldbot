@@ -122,7 +122,7 @@ function Unary(op, val) {
 	else if (op == 1)
 		this.weight += 1.1;
 	else
-		this.weight += 3.0;
+		this.weight += 2.0;
 	this.type = 'un';
 }
 
@@ -134,7 +134,7 @@ Unary.prototype.equals = function(node) {
 };
 
 Unary.prototype.print = function(varmap) {
-	return ["~", "-"][this.op] + "(" + this.value.print(varmap) + ")";
+	return unops[this.op] + "(" + this.value.print(varmap) + ")";
 };
 
 Unary.prototype.toBddFunc = function() {
@@ -185,6 +185,12 @@ Unary.prototype.constantFold = function() {
 				return new Constant(~inner.value);
 			case 1:
 				return new Constant(-inner.value | 0);
+			case 2:
+				return new Constant(popcnt(inner.value));
+			case 3:
+				return new Constant(ctz(inner.value));
+			case 4:
+				return new Constant(clz(inner.value));
 		}
 	}
 	if (inner.id != this.value.id)
