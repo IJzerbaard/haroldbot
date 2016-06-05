@@ -240,8 +240,39 @@ BDDFunction.reverse = function (x) {
 	return new BDDFunction(bits, x._divideError);
 }
 
-BDDFunction.divu = function (x, y) {
-	
+BDDFunction.divu = function (a, b) {
+	var diverror = bdd.or(~BDDFunction.hor(b)._bits[0], bdd.or(a._divideError, b._divideError));
+	var P = new Int32Array(64);
+	for (var i = 0; i < 32; i++)
+		P[i] = a._bits[i];
+	var D = new Int32Array(64);
+	for (var i = 0; i < 32; i++)
+		D[i + 32] = b._bits[i];
+	var bits = new Int32Array(32);
+
+	for (var i = 31; i >= 0; i--) {
+		for (var j = P.length - 1; j > 0; j--)
+			P[j] = P[j - 1];
+		P[0] = 0;
+		var borrow = new Int32Array(64);
+		var newP = new Int32Array(64);
+		for (var j = 0; j < P.length; j++) {
+			var ab = bdd.xor(P[j], D[j]);
+			newP[j] = ab;
+			if (j > 0) {
+				newP[j] = bdd.xor(newP[j], borrow[j - 1]);
+				borrow[j] = bdd.or(bdd.and(~ab, borrow[j - 1]), bdd.and(~P[j], D[j]));
+			}
+			else
+				borrow[j] = bdd.and(~P[j], D[j]);
+		}
+		bits[i] = ~borrow[63];
+		if (i != 0) {
+			for (var j = 63; j > 0; j--)
+				P[j] = bdd.or(bdd.and(newP[j], ~borrow[63]), bdd.and(P[j], borrow[63]));
+		}
+	}
+	return new BDDFunction(bits, diverror);
 }
 
 BDDFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallback) {
