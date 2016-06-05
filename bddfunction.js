@@ -75,6 +75,11 @@ BDDFunction.sub = function(x, y) {
 	return BDDFunction.not(BDDFunction.add(BDDFunction.not(x), y));
 }
 
+BDDFunction.abs = function(x) {
+	var m = BDDFunction.nthbit(x, 31);
+	return BDDFunction.xor(BDDFunction.add(x, m), m);
+}
+
 BDDFunction.hor = function(x) {
 	function insertionSort(array, cmp) {
 		for (var i = 1; i < array.length; i++) {
@@ -105,8 +110,8 @@ BDDFunction.hor = function(x) {
 }
 
 BDDFunction.eqz = function (x) {
-	var t = x.hor();
-	return bdd.not(t._bits[0]);
+	var t = BDDFunction.hor(x);
+	return ~t._bits[0];
 }
 
 BDDFunction.eq = function(x, y) {
@@ -241,7 +246,7 @@ BDDFunction.reverse = function (x) {
 }
 
 BDDFunction.divu = function (a, b) {
-	var diverror = bdd.or(~BDDFunction.hor(b)._bits[0], bdd.or(a._divideError, b._divideError));
+	var diverror = bdd.or(BDDFunction.eqz(b), bdd.or(a._divideError, b._divideError));
 	var P = new Int32Array(64);
 	for (var i = 0; i < 32; i++)
 		P[i] = a._bits[i];
@@ -273,6 +278,12 @@ BDDFunction.divu = function (a, b) {
 		}
 	}
 	return new BDDFunction(bits, diverror);
+}
+
+BDDFunction.divs = function (a, b) {
+	var sign = BDDFunction.xor(BDDFunction.nthbit(a, 31), BDDFunction.nthbit(b, 31));
+	var div = BDDFunction.divu(BDDFunction.abs(a), BDDFunction.abs(b));
+	return BDDFunction.xor(sign, BDDFunction.add(sign, div));
 }
 
 BDDFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallback) {
