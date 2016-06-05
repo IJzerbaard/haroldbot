@@ -8,6 +8,7 @@ function parse(query) {
 	var varmap = [];
 	res[1] = varmap;
 	
+	var scope = {};
 
 	function main() {
 		res[0] = expr();
@@ -174,6 +175,16 @@ function parse(query) {
 		}
 	}
 
+	function letsub() {
+		var id = ident();
+		if (id === undefined) return error("expected identifier");
+		ws();
+		if (!l("=")) return error("expected '='");
+		ws();
+		var value = expr();
+		scope[id] = value;
+	}
+
 	function primary() {
 		var p = pos;
 		var t;
@@ -183,7 +194,19 @@ function parse(query) {
 			if (res.length > 2) return undefined;
 			if (!inner) return error("invalid expression");
 			if (!l(")")) return error("unclosed parenthesis");
-			return (new Unary("dummy", inner));
+			return new Unary("dummy", inner);
+		} else if (l("let")) {
+			ws();
+			letsub();
+			ws();
+			while (l(",")) {
+				ws();
+				letsub();
+				ws();
+			}
+			if (!l("in")) return error("expected 'in' to close 'let'");
+			ws();
+			return expr();
 		} else if (l("min")) {
 			var isSigned = false;
 			if (l("_s")) isSigned = true;
@@ -196,7 +219,7 @@ function parse(query) {
 			var b = expr();
 			ws();
 			if (!l(")")) return error("unclosed parenthesis");
-			return (new Binary(ops.indexOf(isSigned ? "$min_s" : "$min_u"), a, b));
+			return new Binary(ops.indexOf(isSigned ? "$min_s" : "$min_u"), a, b);
 		} else if (l("max")) {
 			var isSigned = false;
 			if (l("_s")) isSigned = true;
@@ -209,7 +232,7 @@ function parse(query) {
 			var b = expr();
 			ws();
 			if (!l(")")) return error("unclosed parenthesis");
-			return (new Binary(ops.indexOf(isSigned ? "$max_s" : "$max_u"), a, b));
+			return new Binary(ops.indexOf(isSigned ? "$max_s" : "$max_u"), a, b);
 		} else if (l("min")) {
 			
 		} else if (l("min")) {
@@ -230,14 +253,28 @@ function parse(query) {
 				return new Constant(parseInt(num, 10));
 			}
 		} else if (query.charAt(pos) >= 'a' && query.charAt(pos) <= 'z' || query.charAt(pos) >= 'A' && query.charAt(pos) <= 'Z') {
+			var variable = ident();
+			if (scope[variable] === undefined) {
+				if (varmap.indexOf(variable) < 0)
+					varmap.push(variable);
+				return new Variable(varmap.indexOf(variable));
+			}
+			else {
+				return scope[variable];
+			}
+		} else return error("invalid expression");
+	}
+
+	function ident() {
+		if (query.charAt(pos) >= 'a' && query.charAt(pos) <= 'z' || query.charAt(pos) >= 'A' && query.charAt(pos) <= 'Z') {
 			var variable = query.substr(pos++, 1);
 			while (query.charAt(pos) >= 'a' && query.charAt(pos) <= 'z' || query.charAt(pos) >= 'A' && query.charAt(pos) <= 'Z') {
 				variable = variable.concat(query.substr(pos++, 1));
 			}
-			if (varmap.indexOf(variable) < 0)
-				varmap.push(variable);
-			return new Variable(varmap.indexOf(variable));
-		} else return error("invalid expression");
+			return variable;
+		}
+		else
+			return undefined;
 	}
 
 	function back(p) {
