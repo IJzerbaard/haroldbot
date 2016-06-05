@@ -158,7 +158,7 @@ function parse(query) {
 			if (!right) return error("invalid expression");
 			if (t == "/") t = "/u";
 			if (t == "%") t = "%u";
-			left = (new Binary(ops.indexOf(t), left, right));
+			left = new Binary(ops.indexOf(t), left, right);
 		}
 		return left;
 	}
@@ -169,7 +169,7 @@ function parse(query) {
 			var right = prefix();
 			if (res.length > 2) return undefined;
 			if (!right) return error("invalid expression");
-			return (new Unary(t == "-" ? 1 : 0, right));
+			return new Unary(t == "-" ? 1 : 0, right);
 		} else {
 			return primary();
 		}
@@ -233,8 +233,14 @@ function parse(query) {
 			ws();
 			if (!l(")")) return error("unclosed parenthesis");
 			return new Binary(ops.indexOf(isSigned ? "$max_s" : "$max_u"), a, b);
-		} else if (l("min")) {
-			
+		} else if (l("popcnt")) {
+			return fun1("popcnt");
+		} else if (l("nlz")) {
+			return fun1("nlz");
+		} else if (l("ntz")) {
+			return fun1("ntz");
+		} else if (l("reverse")) {
+			return fun1("reverse");
 		} else if (l("min")) {
 			
 		} else if (query.charAt(pos) >= '0' && query.charAt(pos) <= '9') {
@@ -263,6 +269,15 @@ function parse(query) {
 				return scope[variable];
 			}
 		} else return error("invalid expression");
+	}
+
+	function fun1(name) {
+		ws();
+		if (!l("(")) return error("'" + name + "' is a function but it is used as a variable");
+		var a = expr();
+		ws();
+		if (!l(")")) return error("unclosed parenthesis");
+		return new Unary(unops.indexOf("$" + name), a);
 	}
 
 	function ident() {

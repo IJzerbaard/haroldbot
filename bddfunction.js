@@ -238,7 +238,7 @@ BDDFunction.popcnt = function (x) {
 	return r;
 }
 
-BDDFunction.reverse = function (x) {
+BDDFunction.rbit = function (x) {
 	var bits = new Int32Array(32);
 	for (var i = 0; i < 32; i++)
 		bits[i] = x._bits[i ^ 31];
