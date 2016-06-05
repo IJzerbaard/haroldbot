@@ -1487,8 +1487,35 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 		}
 	}
 
+	if (from.equals2(to)) {
+		var v1 = new Variable(-1);
+		v1.id = from.id;
+		var v2 = new Variable(-1);
+		v2.id = to.id;
+		callback([from, ["structurally equal", new Binary(20, v1, v2)], to]);
+		return;
+	}
+
 	from = from.constantFold();
 	to = to.constantFold();
+
+	if (from.equals2(to)) {
+		var v1 = new Variable(-1);
+		v1.id = from.id;
+		var v2 = new Variable(-1);
+		v2.id = to.id;
+		callback([from, ["constant folding", new Binary(20, v1, v2)], to]);
+		return;
+	}
+
+	if (from.equals(to)) {
+		var v1 = new Variable(-1);
+		v1.id = from.id;
+		var v2 = new Variable(-1);
+		v2.id = to.id;
+		callback([from, ["structurally equal after normalization", new Binary(20, v1, v2)], to]);
+		return;
+	}
 
 	var maxForwardWeight = from.weight + 4;
 	var maxBackwardWeight = to.weight + 4;

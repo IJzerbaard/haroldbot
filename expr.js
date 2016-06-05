@@ -11,6 +11,11 @@ Node.prototype.equals = function(node) {
 	return false;
 };
 
+Node.prototype.equals2 = function(node) {
+	alert("This object should not exist");
+	return false;
+};
+
 Node.prototype.print = function(varmap) {
 	alert("This object should not exist");
 	return "this should never exist";
@@ -59,6 +64,10 @@ Constant.prototype.equals = function(node) {
 	return node.type == 'const' && node.value == this.value;
 };
 
+Constant.prototype.equals2 = function(node) {
+	return node.type == 'const' && node.value == this.value;
+};
+
 Constant.prototype.print = function(varmap) {
 	return "" + this.value;
 };
@@ -89,6 +98,10 @@ Variable.prototype = Object.create(Node.prototype);
 Variable.prototype.constructor = Variable;
 
 Variable.prototype.equals = function(node) {
+	return node.type == 'var' && node.index == this.index;
+};
+
+Variable.prototype.equals2 = function(node) {
 	return node.type == 'var' && node.index == this.index;
 };
 
@@ -133,6 +146,10 @@ Unary.prototype.equals = function(node) {
 	return node.type == 'un' && node.op == this.op && node.value.equals(this.value);
 };
 
+Unary.prototype.equals2 = function(node) {
+	return node.type == 'un' && node.op == this.op && node.value.equals2(this.value);
+};
+
 Unary.prototype.print = function(varmap) {
 	return unops[this.op] + "(" + this.value.print(varmap) + ")";
 };
@@ -168,6 +185,14 @@ Unary.prototype.toCircuitFunc = function() {
 			return CFunction.not(inner);
 		case 1:
 			return CFunction.sub(CFunction.constant(0), inner);
+		case 2:
+			return CFunction.popcnt(inner);
+		case 3:
+			return CFunction.ctz(inner);
+		case 4:
+			return CFunction.clz(inner);
+		case 5:
+			return CFunction.rbit(inner);
 	}
 	debugger;
 	alert("Severe bug in Unary.toCircuitFunc");
@@ -240,6 +265,10 @@ Binary.prototype.constructor = Binary;
 
 Binary.prototype.equals = function(node) {
 	return node.type == 'bin' && node.op == this.op && ((node.l.equals(this.l) && node.r.equals(this.r)) || (commutative[this.op] && node.l.equals(this.r) && node.r.equals(this.l)));
+};
+
+Binary.prototype.equals2 = function(node) {
+	return node.type == 'bin' && node.op == this.op && node.l.equals2(this.l) && node.r.equals2(this.r);
 };
 
 Binary.prototype.print = function(varmap) {
@@ -437,6 +466,10 @@ Ternary.prototype.constructor = Ternary;
 
 Ternary.prototype.equals = function(node) {
 	return node.type == 'ter' && this.cond.equals(node.cond) && this.t.equals(node.t) && this.f.equals(node.f);
+};
+
+Ternary.prototype.equals2 = function(node) {
+	return node.type == 'ter' && this.cond.equals2(node.cond) && this.t.equals2(node.t) && this.f.equals2(node.f);
 };
 
 Ternary.prototype.print = function(varmap) {
