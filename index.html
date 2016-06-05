@@ -26,6 +26,13 @@ function performQuery(input) {
   var varmap = p[1];
   var msg = p[2];
 
+  if (p[0] == undefined) {
+    data = {};
+    data.msg = msg;
+    update();
+    return;
+  }
+
   var bddf;
   var circuitf;
   try {
@@ -45,10 +52,10 @@ function performQuery(input) {
       update();
     }, function (exprc, backwards) {
       if (backwards) {
-        $('#exprdebug1').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        //$('#exprdebug1').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
       else {
-        $('#exprdebug0').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        //$('#exprdebug0').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
     });
     update();
@@ -58,6 +65,10 @@ function performQuery(input) {
       simp: bddf.Identify(varmap),
       varmap: varmap
     };
+    if (data.simp == undefined) {
+      data = {}
+      data.msg = "function identifier didn't work (it's still quite broken)"
+    }
     update();
   }
 }
@@ -365,7 +376,9 @@ $(document).ready(function(){
 </script>
 </head>
 <body onload="doquery(urlParam('q'))">
-<div id="header"><h1>haroldbot</h1></div>
+<div id="header"><h1>haroldbot 2</h1>
+(due to infrastructure changes this is an entirely new version with new bugs)<br/><br/>
+</div>
 <div id="querybar">
   <div id="querybox">
     <form method="get">
@@ -379,13 +392,31 @@ $(document).ready(function(){
     <label><input type="checkbox" id="explicitparens" />show more parentheses</label>
   </div>
   <div id="resultDiv"></div>
+  <div id="examples">
+    <h2>Examples</h2>
+    <p>Just do some math<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="./index.html?q=1000%20%2B%2015%20%26%20-16"><tt>1000 + 15 &amp; -16</tt></a></p>
+    <p>Show how two expressions are equal<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href=".index.html?q=a+%5E+%28%28a+%5E+b%29+%26+mask%29+%3D%3D+%28a+%26+~mask%29+%7C+%28b+%26+mask%29"><tt>a ^ ((a ^ b) &amp; mask) == (a &amp; ~mask) | (b &amp; mask)</tt></a></p></p>
+    <p>Find when two expressions are equal<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="./index.html?q=x+%3D%3D+-x"><tt>x == -x</tt></a></p>
+  </div>
+  <div>
+    <h2>Notes</h2>
+    <p>== binds less strongly than bitwise operators.</p>
+    <p>"Extra parentheses" are broken, but they will be back.</p>
+    <p>Finding proofs can be slow and often nothing is found at all.</p>
+    <p>The "identifier" for simplification has not been fully ported yet.</p>
+    <p>In general, there are many bugs.</p>
+    <p>Since everything happens client-side now, I don't get automatic bug reports. Please <a href="https://github.com/IJzerbaard/haroldbot/issues">open an issue</a> or contact me (if you know how).</p>
+  </div>
   <div id="exprdebug">
     <div id="exprdebug0"></div>
     <div id="exprdebug1"></div>
   </div>
 </div>
 <div id="footer">
-  haroldbot &copy; Harold Aptroot 2014-2015 <a rel="license"  href="http://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>
+  haroldbot &copy; Harold Aptroot 2014-2016 <a rel="license"  href="http://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>
 </div>
 </body>
 </html>

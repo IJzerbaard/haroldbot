@@ -104,6 +104,11 @@ BDDFunction.hor = function(x) {
 	return new BDDFunction(bits, x._divideError);
 }
 
+BDDFunction.eqz = function (x) {
+	var t = x.hor();
+	return bdd.not(t._bits[0]);
+}
+
 BDDFunction.eq = function(x, y) {
 	return BDDFunction.not(BDDFunction.hor(BDDFunction.xor(x, y)));
 }
@@ -233,6 +238,10 @@ BDDFunction.reverse = function (x) {
 	for (var i = 0; i < 32; i++)
 		bits[i] = x._bits[i ^ 31];
 	return new BDDFunction(bits, x._divideError);
+}
+
+BDDFunction.divu = function (x, y) {
+	
 }
 
 BDDFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallback) {
@@ -436,7 +445,7 @@ BDDFunction.prototype.Identify = function(vars) {
 	}
 
 	var r_or = is_or(this._bits);
-	if (false && r_or) {
+	if (r_or) {
 		var a = r_or[0];
 		var x = r_or[1];
 		var b = r_or[2];

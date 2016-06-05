@@ -60,10 +60,11 @@ CFunction.add = function(x, y) {
 	var bits = new Int32Array(32);
 	var carry = 0;
 	for (var i = 0; i < 32; i++) {
-		var xy = circuit.xor(x._bits[i], y._bits[i]);
-		bits[i] = circuit.xor(xy, carry);
+		var a = x._bits[i];
+		var b = y._bits[i];
+		bits[i] = circuit.or_big(circuit.and_big(a, b, carry), circuit.and_big(~a, ~b, carry), circuit.and_big(a, ~b, ~carry), circuit.and_big(~a, b, ~carry));
 		if (i < 31)
-			carry = circuit.or(circuit.and(xy, carry), circuit.and(x._bits[i], y._bits[i]));
+			carry = circuit.or_big(circuit.and(a, b), circuit.and(a, carry), circuit.and(b, carry));
 	}
 	return new CFunction(bits, circuit.or(x._divideError, y._divideError));
 }
@@ -192,9 +193,9 @@ CFunction.prototype.sat = function() {
 			if (temp[i + 1] == 2)
 				values[i >> 5] |= 1 << (i & 31);
 		}
-		return res;
+		return values;
 	}
-	return res;
+	return null;
 };
 
 CFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallback) {

@@ -25,6 +25,8 @@ SAT.prototype.addDIMACS = function(clause) {
 	var cl = [];
 	for (var i = 0; i < parts.length; i++) {
 		var x = parseInt(parts[i]);
+		if (x == 0)
+			break;
 		if (x < 0)
 			x = ~(-x - 1);
 		else
@@ -277,6 +279,17 @@ SAT.prototype.solveSimple = function(callback) {
 		}
 		if (v == -1) {
 			// everything assigned, no conflicts found
+			for (var i = 0; i < clauses.length; i++) {
+				var cval = false;
+				for (var j = 0; j < clauses[i].length; j++) {
+					if (lits(clauses[i][j]) == 0)
+						cval |= assignment[litv(clauses[i][j])] == 2;
+					else
+						cval |= assignment[litv(clauses[i][j])] == 1;
+				}
+				if (!cval)
+					debugger;
+			}
 			callback(assignment);
 			return true;
 		}

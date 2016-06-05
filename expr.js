@@ -292,6 +292,8 @@ Binary.prototype.toBddFunc = function() {
 			return BDDFunction.mux(BDDFunction.lt(l, r, false), l, r);
 		case 58:
 			return BDDFunction.mux(BDDFunction.lt(l, r, true), l, r);
+		case 33:
+			return BDDFunction.divu(l, r);
 	}
 	debugger;
 	alert("Severe bug in Binary.toBddFunc");
