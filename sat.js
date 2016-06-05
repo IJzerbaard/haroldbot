@@ -4,9 +4,63 @@ function SAT() {
 	this.propagateStack = [];
 	this.ok = true;
 	this.inputUsed = new Uint8Array(2048);
+	this.watches = new Array();
+	this.reason = new Array();
+	this.stat = "UNKNOWN";
+
+	if (!Array.isArray) {
+		Array.isArray = function(arg) {
+			return Object.prototype.toString.call(arg) === '[object Array]';
+		};
+	}
+
+	if (!Array.prototype.includes) {
+		Array.prototype.includes = function(searchElement /*, fromIndex*/ ) {
+			'use strict';
+			var O = Object(this);
+			var len = parseInt(O.length, 10) || 0;
+			if (len === 0) {
+				return false;
+			}
+			var n = parseInt(arguments[1], 10) || 0;
+			var k;
+			if (n >= 0) {
+				k = n;
+			} else {
+				k = len + n;
+				if (k < 0) {k = 0;}
+			}
+			var currentElement;
+			while (k < len) {
+				currentElement = O[k];
+				if (searchElement === currentElement) { // NaN !== NaN
+					return true;
+				}
+				k++;
+			}
+			return false;
+		};
+	}
+}
+
+function litv(l) {
+	return l >>> 1;
+}
+
+function lits(l) {
+	return l & 1;
 }
 
 SAT.prototype.addClause = function(clause) {
+
+	function push_or_create(array, index, item) {
+		if (array[index] === undefined)
+			array[index] = [];
+		array[index].push(item);
+	}
+
+	clause = Array.from(clause);
+
 	for (var i = 0; i < clause.length; i++) {
 		clause[i] = ((clause[i] ^ (clause[i] >> 31)) << 1) | (clause[i] >>> 31);
 		if ((clause[i] >>> 1) > this.highestvar)
@@ -14,10 +68,35 @@ SAT.prototype.addClause = function(clause) {
 		if ((clause[i] >>> 1) < 2048)
 			this.inputUsed[clause[i] >>> 1] = 1
 	}
-	if (clause.length == 1)
+
+	for (var i = 0; i < clause.length; i++) {
+		if (this.propagateStack.includes(clause[i])) {
+			// already known to be true, clause useless
+			return;
+		}
+		else if (this.propagateStack.includes(clause[i] ^ 1)) {
+			// already known to be false
+			clause[i] = clause[clause.length - 1];
+			clause.pop();
+			i--;
+		}
+	}
+
+	if (clause.length == 0) {
+		this.stat = "UNSAT";
+	}
+	else if (clause.length == 1) {
 		this.propagateStack.push(clause[0])
-	else
+	}
+	else if (clause.length == 2) {
+		push_or_create(this.watches, clause[0] ^ 1, clause[1]);
+		push_or_create(this.watches, clause[1] ^ 1, clause[0]);
+	}
+	else {
+		push_or_create(this.watches, clause[0] ^ 1, clause);
+		push_or_create(this.watches, clause[1] ^ 1, clause);
 		this.clauses.push(clause);
+	}
 };
 
 SAT.prototype.addDIMACS = function(clause) {
@@ -36,204 +115,49 @@ SAT.prototype.addDIMACS = function(clause) {
 	this.addClause(cl);
 };
 
-SAT.prototype.solveSimple1 = function(callback) {
+SAT.prototype.BCP = function() {
+	"use strict";
 
-	function litv(l) {
-		return l >>> 1;
+	function istrue(lit) {
+		return this.assignment[litv(lit)] == 2 - lits(lit);
 	}
 
-	function lits(l) {
-		return l & 1;
+	function isfalse(lit) {
+		return this.assignment[litv(lit)] == 1 + lits(lit);
 	}
 
-	var assignment = new Uint8Array(this.highestvar + 1);
-	var propagate = this.propagateStack.slice();
-	while (propagate.length > 0) {
-		var lit = propagate.pop();
-		if (assignment[litv(lit)] == lits(lit) + 1) {
-			// already assigned the opposite
-			return false;
-		}
-		assignment[litv(lit)] = 2 - lits(lit);
-	}
-
-	if (!Int32Array.prototype.every) {
-		Int32Array.prototype.every = function(cb) {
-			for (var i = 0; i < this.length; i++)
-				if (!cb(this[i], i, this))
-					return false;
-			return true;
-		};
-	}
-	if (!Int32Array.prototype.some) {
-		Int32Array.prototype.some = function(cb) {
-			for (var i = 0; i < this.length; i++)
-				if (cb(this[i], i, this))
-					return true;
-			return false;
-		};
-	}
-
-	function solverec(assignment, clauses, callback) {
-		// check sat/unsat
-		if (clauses.every(function (cl, ii, ar) {
-			return cl.some(function (v, iii, arr) {
-				return assignment[litv(v)] == 2 - lits(v);
-			});
-		})) {
-			callback(assignment);
-			return true;
-		}
-		if (clauses.some(function (cl, ii, ar) {
-			return cl.every(function (v, iii, arr) {
-				return assignment[litv(v)] == lits(v) + 1;
-			})
-		})) {
-			return false;
-		}
-
-		// pick a literal
-		var lit = -1;
-		for (var i = 0; i < assignment.length; i++) {
-			if (assignment[i] == 0) {
-				lit = i;
-				break;
-			}
-		}
-		if (lit == -1) {
-			// all assigned but not SAT or unSAT
-			debugger;
-			alert();
-		}
-		lit = lit << 1;
-
-		function put(array, index, value) {
-			array[index] = value;
-			return array;
-		}
-
-		if (solverec(put(assignment, litv(lit), 1), clauses, callback) ||
-		    solverec(put(assignment, litv(lit), 2), clauses, callback))
-		    return true;
-		else {
-			assignment[litv(lit)] = 0;
-			return false;
-		}
-	}
-
-	return solverec(assignment, this.clauses, callback);
-};
-
-SAT.prototype.solve = function(callback) {
-	function litv(l) {
-		return l >>> 1;
-	}
-
-	function lits(l) {
-		return l & 1;
-	}
-
-	function branch(state) {
-		// branch and return true
-		// return false if no more unassigned variables
+	function enqueue(lit, from) {
+		if (this.assignment[litv(lit)] != 0)
+			return istrue(lit);
+		this.assignment[litv(lit)] = 2 - lits(lit);
+		this.propagateStack.push(lit);
 		return true;
 	}
 
-	function deduce(state) {
-		// do bcp, return true on conflict
-		return false;
-	}
-
-	function analyze_conflict(state) {
-		// find conflict clause, return decision level to backtrack to
-		return 0;
-	}
-
-	function backtrack(state, level) {
-		// backtrack to level
-	}
-
-	var assignment = new Uint8Array(this.highestvar + 1);
-	var activity = new Float32Array(assignment.length);
-	var watches = new Array(assignment.length * 2);
-
-	var state = {
-		assignment: assignment,
-		activity: activity,
-		watches: watches,
-		tail: [],
-	};
-
-	do {
-		if (branch()) {
-
-		}
-		else
-			return callback(assignment);
-	} while (true);
-};
-
-SAT.prototype.solveSimple = function(callback) {
-	function litv(l) {
-		return l >>> 1;
-	}
-
-	function lits(l) {
-		return l & 1;
-	}
-
-	function enqueue(lit, assignment, propagate) {
-		if (assignment[litv(lit)] != 0)
-			return assignment[litv(lit)] != lits(lit) + 1;
-		assignment[litv(lit)] = 2 - lits(lit);
-		propagate.push(lit);
-		return true;
-	}
-
-	function check(assignment, clauses) {
-		for (var i = 0; i < clauses.length; i++) {
-			var cl = clauses[i];
-			if (assignment[litv(cl[0])] == lits(cl[0]) + 1 &&
-				assignment[litv(cl[1])] == lits(cl[1]) + 1)
-				debugger;
-		}
-	}
-
-	var watchcount = 0;
-
-	function check2(clauses, watches) {
-		var c = 0;
-		var counts = new Uint8Array(clauses.length);
-		for (var i = 0; i < watches.length; i++) {
-			c += watches[i].length;
-			for (var j = 0; j < watches[i].length; j++)
-				counts[watches[i][j]]++;
-		}
-		if (watchcount != c)
-			debugger;
-
-		for (var i = 0; i < counts.length; i++)
-			if (counts[i] != 2)
-				debugger;
-	}
-
-	function solverec(assignment, clauses, propagate, watches, inputUsed, callback) {
-		while (propagate.length > 0) {
-			var p = propagate.pop();
-			var ws = watches[p]; // clauses where we've set a literal to false
-
-			var q = p ^ 1;
-
+	debugger;
+	var prop = this.propagateStack;
+	while (prop.length > 0) {
+		var p = prop.pop();
+		// p has been made TRUE
+		var ws = this.watches[p]; // clauses where we've set a literal to false
+		var q = p ^ 1;
+		if (ws === undefined)
+			continue;
 			// note: the watched literals are always the first two in the clause
-			// reorder the clause when changing watches
-			for (var i = ws.length - 1; i >= 0; i--) {
-				var clauseindex = ws[i];
-				var cl = clauses[clauseindex];
+		// reorder the clause when changing watches
+		for (var i = ws.length - 1; i >= 0; i--) {
+			if (Array.isArray(ws[i])) {
+				var cl = ws[i];
+				// if this watch was first, make it second
 				if (cl[0] == q) {
 					cl[0] = cl[1];
 					cl[1] = q;
 				}
-				if (assignment[litv(cl[0])] == 2 - lits(cl[0])) {
+				else {
+					if (cl[1] != q)
+						debugger;
+				}
+				if (istrue(cl[0])) {
 					// first watch is true
 				}
 				else {
@@ -242,12 +166,14 @@ SAT.prototype.solveSimple = function(callback) {
 					var found = false;
 					for (var k = 2; k < cl.length; k++) {
 						// look for literal that is not false (may be true or unassigned)
-						if (assignment[litv(cl[k])] != lits(cl[k]) + 1) {
+						if (!isfalse(cl[k])) {
 							// swap second watch (q) with this literal
 							cl[1] = cl[k];
 							cl[k] = q;
 							// watch it, remove old watch
-							watches[cl[1] ^ 1].push(clauseindex);
+							if (this.watches[cl[1] ^ 1] === undefined)
+								this.watches[cl[1] ^ 1] = [];
+							this.watches[cl[1] ^ 1].push(cl);
 							ws[i] = ws[ws.length - 1];
 							ws.pop();
 							found = true;
@@ -256,22 +182,52 @@ SAT.prototype.solveSimple = function(callback) {
 					}
 					if (!found) {
 						// clause became unit
-						if (!enqueue(cl[0], assignment, propagate)) {
+						if (!enqueue(cl[0], cl)) {
 							// conflict
 							return false;
 						}
 					}
 				}
-				check2(clauses, watches);
+			}
+			else {
+				// binary clause
+				if (!enqueue(ws[i], p)) {
+					// conflict
+					return false;
+				}
 			}
 		}
-		check(assignment, clauses);
+	}
+};
+
+SAT.prototype.solveSimple = function(callback) {
+	
+	function istrue(lit) {
+		return this.assignment[litv(lit)] == 2 - lits(lit);
+	}
+
+	function isfalse(lit) {
+		return this.assignment[litv(lit)] == 1 + lits(lit);
+	}
+
+	function check(clauses) {
+		for (var i = 0; i < clauses.length; i++) {
+			var cl = clauses[i];
+			if (isfalse(cl[0]) &&
+				isfalse(cl[1]))
+				debugger;
+		}
+	}
+
+	function solverec(clauses, inputUsed, callback) {
+		this.BCP();
+		check(clauses);
 
 		// find variable to assign
 		var v = -1;
 		if (v == -1) {
-			for (var i = 0; i < assignment.length; i++) {
-				if (assignment[i] == 0 && (i >= 2048 || inputUsed[i] == 1)) {
+			for (var i = 0; i < this.assignment.length; i++) {
+				if (this.assignment[i] == 0 && (i >= 2048 || inputUsed[i] == 1)) {
 					v = i;
 					break;
 				}
@@ -283,45 +239,39 @@ SAT.prototype.solveSimple = function(callback) {
 				var cval = false;
 				for (var j = 0; j < clauses[i].length; j++) {
 					if (lits(clauses[i][j]) == 0)
-						cval |= assignment[litv(clauses[i][j])] == 2;
+						cval |= this.assignment[litv(clauses[i][j])] == 2;
 					else
-						cval |= assignment[litv(clauses[i][j])] == 1;
+						cval |= this.assignment[litv(clauses[i][j])] == 1;
 				}
 				if (!cval)
 					debugger;
 			}
-			callback(assignment);
+			callback(this.assignment);
 			return true;
 		}
 
-		var assignment_c = new Uint8Array(assignment);
+		var oldassign = this.assignment;
+		var assignment_c = new Uint8Array(this.assignment);
 		assignment_c[v] = 1;
+		this.assignment = assignment_c;
 		if (solverec(assignment_c, clauses, [(v << 1) | 1], watches, inputUsed, callback))
 			return true;
 		assignment_c = new Uint8Array(assignment);
 		assignment_c[v] = 2;
-		if (solverec(assignment_c, clauses, [v << 1], watches, inputUsed, callback))
+		this.assignment = assignment_c;
+		if (solverec(assignment_c, clauses, [(v << 1) | 0], watches, inputUsed, callback))
 			return true;
+		this.assignment = oldassign;
 		return false;
 	}
 
-	var assignment = new Uint8Array(this.highestvar + 1);
-	var watches = new Array(assignment.length * 2);
-	for (var i = 0; i < watches.length; i++)
-		watches[i] = [];
-	for (var i = 0; i < this.clauses.length; i++) {
-		var cl = this.clauses[i];
-		watches[cl[0] ^ 1].push(i);
-		watches[cl[1] ^ 1].push(i);
-		watchcount += 2;
-	}
-	var propagate = [];
-	for (var i = 0; i < this.propagateStack.length; i++) {
-		if (!enqueue(this.propagateStack[i], assignment, propagate))
-			return false;
-	}
+	if (this.stat == "UNSAT")
+		return null;
 
-	//debugger;
+	
+	this.assignment = new Uint8Array(this.highestvar + 1);
+	if (!this.BCP())
+		return null;
 
-	return solverec(assignment, this.clauses, propagate, watches, this.inputUsed, callback);
+	return solverec(this.clauses, this.inputUsed, callback);
 };
