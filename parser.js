@@ -122,7 +122,7 @@ function parse(query) {
 		if (!(t = sum())) return back(p);
 		if (res.length > 2) return undefined;
 		var left = t;
-		while (ws() && ((t = l("<<")) || (t = l(">>")) || (t = l(">>u")) || (t = l(">>s")) || (t = l(">>>")) || (t = l("<<<")))) {
+		while (ws() && ((t = l("<<")) || (t = l(">>u")) || (t = l(">>s")) ||  (t = l(">>")) || (t = l(">>>")) || (t = l("<<<")))) {
 			var right = sum();
 			if (res.length > 2) return undefined;
 			if (!right) return error("invalid expression");

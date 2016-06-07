@@ -1,5 +1,4 @@
 function ProofFinder(op) {
-
 	var except_not = 1;
 	var except_neg = 2;
 	var except_zero = 3;
@@ -75,6 +74,11 @@ function ProofFinder(op) {
 			["|", ["|", [a(0)], [a(1)]], [a(2)]],
 			["|", [a(0)], ["|", [a(1)], [a(2)]]],
 			true, "associativity of or", ,
+		],
+		[
+			["|", ["^", [a(0)], [a(1)]], [a(1)]],
+			["|", [a(0)], [a(1)]],
+			false, "changed bits are masked", ,
 		],
 		// properties of xor
 		[
@@ -920,9 +924,12 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 		return null;
 	}
 
+	var complexity_weight = 2;
+	var steps_weight = 3;
+
 	function cmp(a, b) {
-		var wa = a[1].weight * 2 + a[4] * 3;
-		var wb = b[1].weight * 2 + b[4] * 3;
+		var wa = a[1].weight * complexity_weight + a[4] * steps_weight;
+		var wb = b[1].weight * complexity_weight + b[4] * steps_weight;
 		if (wa < wb)
 			return -1;
 		if (wa > wb)
@@ -930,25 +937,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 		return 0;
 	}
 
-	function heap_add(heap, item) {
-		var index = heap.length;
-		heap.push(item);
-		var parent = (index - 1) >>> 1;
-		while (index != 0 && cmp(item, heap[parent]) < 0) {
-			heap[index] = heap[parent];
-			heap[parent] = item;
-			index = parent;
-			parent = (index - 1) >>> 1;
-		}
-	}
-
-	function removeMin(heap) {
-		if (heap.length == 1) {
-			return heap.pop();
-		}
-		var min = heap[0];
-		heap[0] = heap.pop();
-		var index = 0;
+	function heap_siftdown(heap, index) {
+		"use strict";
 		var child = (index << 1) + 1;
 		while (child < heap.length) {
 			var lowestChild = child;
@@ -964,6 +954,37 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 			} else
 				break;
 		}
+	}
+
+	function heapify(heap) {
+		"use strict";
+		for (var i = (heap.length + 1) >> 1; i >= 0; i--) {
+			heap_siftdown(heap, i);
+		}
+	}
+
+	function heap_add(heap, item) {
+		"use strict";
+		var index = heap.length;
+		heap.push(item);
+		var parent = (index - 1) >>> 1;
+		while (index != 0 && cmp(item, heap[parent]) < 0) {
+			heap[index] = heap[parent];
+			heap[parent] = item;
+			index = parent;
+			parent = (index - 1) >>> 1;
+		}
+	}
+
+	function removeMin(heap) {
+		"use strict";
+		if (heap.length == 1) {
+			return heap.pop();
+		}
+		var min = heap[0];
+		heap[0] = heap.pop();
+		var index = 0;
+		heap_siftdown(heap, 0);
 		return min;
 	}
 
@@ -1347,7 +1368,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 		}
 	}
 
-	function processNode(proofnode, backwards, htable, q, otherside, maxweight, rules, proofsteps) {
+	function processNode(proofnode, backwards, htable, q, otherside, maxweight, rules) {
 		var results = [];
 		applyRules(proofnode[1], results, proofnode, backwards, rules, false);
 		for (var i = 0; i < results.length; i++) {
@@ -1372,81 +1393,87 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 			}
 			var connection = hash_get(otherside, p[1]);
 			if (connection != null) {
-
-				var c = p;
-				var steps = [];
-				if (!backwards) {
-					while (c != null) {
-						if (c[3]) debugger;
-						steps.unshift(c[1]);
-						c = c[0];
-					}
-					c = connection;
-					while (c != null && c[0] != null) {
-						if (!c[3]) debugger;
-						steps.push(c[0][1]);
-						c = c[0];
-					}
-				} else {
-					while (c != null && c[0] != null) {
-						if (!c[3]) debugger;
-						steps.push(c[0][1]);
-						c = c[0];
-					}
-					c = connection;
-					while (c != null) {
-						if (c[3]) debugger;
-						steps.unshift(c[1]);
-						c = c[0];
-					}
-				}
-				for (var j = 0; j < steps.length - 1; j++) {
-					var f = steps[j];
-					var t = steps[j + 1];
-					var explanation = null;
-					var explbackwards = false;
-					// try forwards
-					var forwardSet = [];
-					applyRules(f, forwardSet, [,,,,0], false, rules, true);
-					for (var k = 0; k < forwardSet.length; k++) {
-						if (forwardSet[k] && t.equals(forwardSet[k][1])) {
-							explanation = forwardSet[k];
-							if (explanation[0]) fixup_ids(explanation[1], t, explanation[0].r)
-								break;
-						}
-					}
-					// try backwards
-					if (!explanation) {
-						var backwardSet = [];
-						applyRules(t, backwardSet, [,,,,0], false, rules, true);
-						for (var k = 0; k < backwardSet.length; k++) {
-							if (backwardSet[k] && f.equals(backwardSet[k][1])) {
-								explanation = backwardSet[k];
-								explbackwards = true;
-								if (explanation[0]) {
-									var patl = explanation[0].l;
-									var patr = explanation[0].r;
-									fixup_ids(explanation[1], f, patr);
-									explanation[0].l = patr;
-									explanation[0].r = patl;
-								}
-								break;
-							}
-						}
-					}
-					// output proof
-					proofsteps.push(steps[j]);
-					var explindex = explbackwards ? 4 : 3;
-					if (explanation[0])
-						proofsteps.push([explanation[2][explindex], explanation[0]]);
-					else
-						proofsteps.push([explanation[2][explindex]]);
-				}
-				proofsteps.push(steps[steps.length - 1]);
-				return true;
+				return [p[4] + connection[4], p, connection, backwards];
 			}
 		}
-		return false;
+		return null;
+	}
+
+	function makesteps(backwards, p, connection, rules) {
+		"use strict";
+
+		var c = p;
+		var steps = [];
+		var proofsteps = [];
+		if (!backwards) {
+			while (c != null) {
+				if (c[3]) debugger;
+				steps.unshift(c[1]);
+				c = c[0];
+			}
+			c = connection;
+			while (c != null && c[0] != null) {
+				if (!c[3]) debugger;
+				steps.push(c[0][1]);
+				c = c[0];
+			}
+		} else {
+			while (c != null && c[0] != null) {
+				if (!c[3]) debugger;
+				steps.push(c[0][1]);
+				c = c[0];
+			}
+			c = connection;
+			while (c != null) {
+				if (c[3]) debugger;
+				steps.unshift(c[1]);
+				c = c[0];
+			}
+		}
+		for (var j = 0; j < steps.length - 1; j++) {
+			var f = steps[j];
+			var t = steps[j + 1];
+			var explanation = null;
+			var explbackwards = false;
+			// try forwards
+			var forwardSet = [];
+			applyRules(f, forwardSet, [,,,,0], false, rules, true);
+			for (var k = 0; k < forwardSet.length; k++) {
+				if (forwardSet[k] && t.equals(forwardSet[k][1])) {
+					explanation = forwardSet[k];
+					if (explanation[0]) fixup_ids(explanation[1], t, explanation[0].r)
+						break;
+				}
+			}
+			// try backwards
+			if (!explanation) {
+				var backwardSet = [];
+				applyRules(t, backwardSet, [,,,,0], false, rules, true);
+				for (var k = 0; k < backwardSet.length; k++) {
+					if (backwardSet[k] && f.equals(backwardSet[k][1])) {
+						explanation = backwardSet[k];
+						explbackwards = true;
+						if (explanation[0]) {
+							var patl = explanation[0].l;
+							var patr = explanation[0].r;
+							fixup_ids(explanation[1], f, patr);
+							explanation[0].l = patr;
+							explanation[0].r = patl;
+						}
+						break;
+					}
+				}
+			}
+			// output proof
+			proofsteps.push(steps[j]);
+			var explindex = explbackwards ? 4 : 3;
+			if (explanation[0])
+				proofsteps.push([explanation[2][explindex], explanation[0]]);
+			else
+				proofsteps.push([explanation[2][explindex]]);
+		}
+		proofsteps.push(steps[steps.length - 1]);
+		return proofsteps;
 	}
 
 	function special_handle(cond, node, extra) {
@@ -1532,9 +1559,12 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 	hash_update(h1, from, q1[0]);
 	hash_update(h2, to, q2[0]);
 
+	var w = [];
+	var maxstep = 999999;
+
 	function loop_async(index, q1, q2, h1, h2, from, to, rules, cb) {
-		var maxForwardWeight = from.weight + 4;
-		var maxBackwardWeight = to.weight + 4;
+		var maxForwardWeight = from.weight + 6;
+		var maxBackwardWeight = to.weight + 6;
 		var counter = 0;
 		var found = false;
 		var proofsteps = [];
@@ -1545,22 +1575,36 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 			if (q1.length > 0) {
 				var pn = removeMin(q1);
 				if (debugcallback) debugcallback(pn[1], false);
-				if (processNode(pn, false, h1, q1, h2, maxForwardWeight, rules, proofsteps)) {
-					found = true;
-					break;
+				var found = processNode(pn, false, h1, q1, h2, maxForwardWeight, rules);
+				if (found != null && found[0] < maxstep) {
+					if (w.length == 0) {
+						complexity_weight = 0;
+						heapify(q1);
+						heapify(q2);
+					}
+					w.push(found);
+					maxstep = found[0];
 				}
 			}
 			// backward step
 			if (q2.length > 0) {
 				var pn = removeMin(q2);
 				if (debugcallback) debugcallback(pn[1], true);
-				if (processNode(pn, true, h2, q2, h1, maxBackwardWeight, rules, proofsteps)) {
-					found = true;
-					break;
+				var found = processNode(pn, true, h2, q2, h1, maxBackwardWeight, rules);
+				if (found != null && found[0] < maxstep) {
+					if (w.length == 0) {
+						complexity_weight = 0;
+						heapify(q1);
+						heapify(q2);
+					}
+					w.push(found);
+					maxstep = found[0];
 				}
 			}
 		}
-		if (found) {
+		if (w.length > 0 && index > 10) {
+			var witness = w.pop();
+			proofsteps = makesteps(witness[3], witness[1], witness[2], rules);
 			cb(proofsteps);
 		}
 		else if (index > 200) {

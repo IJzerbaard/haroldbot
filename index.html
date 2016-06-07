@@ -52,10 +52,10 @@ function performQuery(input) {
       update();
     }, function (exprc, backwards) {
       if (backwards) {
-        //$('#exprdebug1').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        $('#exprdebug1').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
       else {
-        //$('#exprdebug0').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        $('#exprdebug0').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
     });
     update();

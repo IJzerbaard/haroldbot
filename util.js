@@ -34,7 +34,7 @@ function formatConstant(x) {
     var s = (x | 0).toString(16);
     if (s.length == 2 || s.length == 4 || s.length == 8) return "0x" + s;
     if (s.length == 3) return "0x0" + s;
-    return ("00000000" + s).substr(-8);
+    return "0x" + ("00000000" + s).substr(-8);
 }
 
 function popcnt(x) {
