@@ -6,6 +6,7 @@ function SAT() {
 	this.inputUsed = new Uint8Array(2048);
 	this.watches = new Array();
 	this.reason = new Array();
+	this.assignstack = new Array();
 	this.stat = "UNKNOWN";
 
 	if (!Array.isArray) {
@@ -129,12 +130,13 @@ SAT.prototype.BCP = function() {
 	function enqueue(lit, from) {
 		if (this.assignment[litv(lit)] != 0)
 			return istrue(lit);
+		this.assignstack.push(lit);
 		this.assignment[litv(lit)] = 2 - lits(lit);
 		this.propagateStack.push(lit);
+		this.reason[lit] = from;
 		return true;
 	}
 
-	debugger;
 	var prop = this.propagateStack;
 	while (prop.length > 0) {
 		var p = prop.pop();
@@ -184,6 +186,7 @@ SAT.prototype.BCP = function() {
 						// clause became unit
 						if (!enqueue(cl[0], cl)) {
 							// conflict
+							debugger;
 							return false;
 						}
 					}
@@ -193,10 +196,40 @@ SAT.prototype.BCP = function() {
 				// binary clause
 				if (!enqueue(ws[i], p)) {
 					// conflict
+					debugger;
 					return false;
 				}
 			}
 		}
+	}
+	return true;
+};
+
+SAT.prototype.findvar = function() {
+	var score = 0.0;
+	var best = -1;
+	for (var i = 0; i < 10; i++) {
+		var x = Math.random() * this.activity.length | 0;
+		if (this.assignment[litv(x)] == 0 && this.activity[x] > score) {
+			score = this.activity[x];
+			best = x;
+		}
+	}
+	if (best < 0) {
+		for (var i = 0; i < this.assignment.length; i++) {
+			if (this.assignment[i] == 0 && (i >= 2048 || inputUsed[i] == 1)) {
+				best = i;
+				break;
+			}
+		}
+	}
+	return best;
+};
+
+SAT.prototype.backtrack = function(level) {
+	while (this.assignstack.length > level) {
+		var p = this.assignstack.pop();
+		this.assignment[litv(p)] = 0;
 	}
 };
 
@@ -265,13 +298,39 @@ SAT.prototype.solveSimple = function(callback) {
 		return false;
 	}
 
-	if (this.stat == "UNSAT")
+	if (this.stat == "UNSAT") {
+		debugger;
 		return null;
+	}
 
 	
 	this.assignment = new Uint8Array(this.highestvar + 1);
-	if (!this.BCP())
+	if (!this.BCP()) {
+		debugger;
 		return null;
+	}
+
+	this.activity = new Float32Array((this.highestvar + 1) * 2);
+	for (var i = 0; i < this.clauses.length; i++) {
+		var cl = this.clauses[i];
+		for (var j = 0; j < cl.length; j++) {
+			this.activity[j] += 1;
+		}
+	}
+
+	this.dl = 0;
+
+	do {
+		var v = this.findvar();
+		this.dl++;
+		var at = this.assignstack.length;
+		this.propagateStack.push(v);
+		if (!this.BCP()) {
+			this.backtrack(at);
+		}
+
+
+	} while(true);
 
 	return solverec(this.clauses, this.inputUsed, callback);
 };

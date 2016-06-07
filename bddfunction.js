@@ -335,6 +335,8 @@ BDDFunction.prototype.Identify = function(vars) {
 
 	function isNicerConstant(x, y) {
 		if (x == y) return false;
+		if ((x & -x) == x || ((x + 1) & -(x + 1)) == (x + 1))
+			return true;
 		if (y >= -2 && y <= 15)
 			return false;
 		if (x >= -2 && x <= 15)
@@ -503,16 +505,9 @@ BDDFunction.prototype.Identify = function(vars) {
 			if ((x[i] | ignored) == -1)
 				complemented_vars++;
 		}
-		// if the number of complemented vars is bigger than uncomplemented vars, format as ~and(stuff)
-		if (complemented_vars > used_vars - complemented_vars) {
-			var res = null;
-			for (var i = 0; i < a.length; i++) {
-				if (a[i] == 0) continue;
-				var v = new Variable(i);
-				debugger;
-			}
-		}
-		else {
+		// TODO: if the number of complemented vars is bigger than uncomplemented vars, format as ~and(stuff)
+		// if (complemented_vars > used_vars - complemented_vars) {
+		{
 			var res = null;
 			for (var i = 0; i < a.length; i++) {
 				if (a[i] == 0) continue;

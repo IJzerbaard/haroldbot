@@ -69,6 +69,13 @@ function performQuery(input) {
       data = {}
       data.msg = "function identifier didn't work (it's still quite broken)"
     }
+    else {
+      var pf = new ProofFinder(20);
+      pf.Search(expr, data.simp, function (flatproof) {
+        data.proof = flatproof;
+        update();
+      }, update);
+    }
     update();
   }
 }
@@ -347,8 +354,10 @@ function update() {
     var simplificationcontainer = $('<p></p>');
     simplificationcontainer.append($('<p>simplified:</p>'));
     simplificationcontainer.append($('<b></b>').append(formatexpr(data['simp'], 1000000, data.varmap)));
-    if (data['proof'])
-      formatproof(simplificationcontainer, data['proof']);
+    if (data['proof']) {
+      if (data['proof'][1][0] != "structurally equal")
+        formatproof(simplificationcontainer, data['proof'], data.varmap);
+    }
     
     $('#resultDiv').append(simplificationcontainer);
   }
