@@ -1523,10 +1523,19 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 		return;
 	}
 
-	from = from.constantFold();
-	to = to.constantFold();
+	var fromc = from.copy().constantFold();
+	var toc = to.copy().constantFold();
 
-	if (from.equals2(to)) {
+	if (from.equals2(toc)) {
+		var v1 = new Variable(-1);
+		v1.id = from.id;
+		var v2 = new Variable(-1);
+		v2.id = toc.id;
+		callback([from, ["constant folding", new Binary(20, v1, v2)], toc]);
+		return;
+	}
+
+	if (fromc.equals2(to)) {
 		var v1 = new Variable(-1);
 		v1.id = from.id;
 		var v2 = new Variable(-1);
@@ -1534,6 +1543,9 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 		callback([from, ["constant folding", new Binary(20, v1, v2)], to]);
 		return;
 	}
+
+	from = fromc;
+	to = toc;
 
 	if (from.equals(to)) {
 		var v1 = new Variable(-1);

@@ -10,6 +10,162 @@ function parse(query) {
 	
 	var scope = {};
 
+	function tokenize() {
+		var tokens = [];
+		var p = 0;
+		var b = 0;
+		var state = 0;
+		while (p <= query.length) {
+			var c = p == query.length ? '$' : query.charAt(p);
+			p++;
+			switch (state) {
+				case 0:
+					// normal state, beginning of tokens
+					b = p - 1;
+					if (c == ' ')
+						break;
+					else if (c >= '0' && c <= '9')
+						state = 1;
+					else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+						state = 2;
+					else if (c == '(' || c == ')' || c == '+' ||
+					         c == '*' || c == '^' || c == '-' ||
+					         c == '~' || c == '?' || c == ':')
+						tokens.push([c, c, b]);
+					else if (c == '!')
+						state = 3;
+					else if (c == '&')
+						state = 4;
+					else if (c == '|')
+						state = 5;
+					else if (c == '>')
+						state = 6;
+					else if (c == '<')
+						state = 7;
+					else if (c == '=')
+						state = 8;
+					else if (c == '/' || c == '%')
+						state = 10;
+					else if (c == '$')
+						return tokens;
+					else {
+						tokens.push([null, -1, b]);
+						debugger;
+					}
+					break;
+				case 1:
+					// parsing a number
+					if (c == 'x')
+						state = 20;
+					else if (c >= '0' && c <= '9')
+						state = 1;
+					else {
+						// end of number apparently
+						p--;
+						tokens.push([query.substr(b, p - b), 'num', b]);
+						state = 0;
+					}
+					break;
+				case 2:
+					// parsing an id
+					if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+						state = 2;
+					else {
+						p--;
+						var tok = query.substr(b, p - b);
+						// cheats (non-statemachine lexing)
+						var type = 'id';
+						if (tok == 'let' || tok == 'in')
+							type = tok;
+						tokens.push([tok, type, b]);
+						state = 0;
+					}
+					break;
+				case 3:
+					// maybe =
+					if (c != '=')
+						p--;
+					var tok = query.substr(b, p - b);
+					tokens.push([tok, tok, b]);
+					state = 0;
+					break;
+				case 4:
+					// maybe &
+					if (c != '&')
+						p--;
+					var tok = query.substr(b, p - b);
+					tokens.push([tok, tok, b]);
+					state = 0;
+					break;
+				case 5:
+					// maybe |
+					if (c != '|')
+						p--;
+					var tok = query.substr(b, p - b);
+					tokens.push([tok, tok, b]);
+					state = 0;
+					break;
+				case 6:
+					// might be =, >, s or u
+					// if =, goto 10
+					if (c == '=')
+						state = 10;
+					else {
+						if (c != '>' && c != 's' && c != 'u')
+							p--;
+						var tok = query.substr(b, p - b);
+						tokens.push([tok, tok, b]);
+						state = 0;
+					}
+					break;
+				case 7:
+					// either = or < (or end of tok)
+					if (c != '=' && c != '<')
+						p--;
+					var tok = query.substr(b, p - b);
+					tokens.push([tok, tok, b]);
+					state = 0;
+					break;
+				case 8:
+					// either = or > (or end of tok)
+					if (c != '=' && c != '>')
+						p--;
+					var tok = query.substr(b, p - b);
+					tokens.push([tok, tok, b]);
+					state = 0;
+					break;
+				case 10:
+					// suffix s/u/nothing
+					if (c != 's' && c != 'u')
+						p--;
+					var tok = query.substr(b, p - b);
+					tokens.push([tok, tok, b]);
+					state = 0;
+					break;
+				case 20:
+					// parsing hex number
+					if ((c >= 0 && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
+						state = 20;
+					else {
+						tokens.push([query.substr(b, p - b), 'num', b]);
+						state = 0;
+						p--;
+					}
+					break;
+				default:
+					debugger;
+			}
+		}
+		return tokens;
+	}
+
+	var tokens = tokenize();
+	var debugstr = "";
+	for (var i = 0; i < tokens.length; i++) {
+		debugstr += "{" + tokens[i][0] + "}";
+	}
+	debugger;
+
 	function main() {
 		res[0] = expr();
 	}
@@ -36,10 +192,40 @@ function parse(query) {
 	function imply() {
 		var p = pos;
 		var t;
-		if (!(t = comparison())) return back(p);
+		if (!(t = boolor())) return back(p);
 		if (res.length > 2) return undefined;
 		var left = t;
 		while (ws() && ((t = l("=>")))) {
+			var right = boolor();
+			if (res.length > 2) return undefined;
+			if (!right) return error("invalid expression");
+			left = (new Binary(ops.indexOf(t), left, right));
+		}
+		return left;
+	}
+
+	function boolor() {
+		var p = pos;
+		var t;
+		if (!(t = booland())) return back(p);
+		if (res.length > 2) return undefined;
+		var left = t;
+		while (ws() && ((t = l("||")))) {
+			var right = booland();
+			if (res.length > 2) return undefined;
+			if (!right) return error("invalid expression");
+			left = (new Binary(ops.indexOf(t), left, right));
+		}
+		return left;
+	}
+
+	function booland() {
+		var p = pos;
+		var t;
+		if (!(t = comparison())) return back(p);
+		if (res.length > 2) return undefined;
+		var left = t;
+		while (ws() && ((t = l("&&")))) {
 			var right = comparison();
 			if (res.length > 2) return undefined;
 			if (!right) return error("invalid expression");
@@ -77,7 +263,7 @@ function parse(query) {
 		if (!(t = xor())) return back(p);
 		if (res.length > 2) return undefined;
 		var left = t;
-		while (ws() && ((t = l("|")))) {
+		while (ws() && ((t = ll("|", "|")))) {
 			var right = xor();
 			if (res.length > 2) return undefined;
 			if (!right) return error("invalid expression");
@@ -107,7 +293,7 @@ function parse(query) {
 		if (!(t = pshift())) return back(p);
 		if (res.length > 2) return undefined;
 		var left = t;
-		while (ws() && ((t = l("&")))) {
+		while (ws() && ((t = ll("&", "&")))) {
 			var right = pshift();
 			if (res.length > 2) return undefined;
 			if (!right) return error("invalid expression");
@@ -305,10 +491,19 @@ function parse(query) {
 
 	function l(s) {
 		var x = query.substr(pos, s.length);
-		if (query.substr(pos, s.length) == s) {
+		if (x == s) {
 			pos += s.length;
 			return s;
 		} else return undefined;
+	}
+
+	function ll(s, notnext) {
+		var x = query.substr(pos, s.length);
+		var y = query.substr(pos + s.length, notnext.length);
+		if (x == s && y != notnext) {
+			pos += s.length;
+			return s;
+		} else return undefined
 	}
 
 	function error(s) {
