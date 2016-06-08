@@ -483,6 +483,45 @@ BDDFunction.prototype.Identify = function(vars) {
 		return [a, x, b, d];
 	}
 
+	// identify a function of the form
+	// v == c
+	// returns: [v, c]
+	function is_eqc(bits) {
+		for (var i = 1; i < bits.length; i++)
+			if (bits[0] != bits[i])
+				return null;
+		var v = bdd._v[bits[0] ^ (bits[0] >> 31)] & 63;
+		var c = 0;
+		var x = bits[0];
+		for (var i = 0; i < 32; i++) {
+			var inv = x >> 31;
+			x ^= inv;
+			var vv = bdd._v[x];
+			if ((vv & 63) != v ||
+				(vv >> 6) != i)
+				return null;
+			var lo = bdd._lo[x] ^ inv;
+			var hi = bdd._hi[x] ^ inv;
+			if (i == 31) {
+				if (lo == 0)
+					c |= 1;
+				else if (lo != -1)
+					return null;
+				return [v, c];
+			}
+			if (lo == -1 || hi == -1 || (lo | hi) == 0)
+				return null;
+			if (lo == 0) {
+				x = hi;
+				c |= 1 << (i ^ 31);
+			}
+			else
+				x = lo;
+		}
+		// unreachable
+		debugger;
+	}
+
 	var r_constant = is_constant(this._bits);
 	if (r_constant != null) {
 		return new Constant(r_constant);
@@ -527,6 +566,10 @@ BDDFunction.prototype.Identify = function(vars) {
 				res = new Binary(ops.indexOf('|'), res, new Constant(d));
 			return res;
 		}
+	}
+	var r_eqc = is_eqc(this._bits);
+	if (r_eqc) {
+		return new Binary(ops.indexOf('=='), new Variable(r_eqc[0]), new Constant(r_eqc[1]));
 	}
 
 };
