@@ -299,6 +299,10 @@ Binary.prototype.toBddFunc = function() {
 			return BDDFunction.eq(l, r);
 		case 21:
 			return BDDFunction.not(BDDFunction.eq(l, r));
+		case 27:
+			return BDDFunction.and(BDDFunction.hor(l), BDDFunction.hor(r));
+		case 28:
+			return BDDFunction.or(BDDFunction.hor(l), BDDFunction.hor(r));
 		case 30:
 			return BDDFunction.shrs(l, r);
 		case 31:

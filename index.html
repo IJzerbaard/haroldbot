@@ -52,10 +52,10 @@ function performQuery(input) {
       update();
     }, function (exprc, backwards) {
       if (backwards) {
-        $('#exprdebug1').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        //$('#exprdebug1').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
       else {
-        $('#exprdebug0').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        //$('#exprdebug0').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
     });
     update();
@@ -404,11 +404,11 @@ $(document).ready(function(){
   <div id="examples">
     <h2>Examples</h2>
     <p>Just do some math<br/>
-      &nbsp;&nbsp;&nbsp;&nbsp;<a href="./index.html?q=1000%20%2B%2015%20%26%20-16"><tt>1000 + 15 &amp; -16</tt></a></p>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=1000%20%2B%2015%20%26%20-16"><tt>1000 + 15 &amp; -16</tt></a></p>
     <p>Show how two expressions are equal<br/>
-      &nbsp;&nbsp;&nbsp;&nbsp;<a href=".index.html?q=a+%5E+%28%28a+%5E+b%29+%26+mask%29+%3D%3D+%28a+%26+~mask%29+%7C+%28b+%26+mask%29"><tt>a ^ ((a ^ b) &amp; mask) == (a &amp; ~mask) | (b &amp; mask)</tt></a></p></p>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=a+%5E+%28%28a+%5E+b%29+%26+mask%29+%3D%3D+%28a+%26+~mask%29+%7C+%28b+%26+mask%29"><tt>a ^ ((a ^ b) &amp; mask) == (a &amp; ~mask) | (b &amp; mask)</tt></a></p></p>
     <p>Find when two expressions are equal<br/>
-      &nbsp;&nbsp;&nbsp;&nbsp;<a href="./index.html?q=x+%3D%3D+-x"><tt>x == -x</tt></a></p>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=x+%3D%3D+-x"><tt>x == -x</tt></a></p>
   </div>
   <div>
     <h2>Notes</h2>
