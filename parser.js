@@ -45,11 +45,11 @@ function parse(query) {
 					else if (c == '=')
 						state = 8;
 					else if (c == '/' || c == '%')
-						state = 10;
+						state = 11;
 					else if (c == '$')
 						return tokens;
 					else {
-						tokens.push([null, -1, b]);
+						tokens.push({ val: null, type: 'invalid', pos: b });
 						debugger;
 					}
 					break;
@@ -62,13 +62,13 @@ function parse(query) {
 					else {
 						// end of number apparently
 						p--;
-						tokens.push([query.substr(b, p - b), 'num', b]);
+						tokens.push({ val: query.substr(b, p - b), type: 'num', pos: b });
 						state = 0;
 					}
 					break;
 				case 2:
 					// parsing an id
-					if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+					if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))
 						state = 2;
 					else {
 						p--;
@@ -77,7 +77,7 @@ function parse(query) {
 						var type = 'id';
 						if (tok == 'let' || tok == 'in')
 							type = tok;
-						tokens.push([tok, type, b]);
+						tokens.push({ val: tok, type: type, pos: b});
 						state = 0;
 					}
 					break;
@@ -86,7 +86,7 @@ function parse(query) {
 					if (c != '=')
 						p--;
 					var tok = query.substr(b, p - b);
-					tokens.push([tok, tok, b]);
+					tokens.push({ val: tok, type: tok, pos: b});
 					state = 0;
 					break;
 				case 4:
@@ -94,7 +94,7 @@ function parse(query) {
 					if (c != '&')
 						p--;
 					var tok = query.substr(b, p - b);
-					tokens.push([tok, tok, b]);
+					tokens.push({ val: tok, type: tok, pos: b});
 					state = 0;
 					break;
 				case 5:
@@ -102,44 +102,76 @@ function parse(query) {
 					if (c != '|')
 						p--;
 					var tok = query.substr(b, p - b);
-					tokens.push([tok, tok, b]);
+					tokens.push({ val: tok, type: tok, pos: b});
 					state = 0;
 					break;
 				case 6:
+					// after '>'
 					// might be =, >, s or u
-					// if =, goto 10
+					// if >, goto 9
+					// if =, goto 11
 					if (c == '=')
-						state = 10;
+						state = 11;
+					else if (c == '>')
+						state = 9;
 					else {
-						if (c != '>' && c != 's' && c != 'u')
+						if (c != 's' && c != 'u')
 							p--;
 						var tok = query.substr(b, p - b);
-						tokens.push([tok, tok, b]);
+						tokens.push({ val: tok, type: tok, pos: b});
 						state = 0;
 					}
 					break;
 				case 7:
-					// either = or < (or end of tok)
-					if (c != '=' && c != '<')
-						p--;
-					var tok = query.substr(b, p - b);
-					tokens.push([tok, tok, b]);
-					state = 0;
+					// after '<'
+					// might be =, <, s, u
+					// if < goto 10
+					// if = goto 11
+					if (c == '=')
+						state = 11;
+					else if (c == '<')
+						state = 10;
+					else {
+						if (c != '=' && c != '<')
+							p--;
+						var tok = query.substr(b, p - b);
+						tokens.push({ val: tok, type: tok, pos: b});
+						state = 0;
+					}
 					break;
 				case 8:
-					// either = or > (or end of tok)
+					// after '='
+					// might be = or > or nothing
 					if (c != '=' && c != '>')
 						p--;
 					var tok = query.substr(b, p - b);
-					tokens.push([tok, tok, b]);
+					tokens.push({ val: tok, type: tok, pos: b});
+					state = 0;
+					break;
+				case 9:
+					// after '>>'
+					// might be > or s or u or nothing
+					if (c != 's' && c != 'u' && c != '>')
+						p--;
+					var tok = query.substr(b, p - b);
+					tokens.push({ val: tok, type: tok, pos: b});
 					state = 0;
 					break;
 				case 10:
+					// after '<<'
+					// might be < or nothing
+					if (c != '<')
+						p--;
+					var tok = query.substr(b, p - b);
+					tokens.push({ val: tok, type: tok, pos: b});
+					state = 0;
+					break;
+				case 11:
 					// suffix s/u/nothing
 					if (c != 's' && c != 'u')
 						p--;
 					var tok = query.substr(b, p - b);
-					tokens.push([tok, tok, b]);
+					tokens.push({ val: tok, type: tok, pos: b});
 					state = 0;
 					break;
 				case 20:
@@ -147,7 +179,7 @@ function parse(query) {
 					if ((c >= 0 && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
 						state = 20;
 					else {
-						tokens.push([query.substr(b, p - b), 'num', b]);
+						tokens.push({ val: query.substr(b, p - b), type: 'num', pos: b});
 						state = 0;
 						p--;
 					}
@@ -162,9 +194,71 @@ function parse(query) {
 	var tokens = tokenize();
 	var debugstr = "";
 	for (var i = 0; i < tokens.length; i++) {
-		debugstr += "{" + tokens[i][0] + "}";
+		debugstr += "{" + tokens[i].val + "}";
 	}
 	debugger;
+
+	var t = tokens[0];
+	var la = tokens[1];
+	var tindex = 1;
+
+	function next() {
+		t = la;
+		tindex++;
+		la = tokens[tindex];
+	}
+
+	function p_expr() {
+		return p_ternary();
+	}
+
+	function p_ternary() {
+		var cond = p_imply();
+		if (cond == null) return null;
+
+	}
+
+	function p_primary() {
+		var r = null;
+		switch (t.type) {
+		case 'num':
+			if (t.val.startsWith('0x'))
+				r = new Constant(parseInt(t.val.substr(2), 16));
+			r = new Constant(parseInt(t.val, 10));
+			next();
+			break;
+		case 'id':
+			if (la.type == '(') {
+				// function
+			}
+			else {
+				if (scope[variable] === undefined) {
+					if (varmap.indexOf(variable) < 0)
+						varmap.push(variable);
+					r = new Variable(varmap.indexOf(variable));
+				}
+				else {
+					r = scope[variable];
+				}
+			}
+			next();
+			break;
+		case '(':
+			next();
+			var inner = p_expr();
+			if (t.type != ')')
+				res.push('unclosed parenthesis at column ' + t.pos);
+			else
+				r = new Unary('dummy', inner);
+			break;
+		default:
+			res.push('unexpected \'' + t.type '\' at column ' + t.pos);
+			break;
+		}
+		return r;
+	}
+
+
 
 	function main() {
 		res[0] = expr();

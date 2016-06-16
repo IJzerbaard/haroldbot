@@ -12,6 +12,11 @@ function precedence(index) {
 function toHexUnsigned(x) {
     x = (x|0) + 0xFFFFFFFF + 1;
     var s = x.toString(16);
+    return "0x" + ("00000000" + s).substr(-8);
+}
+function toHexUnsignednopf(x) {
+    x = (x|0) + 0xFFFFFFFF + 1;
+    var s = x.toString(16);
     return ("00000000" + s).substr(-8);
 }
 function toDecUnsigned(x) {

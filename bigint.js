@@ -51,5 +51,5 @@ BigInt.prototype.toString = function() {
 	}
 	var parts = this.data.slice(0);
 	parts.reverse();
-	return "0x" + parts.map(toHexUnsigned).join('_');
+	return "0x" + parts.map(toHexUnsignednopf).join('_');
 };
