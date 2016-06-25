@@ -419,7 +419,7 @@ Binary.prototype.constantFold = function() {
 		switch (this.op) {
 			default:
 				debugger;
-				return;
+				return this;
 			case 1: // &
 				return new Constant(l.value & r.value);
 			case 2: // |
@@ -434,6 +434,12 @@ Binary.prototype.constantFold = function() {
 				return new Constant(l.value << (r.value & 31));
 			case 7: // >> (unsigned)
 				return new Constant(l.value >>> (r.value & 31));
+			case 8: // <<<
+				return new Constant((l.value >>> ((r.value & 31) ^ 31)) | (l.value << (r.value & 31)));
+			case 9: // >>>
+				return new Constant((l.value << ((r.value & 31) ^ 31)) | (l.value >>> (r.value & 31)));
+			case 11:// *
+				return new Constant(Math.imul(l.value, r.value));
 		}
 	}
 	if (l.id != this.l.id ||
