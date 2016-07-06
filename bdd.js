@@ -204,6 +204,50 @@ var bdd = {
 		return value;
 	},
 
+	compose: function(f, replace) {
+
+		var compmemo = new Int32Array(1048573);
+		var compmemokey = new Int32Array(1048573);
+
+		for (var i = 0; i < 1048573; i++)
+			compmemokey[i] = -2147483648;
+
+		function comp(f, replace) {
+			if (f == 0 || f == -1)
+				return f;
+
+			var hash = (f & 0x7fffffff) % 1048573;
+			if (compmemokey[hash] == f)
+				return compmemo[hash];
+
+			var invf = f >> 31;
+			var fv = this._v[f ^ invf];
+			var fl = this._lo[f ^ invf] ^ invf;
+			var fh = this._hi[f ^ invf] ^ invf;
+
+			var r = replace[fv];
+			if (r == 0)
+				return comp(fl, replace);
+			else if (r == 1)
+				return comp(fh, replace);
+			else {
+				var l = comp(fl, replace);
+				var h = comp(fh, replace);
+				var res;
+				if (r == undefined)
+					res = this.mk(fv, l, h);
+				else
+					res = this.mux(f, l, h);
+
+				compmemokey[hash] = f;
+				compmemo[hash] = res;
+				return res;
+			}
+		}
+
+		return comp(f, replace);
+	},
+
 	satCount: function(f, maxvar, remap) {
 		var D = [];
 		var _v = this._v;
