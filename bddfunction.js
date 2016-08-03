@@ -286,6 +286,83 @@ BDDFunction.divs = function (a, b) {
 	return BDDFunction.xor(sign, BDDFunction.add(sign, div));
 }
 
+BDDFunction.remu = function (a, b) {
+	var diverror = bdd.or(BDDFunction.eqz(b), bdd.or(a._divideError, b._divideError));
+	var P = new Int32Array(64);
+	for (var i = 0; i < 32; i++)
+		P[i] = a._bits[i];
+	var D = new Int32Array(64);
+	for (var i = 0; i < 32; i++)
+		D[i + 32] = b._bits[i];
+	var bits = new Int32Array(32);
+
+	for (var i = 31; i >= 0; i--) {
+		for (var j = P.length - 1; j > 0; j--)
+			P[j] = P[j - 1];
+		P[0] = 0;
+		var borrow = new Int32Array(64);
+		var newP = new Int32Array(64);
+		for (var j = 0; j < P.length; j++) {
+			var ab = bdd.xor(P[j], D[j]);
+			newP[j] = ab;
+			if (j > 0) {
+				newP[j] = bdd.xor(newP[j], borrow[j - 1]);
+				borrow[j] = bdd.or(bdd.and(~ab, borrow[j - 1]), bdd.and(~P[j], D[j]));
+			}
+			else
+				borrow[j] = bdd.and(~P[j], D[j]);
+		}
+		for (var j = 63; j > 0; j--)
+			P[j] = bdd.or(bdd.and(newP[j], ~borrow[63]), bdd.and(P[j], borrow[63]));
+	}
+
+	for (var i = 0; i < 32; i++)
+		bits[i] = P[i + 32];
+	return new BDDFunction(bits, diverror);
+}
+
+BDDFunction.rems = function (a, b) {
+	var sign = BDDFunction.xor(BDDFunction.nthbit(a, 31), BDDFunction.nthbit(b, 31));
+	var div = BDDFunction.remu(BDDFunction.abs(a), BDDFunction.abs(b));
+	return BDDFunction.xor(sign, BDDFunction.add(sign, div));
+}
+
+BDDFunction.fixlerp = function (a, b, x, y) {
+	// (a * x + b * y) / (x + y)
+	// c = a * x
+	// d = b * y
+	// e = x + y
+
+	function fullmul(a, b) {
+		var prod = new Int32Array(64);
+		var a_sh = new Int32Array(64);
+		for (var i = 0; i < 32; i++)
+			a_sh[i] = a[i];
+		for (var j = 0; j < 32; j++) {
+			var m = b[j];
+			if (m != 0) {
+				var carry = 0;
+				for (var i = 0; i < 64; i++) {
+					var am = bdd.and(m, a_sh[i]);
+					var ac = bdd.xor(am, c[i]);
+					var nc = bdd.or(bdd.and(ac, carry), bdd.and(am, c[i]));
+					c[i] = bdd.xor(ac, carry);
+					carry = nc;
+				}
+			}
+			for (var i = 63; i > 0; i--)
+				a_sh[i] = a_sh[i - 1];
+			a_sh[0] = 0;
+		}
+		return prod;
+	}
+
+	var c = fullmul(a._bits, x._bits);
+	var d = fullmul(b._bits, y._bits);
+	var e = new Int32Array(64);
+	
+}
+
 BDDFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallback) {
 	var res = new Object();
 	res.varmap = vars;
@@ -572,4 +649,130 @@ BDDFunction.prototype.Identify = function(vars) {
 		return new Binary(ops.indexOf('=='), new Variable(r_eqc[0]), new Constant(r_eqc[1]));
 	}
 
+};
+
+BDDFunction.prototype.AnalyzeProperties = function(vars) {
+	function isbitconst(bit) {
+		return bit == 0 || bit == -1;
+	}
+
+	function isbitconst2(bit, index, array) {
+		return bit == 0 || bit == -1;
+	}
+
+	var res = new Object();
+
+	// for constants, the properties are not interesting
+	if (this._bits.every(isbitconst2))
+		return res;
+
+	// try to find nibble mask
+	var nibmask = "0x";
+	for (var i = 31; i >= 0; i -= 4) {
+		var isc = isbitconst(this._bits[i]);
+		if (isc == isbitconst(this._bits[i - 1]) &&
+			isc == isbitconst(this._bits[i - 2]) &&
+			isc == isbitconst(this._bits[i - 3])) {
+			if (isc) {
+				var nib = (this._bits[i - 3] & 1) | (this._bits[i - 2] & 2) | (this._bits[i - 1] & 4) | (this._bits[i] & 8);
+				nibmask += nib.toString(16);
+			}
+			else
+				nibmask += '*';
+		}
+		else {
+			nibmask = null;
+			break;
+		}
+	}
+	// if no nibmask is possible or if it's all wildcards anyway, don't use it
+	if (nibmask != null && nibmask != "0x********")
+		res.nibmask = nibmask;
+
+	if (nibmask == null) {
+		// find bitmask
+		var bitmask = "";
+		for (var i = 31; i >= 0; i--) {
+			if (this._bits[i] == 0)
+				bitmask += '0';
+			else if (this._bits[i] == -1)
+				bitmask += '1';
+			else
+				bitmask += '*';
+		}
+		// use it only if it isn't trivial, eg all wildcards
+		if (bitmask != "********************************")
+			res.bitmask = bitmask;
+	}
+	
+	var remap = new Array(2048);
+	var index = 0;
+	for (var i = 0; i < 32; i++) {
+		for (var j = 0; j < vars.length; j++)
+			remap[(i << 6) + j] = index++;
+	}
+
+	// lowest unsigned
+	try {
+		var bitsCombined = -1;
+		var val = 0;
+		for (var i = 31; i >= 0; i--) {
+			var tryZero = bdd.and(bitsCombined, ~this._bits[i]);
+			if (tryZero != 0) {
+				bitsCombined = tryZero;
+				continue;
+			}
+			var tryOne = bdd.and(bitsCombined, this._bits[i]);
+			if (tryOne != 0) {
+				bitsCombined = tryOne;
+				val |= 1 << i;
+				continue;
+			}
+			// unreachable
+			debugger;
+		}
+		res.lowestUnsigned = {
+			value: val,
+			count: bdd.satCount(bitsCombined, index, remap),
+			examples: function(ix) {
+				return bdd.indexedSat(bitsCombined, ix, index, remap)
+			}
+		};
+	}
+	catch (ex) {
+		debugger;
+	}
+
+	// highest unsigned
+	try {
+		var bitsCombined = -1;
+		var val = 0;
+		for (var i = 31; i >= 0; i--) {
+			var tryOne = bdd.and(bitsCombined, this._bits[i]);
+			if (tryOne != 0) {
+				bitsCombined = tryOne;
+				val |= 1 << i;
+				continue;
+			}
+			var tryZero = bdd.and(bitsCombined, ~this._bits[i]);
+			if (tryZero != 0) {
+				bitsCombined = tryZero;
+				continue;
+			}
+			// unreachable
+			debugger;
+		}
+		res.highestUnsigned = {
+			value: val,
+			count: bdd.satCount(bitsCombined, index, remap),
+			examples: function(ix) {
+				return bdd.indexedSat(bitsCombined, ix, index, remap)
+			}
+		};
+	}
+	catch (ex) {
+		debugger;
+	}
+
+	return res;
 };

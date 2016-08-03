@@ -212,8 +212,7 @@ Unary.prototype.constantFold = function() {
 	if (inner.type == 'const') {
 		switch (this.op) {
 			default:
-				debugger;
-				return;
+				return this;
 			case 0:
 				return new Constant(~inner.value);
 			case 1:
@@ -339,6 +338,10 @@ Binary.prototype.toBddFunc = function() {
 			return BDDFunction.divs(l, r);
 		case 33:
 			return BDDFunction.divu(l, r);
+		case 34:
+			return BDDFunction.rems(l, r);
+		case 35:
+			return BDDFunction.remu(l, r);
 	}
 	debugger;
 	alert("Severe bug in Binary.toBddFunc");
@@ -398,6 +401,14 @@ Binary.prototype.toCircuitFunc = function() {
 			return CFunction.mux(CFunction.lt(l, r, false), l, r);
 		case 58:
 			return CFunction.mux(CFunction.lt(l, r, true), l, r);
+		case 32:
+			return CFunction.divs(l, r);
+		case 33:
+			return CFunction.divu(l, r);
+		case 34:
+			return CFunction.rems(l, r);
+		case 35:
+			return CFunction.remu(l, r);
 	}
 	debugger;
 	alert("Severe bug in Binary.toCircuitFunc");
@@ -418,7 +429,6 @@ Binary.prototype.constantFold = function() {
 	if (l.type == 'const' && r.type == 'const') {
 		switch (this.op) {
 			default:
-				debugger;
 				return this;
 			case 1: // &
 				return new Constant(l.value & r.value);

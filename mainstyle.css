@@ -84,8 +84,8 @@ input[type=checkbox], input[type=radio] {
     position: relative;
     bottom: 1px;
 }
-fieldset {   
-  border-radius: 7px;  
+fieldset {
+  border-radius: 7px;
 }
 #exprdebug {
   width: 100%;

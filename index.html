@@ -46,7 +46,7 @@ function performQuery(input) {
       throw err;
   }
 
-  if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 26 || expr.op >= 40)) {
+  if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 26 || expr.op >= 40 && expr.op <= 46)) {
     // comparison
     data = (bddf||circuitf).AnalyzeTruth(expr.removeDummy(), varmap, function () {
       update();
@@ -63,11 +63,11 @@ function performQuery(input) {
   else {
     data = {
       simp: bddf.Identify(varmap),
-      varmap: varmap
+      properties: bddf.AnalyzeProperties(varmap),
+      varmap: varmap,
     };
     if (data.simp == undefined) {
-      data = {}
-      data.msg = "function identifier didn't work (it's still quite broken)"
+      data.msg = "bdd structural pattern matcher didn't work (it's still quite broken)"
     }
     else {
       var pf = new ProofFinder(20);
@@ -351,15 +351,41 @@ function update() {
   }
   if (data['simp']) {
     $('#displayoptions').show();
-    var simplificationcontainer = $('<p></p>');
-    simplificationcontainer.append($('<p>simplified:</p>'));
-    simplificationcontainer.append($('<b></b>').append(formatexpr(data['simp'], 1000000, data.varmap)));
+    var simpcont = $('<fieldset/>');
+    simpcont.append($('<legend>simplified</legend>'));
+    simpcont.append($('<b></b>').append(formatexpr(data['simp'], 1000000, data.varmap)));
     if (data['proof']) {
       if (data['proof'][1][0] != "structurally equal")
-        formatproof(simplificationcontainer, data['proof'], data.varmap);
+        formatproof(simpcont, data['proof'], data.varmap);
     }
     
-    $('#resultDiv').append(simplificationcontainer);
+    $('#resultDiv').append(simpcont);
+  }
+  if (data['properties']) {
+    var prop = data['properties'];
+    var propscont = $('<fieldset/>');
+    propscont.append($('<legend>properties</legend>'));
+    var haveAny = false;
+    if (prop.hasOwnProperty('nibmask')) {
+      propscont.append($('<p>nibble mask: ' + prop.nibmask + '</p>'));
+      haveAny = true;
+    }
+    if (prop.hasOwnProperty('bitmask')) {
+      propscont.append($('<p>bit mask: ' + prop.bitmask + '</p>'));
+      haveAny = true;
+    }
+    if (prop.hasOwnProperty('lowestUnsigned')) {
+      propscont.append($('<p>lowest unsigned: ' + formatConstant(prop.lowestUnsigned.value) + '</p>'));
+      haveAny = true;
+    }
+    if (prop.hasOwnProperty('highestUnsigned')) {
+      propscont.append($('<p>highest unsigned: ' + formatConstant(prop.highestUnsigned.value) + '</p>'));
+      haveAny = true;
+    }
+
+    // only make this box if there's anything in it
+    if (haveAny)
+      $('#resultDiv').append(propscont);
   }
 }
 
@@ -405,18 +431,20 @@ $(document).ready(function(){
     <h2>Examples</h2>
     <p>Just do some math<br/>
       &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=1000%20%2B%2015%20%26%20-16"><tt>1000 + 15 &amp; -16</tt></a></p>
-    <p>Show how two expressions are equal<br/>
+    <p>Find out whether two expression are equivalent<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=let+x+%3D+a+%2B+b+in+%28x+<+a%29+%3D%3D+%28x+<+max%28a%2C+b%29%29"><tt>let x = a + b in (x &lt; a) == (x &lt; max(a, b))</tt></a></p></p>
+    <p><i>Prove</i> that two expressions are equivalent<br/>
       &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=a+%5E+%28%28a+%5E+b%29+%26+mask%29+%3D%3D+%28a+%26+~mask%29+%7C+%28b+%26+mask%29"><tt>a ^ ((a ^ b) &amp; mask) == (a &amp; ~mask) | (b &amp; mask)</tt></a></p></p>
-    <p>Find when two expressions are equal<br/>
+    <p>Find when two expressions are equal and when they are not<br/>
       &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=x+%3D%3D+-x"><tt>x == -x</tt></a></p>
   </div>
   <div>
     <h2>Notes</h2>
     <p>== binds less strongly than bitwise operators.</p>
-    <p>"Extra parentheses" are broken, but they will be back.</p>
     <p>Finding proofs can be slow and often nothing is found at all.</p>
-    <p>The "identifier" for simplification has not been fully ported yet.</p>
-    <p>In general, there are many bugs.</p>
+    <p>The BDD structural matcher has not been fully ported yet.</p>
+    <p>Division, remainder and multiplication will not work if both operands are variable, and even in some cases where one operand is a constant. That's not a bug but an inherent limitation of the techniques used. This situation may be improved (with reduced functionality) someday if I get around to coding up the SAT fallback.</p>
+    <p>In general, there <i>are</i> many bugs.</p>
     <p>Since everything happens client-side now, I don't get automatic bug reports. Please <a href="https://github.com/IJzerbaard/haroldbot/issues">open an issue</a> or contact me (if you know how).</p>
   </div>
   <div id="exprdebug">

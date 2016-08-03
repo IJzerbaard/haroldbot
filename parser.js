@@ -252,7 +252,7 @@ function parse(query) {
 				r = new Unary('dummy', inner);
 			break;
 		default:
-			res.push('unexpected \'' + t.type '\' at column ' + t.pos);
+			res.push('unexpected \'' + t.type + '\' at column ' + t.pos);
 			break;
 		}
 		return r;
