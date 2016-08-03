@@ -374,12 +374,31 @@ function update() {
       propscont.append($('<p>bit mask: ' + prop.bitmask + '</p>'));
       haveAny = true;
     }
+
+    function makeCollapsible(base, text, value, count, examples, varmap) {
+      var extra = null;
+      if (count == "1")
+        extra = $('<div/>').append('<p>once:</p>').append(formatVariableAssignment(examples(0), varmap));
+      else
+        extra = $('<div/>').append('<p>' + count + ' cases</p>').append(formatVariableAssignments(examples, varmap));
+      extra.css('overflow', 'hidden');
+      var showbutton = $('<a/>', {
+        text: '▸',
+        style: 'color:#000',
+        class: 'bigger',
+        click: function() { extra.slideToggle(); $(this).text($(this).text() == '▸' ? '▾' : '▸'); }
+      });
+      base.append($('<p>' + text + formatConstant(value) + '&nbsp;</p>').append(showbutton));
+      base.append(extra);
+      extra.hide();
+    }
+
     if (prop.hasOwnProperty('lowestUnsigned')) {
-      propscont.append($('<p>lowest unsigned: ' + formatConstant(prop.lowestUnsigned.value) + '</p>'));
+      makeCollapsible(propscont, 'lowest unsigned: ', prop.lowestUnsigned.value, prop.lowestUnsigned.count, prop.lowestUnsigned.examples, data.varmap);
       haveAny = true;
     }
     if (prop.hasOwnProperty('highestUnsigned')) {
-      propscont.append($('<p>highest unsigned: ' + formatConstant(prop.highestUnsigned.value) + '</p>'));
+      makeCollapsible(propscont, 'highest unsigned: ', prop.highestUnsigned.value, prop.highestUnsigned.count, prop.highestUnsigned.examples, data.varmap);
       haveAny = true;
     }
 

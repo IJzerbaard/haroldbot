@@ -33,9 +33,6 @@ h2 { font-size: 1.2em; }
   color:#555;
   text-align:center;
 }
-#page a{
-  color:#f55a2d;
-}
 #querybox {
   padding: 10px ;
   background-color: #fff;
@@ -98,4 +95,7 @@ fieldset {
 }
 #exprdebug1 {
   margin-left: 375px;
+}
+.bigger {
+  font-size: 150%;
 }

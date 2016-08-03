@@ -733,7 +733,7 @@ BDDFunction.prototype.AnalyzeProperties = function(vars) {
 		}
 		res.lowestUnsigned = {
 			value: val,
-			count: bdd.satCount(bitsCombined, index, remap),
+			count: bdd.satCount(bitsCombined, index, remap).toString(),
 			examples: function(ix) {
 				return bdd.indexedSat(bitsCombined, ix, index, remap)
 			}
@@ -764,7 +764,7 @@ BDDFunction.prototype.AnalyzeProperties = function(vars) {
 		}
 		res.highestUnsigned = {
 			value: val,
-			count: bdd.satCount(bitsCombined, index, remap),
+			count: bdd.satCount(bitsCombined, index, remap).toString(),
 			examples: function(ix) {
 				return bdd.indexedSat(bitsCombined, ix, index, remap)
 			}
