@@ -367,20 +367,20 @@ function update() {
     propscont.append($('<legend>properties</legend>'));
     var haveAny = false;
     if (prop.hasOwnProperty('nibmask')) {
-      propscont.append($('<p>nibble mask: ' + prop.nibmask + '</p>'));
+      propscont.append($('<div>nibble mask: ' + prop.nibmask + '</div>'));
       haveAny = true;
     }
     if (prop.hasOwnProperty('bitmask')) {
-      propscont.append($('<p>bit mask: ' + prop.bitmask + '</p>'));
+      propscont.append($('<div>bit mask: ' + prop.bitmask + '</div>'));
       haveAny = true;
     }
 
     function makeCollapsible(base, text, value, count, examples, varmap) {
       var extra = null;
       if (count == "1")
-        extra = $('<div/>').append('<p>once:</p>').append(formatVariableAssignment(examples(0), varmap));
+        extra = $('<div/>').append('once:').append(formatVariableAssignment(examples(0), varmap));
       else
-        extra = $('<div/>').append('<p>' + count + ' cases</p>').append(formatVariableAssignments(examples, varmap));
+        extra = $('<div/>').append(count + ' cases').append(formatVariableAssignments(examples, varmap));
       extra.css('overflow', 'hidden');
       var showbutton = $('<a/>', {
         text: '▸',
@@ -388,7 +388,7 @@ function update() {
         class: 'bigger',
         click: function() { extra.slideToggle(); $(this).text($(this).text() == '▸' ? '▾' : '▸'); }
       });
-      base.append($('<p>' + text + formatConstant(value) + '&nbsp;</p>').append(showbutton));
+      base.append($('<div/>').append(text + formatConstant(value) + '&nbsp;').append(showbutton));
       base.append(extra);
       extra.hide();
     }

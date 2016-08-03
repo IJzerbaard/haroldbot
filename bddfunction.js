@@ -731,13 +731,16 @@ BDDFunction.prototype.AnalyzeProperties = function(vars) {
 			// unreachable
 			debugger;
 		}
-		res.lowestUnsigned = {
-			value: val,
-			count: bdd.satCount(bitsCombined, index, remap).toString(),
-			examples: function(ix) {
-				return bdd.indexedSat(bitsCombined, ix, index, remap)
-			}
-		};
+		// only use it if not trivial
+		if (val != 0 && val -1) {
+			res.lowestUnsigned = {
+				value: val,
+				count: bdd.satCount(bitsCombined, index, remap).toString(),
+				examples: function(ix) {
+					return bdd.indexedSat(bitsCombined, ix, index, remap)
+				}
+			};
+		}
 	}
 	catch (ex) {
 		debugger;
@@ -762,13 +765,16 @@ BDDFunction.prototype.AnalyzeProperties = function(vars) {
 			// unreachable
 			debugger;
 		}
-		res.highestUnsigned = {
-			value: val,
-			count: bdd.satCount(bitsCombined, index, remap).toString(),
-			examples: function(ix) {
-				return bdd.indexedSat(bitsCombined, ix, index, remap)
-			}
-		};
+		// only use it if not trivial
+		if (val != -1 && val != 0) {
+			res.highestUnsigned = {
+				value: val,
+				count: bdd.satCount(bitsCombined, index, remap).toString(),
+				examples: function(ix) {
+					return bdd.indexedSat(bitsCombined, ix, index, remap)
+				}
+			};
+		}
 	}
 	catch (ex) {
 		debugger;
