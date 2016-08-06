@@ -63,7 +63,6 @@ function performQuery(input) {
   else {
     data = {
       simp: bddf.Identify(varmap),
-      properties: bddf.AnalyzeProperties(varmap),
       varmap: varmap,
     };
     if (data.simp == undefined) {
@@ -77,6 +76,10 @@ function performQuery(input) {
       }, update);
     }
     update();
+    bddf.AnalyzeProperties(varmap, function (props) {
+      data.properties = props;
+      update();
+    });
   }
 }
 

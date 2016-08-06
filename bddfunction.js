@@ -651,59 +651,57 @@ BDDFunction.prototype.Identify = function(vars) {
 
 };
 
-BDDFunction.prototype.AnalyzeProperties = function(vars) {
-	function isbitconst(bit) {
-		return bit == 0 || bit == -1;
-	}
-
-	function isbitconst2(bit, index, array) {
-		return bit == 0 || bit == -1;
-	}
-
+BDDFunction.prototype.AnalyzeProperties = function(vars, callback) {
 	var res = new Object();
 
-	// for constants, the properties are not interesting
-	if (this._bits.every(isbitconst2))
-		return res;
+	// "constant bit" masks
+	var mustBeZero = 0;
+	var mustBeOne = 0;
+	for (var i = 0; i < 32; i++) {
+		if (this._bits[i] == -1)
+			mustBeOne |= 1 << i;
+		else if (this._bits[i] == 0)
+			mustBeZero |= 1 << i;
+	}
+
+	// if it's completely constant, properties will be uninteresting
+	if ((mustBeOne | mustBeZero) == -1)
+		return null;
 
 	// try to find nibble mask
-	var nibmask = "0x";
-	for (var i = 31; i >= 0; i -= 4) {
-		var isc = isbitconst(this._bits[i]);
-		if (isc == isbitconst(this._bits[i - 1]) &&
-			isc == isbitconst(this._bits[i - 2]) &&
-			isc == isbitconst(this._bits[i - 3])) {
-			if (isc) {
-				var nib = (this._bits[i - 3] & 1) | (this._bits[i - 2] & 2) | (this._bits[i - 1] & 4) | (this._bits[i] & 8);
-				nibmask += nib.toString(16);
-			}
-			else
+	if ((mustBeOne | mustBeZero) != 0) {
+		var nibmask = "0x";
+		for (var i = 28; i >= 0; i -= 4) {
+			var isconst = mustBeZero | mustBeOne;
+			if (((isconst >> i) & 15) == 15)
+				nibmask += ((mustBeOne >> i) & 15).toString(16);
+			else if (((isconst >> i) & 15) == 0)
 				nibmask += '*';
+			else {
+				nibmask = null;
+				break;
+			}
 		}
-		else {
-			nibmask = null;
-			break;
-		}
+		// if no nibmask is possible or if it's all wildcards anyway, don't use it
+		if (nibmask != null && nibmask != "0x********")
+			res.nibmask = nibmask;
 	}
-	// if no nibmask is possible or if it's all wildcards anyway, don't use it
-	if (nibmask != null && nibmask != "0x********")
-		res.nibmask = nibmask;
 
-	if (nibmask == null) {
+	if (nibmask == null && (mustBeOne | mustBeZero) != 0) {
 		// find bitmask
 		var bitmask = "";
 		for (var i = 31; i >= 0; i--) {
-			if (this._bits[i] == 0)
+			if ((mustBeZero & (1 << i)) != 0)
 				bitmask += '0';
-			else if (this._bits[i] == -1)
+			else if ((mustBeOne & (1 << i)) != 0)
 				bitmask += '1';
 			else
 				bitmask += '*';
 		}
-		// use it only if it isn't trivial, eg all wildcards
-		if (bitmask != "********************************")
-			res.bitmask = bitmask;
+		res.bitmask = bitmask;
 	}
+
+	callback(res);
 	
 	var remap = new Array(2048);
 	var index = 0;
@@ -732,7 +730,7 @@ BDDFunction.prototype.AnalyzeProperties = function(vars) {
 			debugger;
 		}
 		// only use it if not trivial
-		if (val != 0 && val -1) {
+		if (val != 0 && val -1 && val != mustBeOne) {
 			res.lowestUnsigned = {
 				value: val,
 				count: bdd.satCount(bitsCombined, index, remap).toString(),
@@ -740,6 +738,7 @@ BDDFunction.prototype.AnalyzeProperties = function(vars) {
 					return bdd.indexedSat(bitsCombined, ix, index, remap)
 				}
 			};
+			callback(res);
 		}
 	}
 	catch (ex) {
@@ -766,7 +765,7 @@ BDDFunction.prototype.AnalyzeProperties = function(vars) {
 			debugger;
 		}
 		// only use it if not trivial
-		if (val != -1 && val != 0) {
+		if (val != -1 && val != 0 && val != ~mustBeZero) {
 			res.highestUnsigned = {
 				value: val,
 				count: bdd.satCount(bitsCombined, index, remap).toString(),
@@ -774,6 +773,7 @@ BDDFunction.prototype.AnalyzeProperties = function(vars) {
 					return bdd.indexedSat(bitsCombined, ix, index, remap)
 				}
 			};
+			callback(res);
 		}
 	}
 	catch (ex) {
