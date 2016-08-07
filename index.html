@@ -5,6 +5,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 <link rel="shortcut icon" href="/favicon.ico" />
 <link rel="stylesheet" type="text/css" href="mainstyle.css" />
+<script type="text/javascript" src="minisat.js"></script>
 <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
 <script type="text/javascript" src="jquery.color-2.1.2.min.js"></script>
 <script type="text/javascript" src="util.js"></script>
@@ -18,6 +19,7 @@
 <script type="text/javascript" src="circuitfunction.js"></script>
 <script type="text/javascript" src="prooffinder.js"></script>
 <script type="text/javascript">
+var $j = jQuery.noConflict();
 var id = 0;
 
 function performQuery(input) {
@@ -52,10 +54,10 @@ function performQuery(input) {
       update();
     }, function (exprc, backwards) {
       if (backwards) {
-        //$('#exprdebug1').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        //$j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
       else {
-        //$('#exprdebug0').append($('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        //$j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
     });
     update();
@@ -84,24 +86,24 @@ function performQuery(input) {
 }
 
 function formatVariableAssignment(assignment, varmap) {
-  var table = $('<table class="varassignment"></table>');
+  var table = $j('<table class="varassignment"></table>');
   for (var i = 0; i < varmap.length; i++) {
-    var row = $('<tr></tr>');
-    row.append($('<td>' + varmap[i] + '</td>'));
+    var row = $j('<tr></tr>');
+    row.append($j('<td>' + varmap[i] + '</td>'));
     row.append("=");
-    row.append($('<td>' + formatConstant(assignment[i]) + '</td>'));
+    row.append($j('<td>' + formatConstant(assignment[i]) + '</td>'));
     table.append(row);
   }
   return table;
 }
 
 function formatVariableAssignments(assignment, varmap) {
-  var wrapper = $('<div/>');
-  var table = $('<table class="varassignment"></table>');
-  var headers = $('<tr/>');
+  var wrapper = $j('<div/>');
+  var table = $j('<table class="varassignment"></table>');
+  var headers = $j('<tr/>');
   if (varmap.length > 1) {
     for (var i = 0; i < varmap.length; i++)
-      headers.append($('<th>' + varmap[i] + '</th>'));
+      headers.append($j('<th>' + varmap[i] + '</th>'));
     table.append(headers);
   }
   var first = 0;
@@ -110,9 +112,9 @@ function formatVariableAssignments(assignment, varmap) {
     var asign = assignment(last++);
     if (asign == undefined)
       break;
-    var row = $('<tr/>');
+    var row = $j('<tr/>');
     for (var i = 0; i < varmap.length; i++) {
-      var col = $('<td>' + formatConstant(asign[i]) + '</td>');
+      var col = $j('<td>' + formatConstant(asign[i]) + '</td>');
       row.append(col);
     }
     table.append(row);
@@ -120,7 +122,7 @@ function formatVariableAssignments(assignment, varmap) {
 
   var morebutton = null;
   if (assignment(last) != undefined) {
-    morebutton = $('<button/>');
+    morebutton = $j('<button/>');
     morebutton.text('...');
     morebutton.css('border-radius', '5px');
     morebutton.click(function () {
@@ -128,9 +130,9 @@ function formatVariableAssignments(assignment, varmap) {
         var asign = assignment(last);
         if (asign == undefined)
           break;
-        var row = $('<tr/>');
+        var row = $j('<tr/>');
         for (var i = 0; i < varmap.length; i++) {
-          row.append($('<td>' + formatConstant(asign[i]) + '</td>'));
+          row.append($j('<td>' + formatConstant(asign[i]) + '</td>'));
         }
         table.append(row);
       }
@@ -142,7 +144,7 @@ function formatVariableAssignments(assignment, varmap) {
       var end = last - 4;
       while (last > 1 && last > end) {
         last--;
-        $('tr:last', table).remove();
+        $j('tr:last', table).remove();
       }
       return false;
     });
@@ -155,7 +157,7 @@ function formatVariableAssignments(assignment, varmap) {
 
 function formatexpr(expr, ix, varmap) {
   varmap[0];
-  var res = $("<span />").addClass("e" + ix + "_" + expr.id);
+  var res = $j("<span />").addClass("e" + ix + "_" + expr.id);
   res.css("border-radius", "5px");
   if (expr[0] == "#") {
     res.append(formatexpr(expr[2], ix, varmap));
@@ -172,10 +174,10 @@ function formatexpr(expr, ix, varmap) {
     res.append(formatConstant(expr.value));
     return res;
   }
-  var parens = $('#explicitparens').is(':checked');
+  var parens = $j('#explicitparens').is(':checked');
   if (expr.type == 'un') {
     var inner = formatexpr(expr.value, ix, varmap);
-    res.append(['~', '-'][expr.op]);
+    res.append(['.~', '-'][expr.op]);
     if ((expr.value.type == 'bin' && expr.value.op < 55) || expr.value.type == 'ter') {
       res.append('(');
       res.append(inner);
@@ -189,7 +191,7 @@ function formatexpr(expr, ix, varmap) {
     var l = formatexpr(expr.l, ix, varmap);
     var r = formatexpr(expr.r, ix, varmap);
 
-    if (ops[expr.op].indexOf('$') == 0) {
+    if (ops[expr.op].indexOf('$j') == 0) {
       return res.append(ops[expr.op].substr(1) + '(').append(l).append(', ').append(r).append(')');
     }
 
@@ -224,33 +226,33 @@ function formatexpr(expr, ix, varmap) {
 }
 function parseproofstep(proofstep, ix, varmap) {
   varmap[0];
-  var container = $('<div/>').addClass("proofj");
+  var container = $j('<div/>').addClass("proofj");
   container.attr("id", "proofj" + (ix + 1));
   container.append(proofstep[0]);
   if (proofstep.length > 1) {
     container.append(", ");
     var pattern = formatexpr(["#",-1,proofstep[1].l], ix, varmap);
     var patternr = formatexpr(["#",-1,proofstep[1].r], ix + 2, varmap);
-    var patternholder = $('<span/>');
+    var patternholder = $j('<span/>');
     patternholder.css('font-family', 'Consolas,monospace');
     patternholder.append(pattern).append(" " + ops[proofstep[1].op] + " ").append(patternr);
     container.append(patternholder);
     pattern.find('span').each(function(index, elem) {
-      var cl = "." + $(elem).attr('class');
+      var cl = "." + $j(elem).attr('class');
       var color = randomColor();
-      $(elem).hover(function() {
-        $("#proofj" + ix + ", #proofj" + (ix + 1)).find(cl).stop().animate({backgroundColor:color}, 300);
+      $j(elem).hover(function() {
+        $j("#proofj" + ix + ", #proofj" + (ix + 1)).find(cl).stop().animate({backgroundColor:color}, 300);
       }, function() {
-        $(cl).find('span').andSelf().stop().css("background-color", "");
+        $j(cl).find('span').andSelf().stop().css("background-color", "");
       });
     });
     patternr.find('span').each(function(index, elem) {
-      var cl = "." + $(elem).attr('class');
+      var cl = "." + $j(elem).attr('class');
       var color = randomColor();
-      $(elem).hover(function() {
-        $("#proofj" + (ix + 1) + ", #proofj" + (ix + 2)).find(cl).stop().animate({backgroundColor:color}, 300);
+      $j(elem).hover(function() {
+        $j("#proofj" + (ix + 1) + ", #proofj" + (ix + 2)).find(cl).stop().animate({backgroundColor:color}, 300);
       }, function () {
-        $(cl).find('span').andSelf().stop().css("background-color", "");
+        $j(cl).find('span').andSelf().stop().css("background-color", "");
       });
     });
   }
@@ -258,15 +260,15 @@ function parseproofstep(proofstep, ix, varmap) {
 }
 function formatproof(parent, proofarray, varmap) {
   varmap[0];
-  var assocsteps = $('#explicitparens').is(':checked');
-  var proofcontainer = $('<p/>');
-  proofcontainer.append($('<p>proof:</p>'));
+  var assocsteps = $j('#explicitparens').is(':checked');
+  var proofcontainer = $j('<p/>');
+  proofcontainer.append($j('<p>proof:</p>'));
   var havesteps = false;
   for (var i = 0; i < proofarray.length; i++) {
     if (i % 2 == 0) {
-      var container = $('<div/>');
+      var container = $j('<div/>');
       container.attr("id", "proofj" + i);
-      var exprholder = $('<b/>');
+      var exprholder = $j('<b/>');
       exprholder.css('font-family', 'Consolas,monospace');
       container.append(exprholder.append(formatexpr(proofarray[i], i, varmap)));
       proofcontainer.append(container);
@@ -280,7 +282,7 @@ function formatproof(parent, proofarray, varmap) {
       }
     }
   }
-  $('#displayoptions').show();
+  $j('#displayoptions').show();
   if (havesteps)
     parent.append(proofcontainer);
 }
@@ -288,110 +290,112 @@ function formatproof(parent, proofarray, varmap) {
 var data = null;
 
 function update() {
-  $('#resultDiv').empty();
+  $j('#resultDiv').empty();
   
   if (data == null || data == undefined) {
-    $('#resultDiv').append("Query Failed");
+    $j('#resultDiv').append("Query Failed");
     return;
   }
   
-  if (data['msg']) {
-    $('#resultDiv').append('<p>' + data['msg'] + '</p>');
+  if (data.msg) {
+    $j('#resultDiv').append('<p>' + data.msg + '</p>');
   }
-  if (data['true']) {
-    var truecontainer = $('<fieldset/>');
-    truecontainer.append($('<legend>true</legend>'));
-    if (data['true']['count'] == "always") {
+  if (data.true) {
+    var truecontainer = $j('<fieldset/>');
+    truecontainer.append($j('<legend>true</legend>'));
+    if (data.true.count == 'always') {
       truecontainer.append('<p>always</p>');
-      if (data['true']['proof'])
-        formatproof(truecontainer, data['true']['proof'], data.varmap);
+      if (data.true.proof)
+        formatproof(truecontainer, data.true.proof, data.varmap);
     }
-    else if (data['true']['count'] == "1") {
-      if (data['true']['examples']) {
-        var varassign = formatVariableAssignment(data['true']['examples'](0), data.varmap);
-        truecontainer.append($('<p>once, namely:</p>').append(varassign));
+    else if (data.true.count == '1') {
+      if (data.true.examples) {
+        var varassign = formatVariableAssignment(data.true.examples(0), data.varmap);
+        truecontainer.append($j('<p>once, namely:</p>').append(varassign));
       }
       else
         truecontainer.append('<p>once</p>');
     }
-    else if (data['true']['count']) {
-      truecontainer.append('<p>in ' + data['true']['count'] + ' cases</p>');
-      if (data['true']['examples'])
-        truecontainer.append($('<p>for example:</p>').append(formatVariableAssignments(data['true']['examples'], data.varmap)));
+    else if (data.true.count) {
+      var c = data.true.count == 'at least one' ? 'case' : 'cases';
+      truecontainer.append('<p>in ' + data.true.count + ' ' + c + '</p>');
+      if (data.true.examples)
+        truecontainer.append($j('<p>for example:</p>').append(formatVariableAssignments(data.true.examples, data.varmap)));
     }
     else {
       truecontainer.append('<p>true (trivially)</p>');
     }
     
-    $('#resultDiv').append(truecontainer);
+    $j('#resultDiv').append(truecontainer);
   }
-  if (data['false']) {
-    var truecontainer = $('<fieldset/>');
-    truecontainer.append($('<legend>false</legend>'));
-    if (data['false']['count'] == "always") {
-      truecontainer.append('<p>always</p>');
-      if (data['false']['proof'])
-        formatproof(truecontainer, data['false']['proof'], data.varmap);
+  if (data.false) {
+    var falsecontainer = $j('<fieldset/>');
+    falsecontainer.append($j('<legend>false</legend>'));
+    if (data.false.count == 'always') {
+      falsecontainer.append('<p>always</p>');
+      if (data.false.proof)
+        formatproof(falsecontainer, data.false.proof, data.varmap);
     }
-    else if (data['false']['count'] == "1") {
-      if (data['false']['examples']) {
-        var varassign = formatVariableAssignment(data['false']['examples'](0), data.varmap);
-        truecontainer.append($('<p>once, namely:</p>').append(varassign));
+    else if (data.false.count == "1") {
+      if (data.false.examples) {
+        var varassign = formatVariableAssignment(data.false.examples(0), data.varmap);
+        falsecontainer.append($j('<p>once, namely:</p>').append(varassign));
       }
       else
-        truecontainer.append('<p>once</p>');
+        falsecontainer.append('<p>once</p>');
     }
-    else if (data['false']['count']) {
-      truecontainer.append('<p>in ' + data['false']['count'] + ' cases</p>');
-      if (data['false']['examples'])
-        truecontainer.append($('<p>for example:</p>').append(formatVariableAssignments(data['false']['examples'], data.varmap)));
+    else if (data.false.count) {
+      var c = data.false.count == 'at least one' ? 'case' : 'cases';
+      falsecontainer.append('<p>in ' + data.false.count + ' ' + c + '</p>');
+      if (data.false.examples)
+        falsecontainer.append($j('<p>for example:</p>').append(formatVariableAssignments(data.false.examples, data.varmap)));
     }
     else {
-      truecontainer.append('<p>false (trivially)</p>');
+      falsecontainer.append('<p>false (trivially)</p>');
     }
     
-    $('#resultDiv').append(truecontainer);
+    $j('#resultDiv').append(falsecontainer);
   }
-  if (data['simp']) {
-    $('#displayoptions').show();
-    var simpcont = $('<fieldset/>');
-    simpcont.append($('<legend>simplified</legend>'));
-    simpcont.append($('<b></b>').append(formatexpr(data['simp'], 1000000, data.varmap)));
-    if (data['proof']) {
-      if (data['proof'][1][0] != "structurally equal")
-        formatproof(simpcont, data['proof'], data.varmap);
+  if (data.simp) {
+    $j('#displayoptions').show();
+    var simpcont = $j('<fieldset/>');
+    simpcont.append($j('<legend>simplified</legend>'));
+    simpcont.append($j('<b></b>').append(formatexpr(data.simp, 1000000, data.varmap)));
+    if (data.proof) {
+      if (data.proof[1][0] != 'structurally equal')
+        formatproof(simpcont, data.proof, data.varmap);
     }
     
-    $('#resultDiv').append(simpcont);
+    $j('#resultDiv').append(simpcont);
   }
-  if (data['properties']) {
-    var prop = data['properties'];
-    var propscont = $('<fieldset/>');
-    propscont.append($('<legend>properties</legend>'));
+  if (data.properties) {
+    var prop = data.properties;
+    var propscont = $j('<fieldset/>');
+    propscont.append($j('<legend>properties</legend>'));
     var haveAny = false;
     if (prop.hasOwnProperty('nibmask')) {
-      propscont.append($('<div>nibble mask: ' + prop.nibmask + '</div>'));
+      propscont.append($j('<div>nibble mask: ' + prop.nibmask + '</div>'));
       haveAny = true;
     }
     if (prop.hasOwnProperty('bitmask')) {
-      propscont.append($('<div>bit mask: ' + prop.bitmask + '</div>'));
+      propscont.append($j('<div>bit mask: ' + prop.bitmask + '</div>'));
       haveAny = true;
     }
 
     function makeCollapsible(base, text, value, count, examples, varmap) {
       var extra = null;
       if (count == "1")
-        extra = $('<div/>').append('once:').append(formatVariableAssignment(examples(0), varmap));
+        extra = $j('<div/>').append('once:').append(formatVariableAssignment(examples(0), varmap));
       else
-        extra = $('<div/>').append(count + ' cases').append(formatVariableAssignments(examples, varmap));
+        extra = $j('<div/>').append(count + ' cases').append(formatVariableAssignments(examples, varmap));
       extra.css('overflow', 'hidden');
-      var showbutton = $('<a/>', {
+      var showbutton = $j('<a/>', {
         text: '▸',
         style: 'color:#000',
         class: 'bigger',
-        click: function() { extra.slideToggle(); $(this).text($(this).text() == '▸' ? '▾' : '▸'); }
+        click: function() { extra.slideToggle(); $j(this).text($j(this).text() == '▸' ? '▾' : '▸'); }
       });
-      base.append($('<div/>').append(text + formatConstant(value) + '&nbsp;').append(showbutton));
+      base.append($j('<div/>').append(text + formatConstant(value) + '&nbsp;').append(showbutton));
       base.append(extra);
       extra.hide();
     }
@@ -407,26 +411,26 @@ function update() {
 
     // only make this box if there's anything in it
     if (haveAny)
-      $('#resultDiv').append(propscont);
+      $j('#resultDiv').append(propscont);
   }
 }
 
 function doquery(f) {
   if (f === undefined || f == null || f.length == 0)
     return;
-  $('#displayoptions').hide();
-  $('#q').val(decodeURIComponent(f.replace(/\+/g, " ")));
-  $('#resultDiv').empty();
-  $('#resultDiv').text('Waiting for result...');
+  $j('#displayoptions').hide();
+  $j('#q').val(decodeURIComponent(f.replace(/\+/g, " ")));
+  $j('#resultDiv').empty();
+  $j('#resultDiv').text('Waiting for result...');
   bdd.reset();
   circuit.reset();
   performQuery(decodeURIComponent(f.replace(/\+/g, " ")));
 }
-$(document).ready(function(){
+$j(document).ready(function(){
   if (ls.get('explicitparens'))
-    $('#explicitparens').prop('checked', ls.get('explicitparens') == 2);
-  $(':checkbox').change(function() {
-    ls.set('explicitparens', $('#explicitparens').is(':checked') ? 2 : 1);
+    $j('#explicitparens').prop('checked', ls.get('explicitparens') == 2);
+  $j(':checkbox').change(function() {
+    ls.set('explicitparens', $j('#explicitparens').is(':checked') ? 2 : 1);
     update();
   });
 });
@@ -465,7 +469,8 @@ $(document).ready(function(){
     <p>== binds less strongly than bitwise operators.</p>
     <p>Finding proofs can be slow and often nothing is found at all.</p>
     <p>The BDD structural matcher has not been fully ported yet.</p>
-    <p>Division, remainder and multiplication will not work if both operands are variable, and even in some cases where one operand is a constant. That's not a bug but an inherent limitation of the techniques used. This situation may be improved (with reduced functionality) someday if I get around to coding up the SAT fallback.</p>
+    <p><s>Division, remainder and multiplication will not work if both operands are variable, and even in some cases where one operand is a constant. That's not a bug but an inherent limitation of the techniques used. This situation may be improved (with reduced functionality) someday if I get around to coding up the SAT fallback.</s></p>
+    <p>SAT fallback now exists, using MiniSat compiled with Emscripten. This is brand new so expect bugs (not due to MiniSat, but for example I don't entirely trust my circuit builder and circuit-to-SAT converter). It takes a while before haroldbot gives up on BDDs and switches to SAT, even if it could have known from the start that BDDs were never going to work. I'll probably improve that.</p>
     <p>In general, there <i>are</i> many bugs.</p>
     <p>Since everything happens client-side now, I don't get automatic bug reports. Please <a href="https://github.com/IJzerbaard/haroldbot/issues">open an issue</a> or contact me (if you know how).</p>
   </div>

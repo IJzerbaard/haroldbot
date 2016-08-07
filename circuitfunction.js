@@ -185,12 +185,11 @@ CFunction.mul = function(x, y) {
 CFunction.prototype.sat = function() {
 	var sat = new SAT();
 	circuit.to_cnf(this._bits[0], sat);
-	var temp;
-	var res = sat.solveSimple(function (assignment) { temp = assignment; });
+	var res = sat.solve();
 	if (res) {		
 		var values = new Int32Array(4);
 		for (var i = 0; i < 4 * 32; i++) {
-			if (temp[i + 1] == 2)
+			if (res[i + 1] == 1)
 				values[i >> 5] |= 1 << (i & 31);
 		}
 		return values;
@@ -199,12 +198,16 @@ CFunction.prototype.sat = function() {
 };
 
 CFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallback) {
-	var res = new Object();
+	var res = {
+		msg: "Using SAT fallback"
+	};
 	res.varmap = vars;
 
 	if (this._divideError == 0) {
 		if (this._bits[0] == 0) {
-			res["false"] = "always";
+			res["false"] = { 
+				count: "always"
+			};
 		} else if (this._bits[0] == -1) {
 			var resobj = {
 				count: "always",
@@ -221,21 +224,22 @@ CFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallback)
 		} else {
 			var sat = new SAT();
 			circuit.to_cnf(~this._bits[0], sat);
-			var fmodel_raw = null;
-			var can_be_false = sat.solveSimple(function (assignment) { fmodel_raw = assignment; });
+			var fmodel_raw = sat.solve();
 			sat = new SAT();
 			circuit.to_cnf(this._bits[0], sat);
-			var tmodel_raw = null;
-			var can_be_true = sat.solveSimple(function (assignment) { tmodel_raw = assignment; });
+			var tmodel_raw = sat.solve();
+
+			var can_be_true = tmodel_raw != null;
+			var can_be_false = fmodel_raw != null;
 
 			var fmodel = new Int32Array(64);
 			for (var i = 1; i <= 32 * 64; i++) {
-				if (fmodel_raw[i] == 2)
+				if (fmodel_raw[i] == 1)
 					fmodel[(i - 1) >> 5] |= 1 << ((i - 1) & 31);
 			}
 			var tmodel = new Int32Array(64);
 			for (var i = 1; i <= 32 * 64; i++) {
-				if (tmodel_raw[i] == 2)
+				if (tmodel_raw[i] == 1)
 					tmodel[(i - 1) >> 5] |= 1 << ((i - 1) & 31);
 			}
 
@@ -269,7 +273,9 @@ CFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallback)
 			}
 			if (can_be_false) {
 				if (!can_be_true) {
-					res["false"] = "always";
+					res["false"] = {
+						count: "always"
+					};
 				}
 				else {
 					var falseobj = {
