@@ -367,12 +367,21 @@ BDDFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallbac
 	var res = new Object();
 	res.varmap = vars;
 
+	var remap = new Array(2048);
+	var index = 0;
+	for (var i = 0; i < 32; i++) {
+		for (var j = 0; j < vars.length; j++)
+			remap[(i << 6) + j] = index++;
+	}
+
 	if (this._divideError == 0) {
 		if (this._bits[0] == 0) {
-			res["false"] = "always";
+			res.false = {
+				count: "#always"
+			};
 		} else if (this._bits[0] == -1) {
 			var resobj = {
-				count: "always",
+				count: "#always",
 				proof: undefined
 			};
 			if (root.type == 'bin') {
@@ -382,25 +391,51 @@ BDDFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallbac
 					callback();
 				}, debugcallback);
 			}
-			res["true"] = resobj;
+			res.true = resobj;
 		} else {
-			var remap = new Array(2048);
-			var index = 0;
-			for (var i = 0; i < 32; i++) {
-				for (var j = 0; j < vars.length; j++)
-					remap[(i << 6) + j] = index++;
-			}
 			var bit0 = this._bits[0];
-			res["true"] = {
+			res.true = {
 				count: bdd.satCount(bit0, index, remap).toString(),
 				examples: function(ix) {
 					return bdd.indexedSat(bit0, ix, index, remap);
 				}
 			};
-			res["false"] = {
+			res.false = {
 				count: bdd.satCount(~bit0, index, remap).toString(),
 				examples: function(ix) {
 					return bdd.indexedSat(~bit0, ix, index, remap);
+				}
+			};
+		}
+	}
+	else if (this._divideError == -1) {
+		res.diverror = {
+			count: "#always"
+		};
+	}
+	else {
+		var de = this._divideError;
+		res.diverror = {
+			count: bdd.satCount(de, index, remap).toString(),
+			examples: function(ix) {
+				return bdd.indexedSat(de, ix, index, remap);
+			}
+		}
+		var trueNotError = bdd.and(this._bits[0], ~de);
+		var falseNotError = bdd.and(~this._bits[0], ~de);
+		if (trueNotError != 0) {
+			res.true = {
+				count: bdd.satCount(trueNotError, index, remap).toString(),
+				examples: function(ix) {
+					return bdd.indexedSat(trueNotError, ix, index, remap);
+				}
+			};
+		}
+		if (falseNotError != 0) {
+			res.false = {
+				count: bdd.satCount(falseNotError, index, remap).toString(),
+				examples: function(ix) {
+					return bdd.indexedSat(falseNotError, ix, index, remap);
 				}
 			};
 		}

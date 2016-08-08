@@ -296,66 +296,49 @@ function update() {
     $j('#resultDiv').append("Query Failed");
     return;
   }
-  
+  var varmap = data.varmap;
+
   if (data.msg) {
     $j('#resultDiv').append('<p>' + data.msg + '</p>');
   }
-  if (data.true) {
-    var truecontainer = $j('<fieldset/>');
-    truecontainer.append($j('<legend>true</legend>'));
-    if (data.true.count == 'always') {
-      truecontainer.append('<p>always</p>');
-      if (data.true.proof)
-        formatproof(truecontainer, data.true.proof, data.varmap);
+
+  function makeMainInfoBox(stuff, name) {
+    if (!stuff)
+      return;
+
+    var container = $j('<fieldset/>');
+    container.append($j('<legend>' + name + '</legend>'));
+    if (stuff.count.startsWith('#')) {
+      container.append('<p>' + stuff.count.substring(1) + '</p>');
+      if (stuff.proof)
+        formatproof(container, stuff.proof, varmap);
     }
-    else if (data.true.count == '1') {
-      if (data.true.examples) {
-        var varassign = formatVariableAssignment(data.true.examples(0), data.varmap);
-        truecontainer.append($j('<p>once, namely:</p>').append(varassign));
+    else if (stuff.count == '1') {
+      if (stuff.examples) {
+        var varassign = formatVariableAssignment(stuff.examples(0), varmap);
+        container.append($j('<p>once, namely:</p>').append(varassign));
       }
       else
-        truecontainer.append('<p>once</p>');
+        container.append('<p>once</p>');
     }
-    else if (data.true.count) {
-      var c = data.true.count == 'at least one' ? 'case' : 'cases';
-      truecontainer.append('<p>in ' + data.true.count + ' ' + c + '</p>');
-      if (data.true.examples)
-        truecontainer.append($j('<p>for example:</p>').append(formatVariableAssignments(data.true.examples, data.varmap)));
-    }
-    else {
-      truecontainer.append('<p>true (trivially)</p>');
-    }
-    
-    $j('#resultDiv').append(truecontainer);
-  }
-  if (data.false) {
-    var falsecontainer = $j('<fieldset/>');
-    falsecontainer.append($j('<legend>false</legend>'));
-    if (data.false.count == 'always') {
-      falsecontainer.append('<p>always</p>');
-      if (data.false.proof)
-        formatproof(falsecontainer, data.false.proof, data.varmap);
-    }
-    else if (data.false.count == "1") {
-      if (data.false.examples) {
-        var varassign = formatVariableAssignment(data.false.examples(0), data.varmap);
-        falsecontainer.append($j('<p>once, namely:</p>').append(varassign));
-      }
-      else
-        falsecontainer.append('<p>once</p>');
-    }
-    else if (data.false.count) {
-      var c = data.false.count == 'at least one' ? 'case' : 'cases';
-      falsecontainer.append('<p>in ' + data.false.count + ' ' + c + '</p>');
-      if (data.false.examples)
-        falsecontainer.append($j('<p>for example:</p>').append(formatVariableAssignments(data.false.examples, data.varmap)));
+    else if (stuff.count) {
+      var c = stuff.count == 'at least one' ? 'case' : 'cases';
+      container.append('<p>in ' + stuff.count + ' ' + c + '</p>');
+      if (stuff.examples)
+        container.append($j('<p>for example:</p>').append(formatVariableAssignments(stuff.examples, varmap)));
     }
     else {
-      falsecontainer.append('<p>false (trivially)</p>');
+      debugger;
+      alert('should be unreachable');
     }
     
-    $j('#resultDiv').append(falsecontainer);
+    $j('#resultDiv').append(container);
   }
+
+  makeMainInfoBox(data.diverror, 'divide error');
+  makeMainInfoBox(data.true, 'true');
+  makeMainInfoBox(data.false, 'false');
+
   if (data.simp) {
     $j('#displayoptions').show();
     var simpcont = $j('<fieldset/>');

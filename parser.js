@@ -196,7 +196,7 @@ function parse(query) {
 	for (var i = 0; i < tokens.length; i++) {
 		debugstr += "{" + tokens[i].val + "}";
 	}
-	debugger;
+	//debugger;
 
 	var t = tokens[0];
 	var la = tokens[1];
