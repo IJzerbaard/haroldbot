@@ -182,6 +182,98 @@ CFunction.mul = function(x, y) {
 	return r;
 }
 
+CFunction.abs = function(x) {
+	var m = CFunction.nthbit(x, 31);
+	return CFunction.xor(CFunction.add(x, m), m);
+}
+
+CFunction.eqz = function (x) {
+	var t = CFunction.hor(x);
+	return ~t._bits[0];
+}
+
+CFunction.divu = function (a, b) {
+	var diverror = circuit.or(CFunction.eqz(b), circuit.or(a._divideError, b._divideError));
+	var P = new Int32Array(64);
+	for (var i = 0; i < 32; i++)
+		P[i] = a._bits[i];
+	var D = new Int32Array(64);
+	for (var i = 0; i < 32; i++)
+		D[i + 32] = b._bits[i];
+	var bits = new Int32Array(32);
+
+	for (var i = 31; i >= 0; i--) {
+		for (var j = P.length - 1; j > 0; j--)
+			P[j] = P[j - 1];
+		P[0] = 0;
+		var borrow = new Int32Array(64);
+		var newP = new Int32Array(64);
+		for (var j = 0; j < P.length; j++) {
+			var ab = circuit.xor(P[j], D[j]);
+			newP[j] = ab;
+			if (j > 0) {
+				newP[j] = circuit.xor(newP[j], borrow[j - 1]);
+				borrow[j] = circuit.or(circuit.and(~ab, borrow[j - 1]), circuit.and(~P[j], D[j]));
+			}
+			else
+				borrow[j] = circuit.and(~P[j], D[j]);
+		}
+		bits[i] = ~borrow[63];
+		if (i != 0) {
+			for (var j = 63; j > 0; j--)
+				P[j] = circuit.or(circuit.and(newP[j], ~borrow[63]), circuit.and(P[j], borrow[63]));
+		}
+	}
+	return new CFunction(bits, diverror);
+}
+
+CFunction.divs = function (a, b) {
+	var sign = CFunction.xor(CFunction.nthbit(a, 31), CFunction.nthbit(b, 31));
+	var div = CFunction.divu(CFunction.abs(a), CFunction.abs(b));
+	return CFunction.xor(sign, CFunction.add(sign, div));
+}
+
+CFunction.remu = function (a, b) {
+	var diverror = circuit.or(CFunction.eqz(b), circuit.or(a._divideError, b._divideError));
+	var P = new Int32Array(64);
+	for (var i = 0; i < 32; i++)
+		P[i] = a._bits[i];
+	var D = new Int32Array(64);
+	for (var i = 0; i < 32; i++)
+		D[i + 32] = b._bits[i];
+	var bits = new Int32Array(32);
+
+	for (var i = 31; i >= 0; i--) {
+		for (var j = P.length - 1; j > 0; j--)
+			P[j] = P[j - 1];
+		P[0] = 0;
+		var borrow = new Int32Array(64);
+		var newP = new Int32Array(64);
+		for (var j = 0; j < P.length; j++) {
+			var ab = circuit.xor(P[j], D[j]);
+			newP[j] = ab;
+			if (j > 0) {
+				newP[j] = circuit.xor(newP[j], borrow[j - 1]);
+				borrow[j] = circuit.or(circuit.and(~ab, borrow[j - 1]), circuit.and(~P[j], D[j]));
+			}
+			else
+				borrow[j] = circuit.and(~P[j], D[j]);
+		}
+		for (var j = 63; j > 0; j--)
+			P[j] = circuit.or(circuit.and(newP[j], ~borrow[63]), circuit.and(P[j], borrow[63]));
+	}
+
+	for (var i = 0; i < 32; i++)
+		bits[i] = P[i + 32];
+	return new CFunction(bits, diverror);
+}
+
+CFunction.rems = function (a, b) {
+	var sign = CFunction.xor(CFunction.nthbit(a, 31), CFunction.nthbit(b, 31));
+	var div = CFunction.remu(CFunction.abs(a), CFunction.abs(b));
+	return CFunction.xor(sign, CFunction.add(sign, div));
+}
+
 CFunction.prototype.sat = function() {
 	var sat = new SAT();
 	circuit.to_cnf(this._bits[0], sat);

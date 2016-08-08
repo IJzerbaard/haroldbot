@@ -369,6 +369,10 @@ Binary.prototype.toCircuitFunc = function() {
 			return CFunction.eq(l, r);
 		case 21:
 			return CFunction.not(CFunction.eq(l, r));
+		case 27:
+			return CFunction.and(CFunction.hor(l), CFunction.hor(r));
+		case 28:
+			return CFunction.or(CFunction.hor(l), CFunction.hor(r));
 		case 30:
 			return CFunction.shrs(l, r);
 		case 31:
