@@ -188,6 +188,12 @@ function ProofFinder(op) {
 			["-", ["-", [a(1)], [a(0)]]],
 			true, "anticommutativity of subtraction", ,
 		],
+		// properties of rbit
+		[
+			["$reverse", ["$reverse", [a(0)]]],
+			[a(0)],
+			false, "double reverse", ,
+		],
 		// properties of mux
 		[
 			["?", [0], [a(0)], [a(1)]],
@@ -453,6 +459,21 @@ function ProofFinder(op) {
 			["min_s", ["max_s", [a(0)], [a(1)]], ["max_s", [a(2)], [a(1)]]],
 			["max_s", ["min_s", [a(0)], [a(2)]], [a(1)]],
 			true, "maximum distributes over minimum", ,
+		],
+		[
+			["&", ["$reverse", [a(0)]], ["$reverse", [a(1)]]],
+			["$reverse", ["&", [a(0)], [a(1)]]],
+			true, "reverse distributes over and"
+		],
+		[
+			["^", ["$reverse", [a(0)]], ["$reverse", [a(1)]]],
+			["$reverse", ["^", [a(0)], [a(1)]]],
+			true, "reverse distributes over xor"
+		],
+		[
+			["|", ["$reverse", [a(0)]], ["$reverse", [a(1)]]],
+			["$reverse", ["|", [a(0)], [a(1)]]],
+			true, "reverse distributes over or"
 		],
 		// shifts over or
 		[
@@ -729,7 +750,7 @@ function ProofFinder(op) {
 		if (root.length == 1)
 			return root;
 		if (root.length == 2) {
-			root[0] = root[0] == '~' ? 0 : 1;
+			root[0] = unops.indexOf(root[0]);
 			root[1] = convOps(root[1]);
 			return root;
 		}
@@ -1619,7 +1640,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 			proofsteps = makesteps(witness[3], witness[1], witness[2], rules);
 			cb(proofsteps);
 		}
-		else if (index > 200) {
+		else if (index > 100) {
 			cb(null);
 		}
 		else {

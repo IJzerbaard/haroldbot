@@ -177,7 +177,12 @@ function formatexpr(expr, ix, varmap) {
   var parens = $j('#explicitparens').is(':checked');
   if (expr.type == 'un') {
     var inner = formatexpr(expr.value, ix, varmap);
-    res.append(['.~', '-'][expr.op]);
+
+    if (unops[expr.op].startsWith('$')) {
+      return res.append(unops[expr.op].substr(1) + '(').append(inner).append(')');
+    }
+
+    res.append(unops[expr.op]);
     if ((expr.value.type == 'bin' && expr.value.op < 55) || expr.value.type == 'ter') {
       res.append('(');
       res.append(inner);
@@ -191,7 +196,7 @@ function formatexpr(expr, ix, varmap) {
     var l = formatexpr(expr.l, ix, varmap);
     var r = formatexpr(expr.r, ix, varmap);
 
-    if (ops[expr.op].indexOf('$j') == 0) {
+    if (ops[expr.op].startsWith('$')) {
       return res.append(ops[expr.op].substr(1) + '(').append(l).append(', ').append(r).append(')');
     }
 
@@ -310,6 +315,8 @@ function update() {
     container.append($j('<legend>' + name + '</legend>'));
     if (stuff.count.startsWith('#')) {
       container.append('<p>' + stuff.count.substring(1) + '</p>');
+      if (stuff.examples)
+        container.append($j('<p>for example:</p>').append(formatVariableAssignments(stuff.examples, varmap)));
       if (stuff.proof)
         formatproof(container, stuff.proof, varmap);
     }
@@ -322,8 +329,7 @@ function update() {
         container.append('<p>once</p>');
     }
     else if (stuff.count) {
-      var c = stuff.count == 'at least one' ? 'case' : 'cases';
-      container.append('<p>in ' + stuff.count + ' ' + c + '</p>');
+      container.append('<p>in ' + stuff.count + ' cases</p>');
       if (stuff.examples)
         container.append($j('<p>for example:</p>').append(formatVariableAssignments(stuff.examples, varmap)));
     }
