@@ -342,6 +342,10 @@ Binary.prototype.toBddFunc = function() {
 			return BDDFunction.rems(l, r);
 		case 35:
 			return BDDFunction.remu(l, r);
+		case 59:
+			return BDDFunction.hmul(l, r);
+		case 60:
+			return BDDFunction.hmuls(l, r);
 	}
 	debugger;
 	alert("Severe bug in Binary.toBddFunc");
@@ -413,6 +417,10 @@ Binary.prototype.toCircuitFunc = function() {
 			return CFunction.rems(l, r);
 		case 35:
 			return CFunction.remu(l, r);
+		case 59:
+			return CFunction.hmul(l, r);
+		case 60:
+			return CFunction.hmuls(l, r);
 	}
 	debugger;
 	alert("Severe bug in Binary.toCircuitFunc");

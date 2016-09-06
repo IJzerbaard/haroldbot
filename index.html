@@ -48,7 +48,7 @@ function performQuery(input) {
       throw err;
   }
 
-  if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 26 || expr.op >= 40 && expr.op <= 46)) {
+  if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 26 || expr.op >= 40 && expr.op <= 48)) {
     // comparison
     data = (bddf||circuitf).AnalyzeTruth(expr.removeDummy(), varmap, function () {
       update();

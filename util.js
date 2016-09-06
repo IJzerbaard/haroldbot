@@ -1,10 +1,10 @@
 var unops = ["~", "-", "$popcnt", "$ntz", "$nlz", "$reverse"];
-var ops = [, "&", "|", "^", "+", "-", "<<", ">>", "<<<", ">>>", "/", "*", , , , , , , , , "==", "!=", "<=", "<", ">=", ">", "=>", "&&", "||", , ">>s", ">>u", "/s", "/u", "%s", "%u", , , , , "<=s", "<=u", "<s", "<u", ">=s", ">=u", ">s", ">u", ,,,,,,, "$min_u", "$min_s", "$max_u", "$max_s"];
-var associative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , false, false, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true];
-var commutative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , true, true, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true];
+var ops = [, "&", "|", "^", "+", "-", "<<", ">>", "<<<", ">>>", "/", "*", , , , , , , , , "==", "!=", "<=", "<", ">=", ">", "=>", "&&", "||", , ">>s", ">>u", "/s", "/u", "%s", "%u", , , , , "<=s", "<=u", "<s", "<u", ">=s", ">=u", ">s", ">u", ,,,,,,, "$min_u", "$min_s", "$max_u", "$max_s", "$hmul_u", "$hmul_s"];
+var associative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , false, false, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true, false, false];
+var commutative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , true, true, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true, true, true];
 
 function precedence(index) {
-    var pre = [ 0, 16, 14, 15, 18, 18, 17, 17, 17, 17, 19, 19, 20, 20, 0, 0, 0, 0, 0, 0, 13, 13, 13, 13, 13, 13, 11, 12, 12, 0, 17, 17, 19, 19, 19, 19, 20, 20, 20, 20, 13, 13, 13, 13, 13, 13, 13, 13 ];
+    var pre = [ 0, 16, 14, 15, 18, 18, 17, 17, 17, 17, 19, 19, 20, 20, 0, 0, 0, 0, 0, 0, 13, 13, 13, 13, 13, 13, 11, 12, 12, 0, 17, 17, 19, 19, 19, 19, 20, 20, 20, 20, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13];
     if (index < 0 || index > pre.length)
         return 20;
     return pre[index];

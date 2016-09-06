@@ -521,8 +521,19 @@ function parse(query) {
 			return fun1("ntz");
 		} else if (l("reverse")) {
 			return fun1("reverse");
-		} else if (l("min")) {
-			
+		} else if (l("hmul")) {
+			var isSigned = false;
+			if (l("_s")) isSigned = true;
+			else l("_u");
+			ws();
+			if (!l("(")) return error("'hmul' is a function but it is used as a variable");
+			var a = expr();
+			ws();
+			if (!l(",")) return error("expected ',' in 'hmul'");
+			var b = expr();
+			ws();
+			if (!l(")")) return error("unclosed parenthesis");
+			return new Binary(ops.indexOf(isSigned ? "$hmul_s" : "$hmul_u"), a, b);
 		} else if (query.charAt(pos) >= '0' && query.charAt(pos) <= '9') {
 			if (query.charAt(pos) == '0' && query.charAt(pos + 1) == 'x') {
 				pos += 2;
