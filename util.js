@@ -1,4 +1,5 @@
 var unops = ["~", "-", "$popcnt", "$ntz", "$nlz", "$reverse"];
+//            1    2    3    4    5    6     7     8      9      10   11                   20    21    22    23   24    25   26
 var ops = [, "&", "|", "^", "+", "-", "<<", ">>", "<<<", ">>>", "/", "*", , , , , , , , , "==", "!=", "<=", "<", ">=", ">", "=>", "&&", "||", , ">>s", ">>u", "/s", "/u", "%s", "%u", , , , , "<=s", "<=u", "<s", "<u", ">=s", ">=u", ">s", ">u", ,,,,,,, "$min_u", "$min_s", "$max_u", "$max_s", "$hmul_u", "$hmul_s"];
 var associative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , false, false, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true, false, false];
 var commutative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , true, true, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true, true, true];

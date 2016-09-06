@@ -298,6 +298,8 @@ Binary.prototype.toBddFunc = function() {
 			return BDDFunction.eq(l, r);
 		case 21:
 			return BDDFunction.not(BDDFunction.eq(l, r));
+		case 26:
+			return BDDFunction.or(BDDFunction.not(BDDFunction.hor(l)), BDDFunction.hor(r));
 		case 27:
 			return BDDFunction.and(BDDFunction.hor(l), BDDFunction.hor(r));
 		case 28:
@@ -373,6 +375,8 @@ Binary.prototype.toCircuitFunc = function() {
 			return CFunction.eq(l, r);
 		case 21:
 			return CFunction.not(CFunction.eq(l, r));
+		case 26:
+			return CFunction.or(CFunction.not(CFunction.hor(l)), CFunction.hor(r));
 		case 27:
 			return CFunction.and(CFunction.hor(l), CFunction.hor(r));
 		case 28:

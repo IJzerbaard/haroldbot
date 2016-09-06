@@ -4,6 +4,8 @@ function ProofFinder(op) {
 	var except_zero = 3;
 	var except_unknown_or_zero = 4;
 
+	this.dead = op != 20;
+
 	function a(x) {
 		return {
 			any: x
@@ -913,6 +915,9 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
        [parent, expr, explanation, backwards, depth, pattern]
            0     1         2           3        4       5
 	 */
+
+	if (this.dead)
+		return;
 
 	function hash_update(htable, key, val) {
 		var h = (key.hash & 0x7fffffff) % 65521;
