@@ -459,13 +459,24 @@ Binary.prototype.constantFold = function() {
 			case 6: // <<
 				return new Constant(l.value << (r.value & 31));
 			case 7: // >> (unsigned)
+			case 31:
 				return new Constant(l.value >>> (r.value & 31));
+			case 30:
+				return new Constant(l.value >> (r.value & 31));
 			case 8: // <<<
 				return new Constant((l.value >>> ((r.value & 31) ^ 31)) | (l.value << (r.value & 31)));
 			case 9: // >>>
 				return new Constant((l.value << ((r.value & 31) ^ 31)) | (l.value >>> (r.value & 31)));
 			case 11:// *
 				return new Constant(Math.imul(l.value, r.value));
+			case 55: 	// min_u
+				return new Constant(Math.min(l.value >>> 0, r.value >>> 0));
+			case 56: 	// min_s
+				return new Constant(Math.min(l.value | 0, r.value | 0));
+			case 57: 	// max_u
+				return new Constant(Math.max(l.value >>> 0, r.value >>> 0));
+			case 58: 	// max_s
+				return new Constant(Math.max(l.value | 0, r.value | 0));
 		}
 	}
 	if (l.id != this.l.id ||
