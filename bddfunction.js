@@ -688,6 +688,7 @@ BDDFunction.prototype.Identify = function(vars) {
 
 BDDFunction.prototype.AnalyzeProperties = function(vars, callback) {
 	var res = new Object();
+	var isInteresting = false;
 
 	// "constant bit" masks
 	var mustBeZero = 0;
@@ -718,8 +719,10 @@ BDDFunction.prototype.AnalyzeProperties = function(vars, callback) {
 			}
 		}
 		// if no nibmask is possible or if it's all wildcards anyway, don't use it
-		if (nibmask != null && nibmask != "0x********")
+		if (nibmask != null && nibmask != "0x********") {
 			res.nibmask = nibmask;
+			isInteresting = true;
+		}
 	}
 
 	if (nibmask == null && (mustBeOne | mustBeZero) != 0) {
@@ -734,9 +737,8 @@ BDDFunction.prototype.AnalyzeProperties = function(vars, callback) {
 				bitmask += '*';
 		}
 		res.bitmask = bitmask;
+		isInteresting = true;
 	}
-
-	callback(res);
 	
 	var remap = new Array(2048);
 	var index = 0;
@@ -745,17 +747,27 @@ BDDFunction.prototype.AnalyzeProperties = function(vars, callback) {
 			remap[(i << 6) + j] = index++;
 	}
 
-	// lowest unsigned
+	isInteresting = getLowestUnsigned(res, this._bits, mustBeZero, index, remap) || isInteresting;
+
+	isInteresting = getHighestUnsigned(res, this._bits, mustBeZero, index, remap) || isInteresting;
+
+	if (callback)
+		callback(res);
+
+	return res;
+};
+
+function getLowestUnsigned(res, bits, mustBeOne, maxvar, remap) {
 	try {
 		var bitsCombined = -1;
 		var val = 0;
 		for (var i = 31; i >= 0; i--) {
-			var tryZero = bdd.and(bitsCombined, ~this._bits[i]);
+			var tryZero = bdd.and(bitsCombined, ~bits[i]);
 			if (tryZero != 0) {
 				bitsCombined = tryZero;
 				continue;
 			}
-			var tryOne = bdd.and(bitsCombined, this._bits[i]);
+			var tryOne = bdd.and(bitsCombined, bits[i]);
 			if (tryOne != 0) {
 				bitsCombined = tryOne;
 				val |= 1 << i;
@@ -768,30 +780,32 @@ BDDFunction.prototype.AnalyzeProperties = function(vars, callback) {
 		if (val != 0 && val -1 && val != mustBeOne) {
 			res.lowestUnsigned = {
 				value: val,
-				count: bdd.satCount(bitsCombined, index, remap).toString(),
+				count: bdd.satCount(bitsCombined, maxvar, remap).toString(),
 				examples: function(ix) {
-					return bdd.indexedSat(bitsCombined, ix, index, remap)
+					return bdd.indexedSat(bitsCombined, ix, maxvar, remap)
 				}
 			};
-			callback(res);
+			return true;
 		}
+		return false;
 	}
 	catch (ex) {
 		debugger;
 	}
+}
 
-	// highest unsigned
+function getHighestUnsigned(res, bits, mustBeZero, maxvar, remap) {
 	try {
 		var bitsCombined = -1;
 		var val = 0;
 		for (var i = 31; i >= 0; i--) {
-			var tryOne = bdd.and(bitsCombined, this._bits[i]);
+			var tryOne = bdd.and(bitsCombined, bits[i]);
 			if (tryOne != 0) {
 				bitsCombined = tryOne;
 				val |= 1 << i;
 				continue;
 			}
-			var tryZero = bdd.and(bitsCombined, ~this._bits[i]);
+			var tryZero = bdd.and(bitsCombined, ~bits[i]);
 			if (tryZero != 0) {
 				bitsCombined = tryZero;
 				continue;
@@ -803,17 +817,16 @@ BDDFunction.prototype.AnalyzeProperties = function(vars, callback) {
 		if (val != -1 && val != 0 && val != ~mustBeZero) {
 			res.highestUnsigned = {
 				value: val,
-				count: bdd.satCount(bitsCombined, index, remap).toString(),
+				count: bdd.satCount(bitsCombined, maxvar, remap).toString(),
 				examples: function(ix) {
-					return bdd.indexedSat(bitsCombined, ix, index, remap)
+					return bdd.indexedSat(bitsCombined, ix, maxvar, remap)
 				}
 			};
-			callback(res);
+			return true;
 		}
+		return false;
 	}
 	catch (ex) {
 		debugger;
 	}
-
-	return res;
-};
+}
