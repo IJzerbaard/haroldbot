@@ -57,7 +57,7 @@ var bdd = {
 			return hash2 ^ invert;
 		}
 		for (var i = hash2; i != upper; i = (i + 1) % 8388593) {
-			if (this._lo[i] == 0 && this._hi[i] == 0) {
+			if (this._lo[i] == 0 && this._hi[i] == 0 && i != 0) {
 				this._lo[i] = lo;
 				this._hi[i] = hi;
 				this._v[i] = v;
