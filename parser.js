@@ -574,7 +574,10 @@ function parse(query) {
 	function ident() {
 		if (query.charAt(pos) >= 'a' && query.charAt(pos) <= 'z' || query.charAt(pos) >= 'A' && query.charAt(pos) <= 'Z') {
 			var variable = query.substr(pos++, 1);
-			while (query.charAt(pos) >= 'a' && query.charAt(pos) <= 'z' || query.charAt(pos) >= 'A' && query.charAt(pos) <= 'Z') {
+			while (query.charAt(pos) >= 'a' && query.charAt(pos) <= 'z' || 
+				   query.charAt(pos) >= 'A' && query.charAt(pos) <= 'Z' ||
+				   query.charAt(pos) >= '0' && query.charAt(pos) <= '9' ||
+				   query.charAt(pos) == '_') {
 				variable = variable.concat(query.substr(pos++, 1));
 			}
 			return variable;
