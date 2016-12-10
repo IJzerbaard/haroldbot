@@ -658,17 +658,17 @@ function ProofFinder(op) {
 		[
 			["^", [a(0)], [a(1)]],
 			["|", [a(0)], [a(1)]],
-			true, "xor is or when bits don't intersect", , "no intersect"
+			true, "xor is or when bits <a class='replace'>don't intersect</a>", , "no intersect"
 		],
 		[
 			["+", [a(0)], [a(1)]],
 			["|", [a(0)], [a(1)]],
-			true, "addition is or when bits don't intersect", , "no intersect"
+			true, "addition is or when bits <a class='replace'>don't intersect</a>", , "no intersect"
 		],
 		[
 			["^", [a(0)], [a(1)]],
 			["+", [a(0)], [a(1)]],
-			true, "xor is addition when bits don't intersect", , "no intersect"
+			true, "xor is addition when bits <a class='replace'>don't intersect</a>", , "no intersect"
 		],
 		// special
 		[
@@ -1285,7 +1285,10 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 				}
 				else {
 					if (getPattern) {
-						results.push([patternNode[0], n, rules[i]]);
+						if (rules[i][5] == "no intersect")
+							results.push([patternNode[0], n, rules[i], new Binary(20, new Binary(1, root.l, root.r), new Constant(0))]);
+						else
+							results.push([patternNode[0], n, rules[i]]);
 					}
 					else {
 						if (rules[i][5] == "no intersect")
@@ -1313,9 +1316,9 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 			}
 
 			gatherArgs(root, args, op);
-			// put all constants last
+			// put low weight last
 			insertionSort(args, function(a, b) {
-				if (a.type == 'const' && b.type != 'const') return 1;
+				if (a.weight > b.weight) return 1;
 				else return -1;
 			});
 			// construct normalized trees
@@ -1468,7 +1471,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 				if (forwardSet[k] && t.equals(forwardSet[k][1])) {
 					explanation = forwardSet[k];
 					if (explanation[0]) fixup_ids(explanation[1], t, explanation[0].r)
-						break;
+					break;
 				}
 			}
 			// try backwards
@@ -1493,10 +1496,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 			// output proof
 			proofsteps.push(steps[j]);
 			var explindex = explbackwards ? 4 : 3;
-			if (explanation[0])
-				proofsteps.push([explanation[2][explindex], explanation[0]]);
-			else
-				proofsteps.push([explanation[2][explindex]]);
+			proofsteps.push([explanation[2][explindex], explanation[0], explanation[3]]);
 		}
 		proofsteps.push(steps[steps.length - 1]);
 		return proofsteps;
@@ -1610,16 +1610,13 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 		while (q1.length + q2.length > 0 && counter < 10) {
 			counter++;
 			// forward step
+			var doReset = false;
 			if (q1.length > 0) {
 				var pn = removeMin(q1);
 				if (debugcallback) debugcallback(pn[1], false);
 				var found = processNode(pn, false, h1, q1, h2, maxForwardWeight, rules);
 				if (found != null && found[0] < maxstep) {
-					if (w.length == 0) {
-						complexity_weight = 0;
-						heapify(q1);
-						heapify(q2);
-					}
+					doReset = w.length == 0;
 					w.push(found);
 					maxstep = found[0];
 				}
@@ -1630,14 +1627,25 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 				if (debugcallback) debugcallback(pn[1], true);
 				var found = processNode(pn, true, h2, q2, h1, maxBackwardWeight, rules);
 				if (found != null && found[0] < maxstep) {
-					if (w.length == 0) {
-						complexity_weight = 0;
-						heapify(q1);
-						heapify(q2);
-					}
+					doReset = w.length == 0;
 					w.push(found);
 					maxstep = found[0];
 				}
+			}
+			//
+			if (doReset) {
+				// used after the first proof is found
+				// search again from scratch with more focus on short proofs
+				complexity_weight = 0;
+				q1 = [];
+				q2 = [];
+				h1 = [];
+				h2 = [];
+
+				q1.push([null, from, null, false, 0, null]);
+				q2.push([null, to, null, true, 0, null]);
+				hash_update(h1, from, q1[0]);
+				hash_update(h2, to, q2[0]);
 			}
 		}
 		if (w.length > 0 && index > 10) {

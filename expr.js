@@ -6,11 +6,13 @@ function Node() {
 	this.id = id++;
 }
 
+// structural equality with commutivity
 Node.prototype.equals = function(node) {
 	alert("This object should not exist");
 	return false;
 };
 
+// structural equality without commutivity
 Node.prototype.equals2 = function(node) {
 	alert("This object should not exist");
 	return false;
@@ -48,6 +50,10 @@ Node.prototype.copy = function() {
 	return null;
 };
 
+Node.prototype.analyze = function(env) {
+	alert("This object should not exist");
+	return null;
+};
 
 function Constant(val) {
 	Node.call(this);
@@ -84,6 +90,10 @@ Constant.prototype.copy = function() {
 	return new Constant(this.value);
 };
 
+Constant.prototype.analyze = function(env) {
+	var v = this.value;
+	env.nr[this.id] = { z: ~v, o: v, l: v, u: v };
+};
 
 
 function Variable(index) {
@@ -121,6 +131,10 @@ Variable.prototype.copy = function() {
 	return new Variable(this.index);
 };
 
+Variable.prototype.analyze = function(env) {
+	env.nr[this.id] = { z: -1, o: -1, l: 0, u: -1 };
+};
+
 
 function Unary(op, val) {
 	Node.call(this);
@@ -151,7 +165,13 @@ Unary.prototype.equals2 = function(node) {
 };
 
 Unary.prototype.print = function(varmap) {
-	return unops[this.op] + "(" + this.value.print(varmap) + ")";
+	if (this.op > 1)
+		return unops[this.op].substr(1) + "(" + this.value.print(varmap) + ")";
+	var o = unops[this.op];
+	if ((this.value.type == 'bin' && this.value.op < 55) || this.value.type == 'ter')
+		return o + "(" + this.value.print(varmap) + ")";
+	else
+		return o + this.value.print(varmap);
 };
 
 Unary.prototype.toBddFunc = function() {
@@ -240,11 +260,37 @@ Unary.prototype.copy = function() {
 	return new Unary(this.op, this.value.copy());
 };
 
+Unary.prototype.analyze = function(env) {
+	// z, o, l, u
+	this.value.analyze(env);
+	var v = env.nr[this.inner.id];
+	var r = { z: -1, o: -1, l: 0, u: -1 };
+	switch (this.op) {
+		case 0:
+			r = Bitfield.invert(v);
+			break;
+		case 1:
+			r = Bitfield.negate(v);
+			break;
+		default:
+			break;
+	}
+	env.nr[this.id] = r;
+};
+
 
 function Binary(op, l, r) {
 	Node.call(this);
 	if (op < 0 || l == null || r == null) debugger;
-	this.hash = (((l.hash * 31 | 0) + r.hash) * 31 | 0) + op * 1009 | 0;
+	var lhash = l.hash;
+	var rhash = r.hash;
+	// if commutative operation, use commutative hash
+	if (commutative[op]) {
+		var x = lhash ^ rhash;
+		lhash = Math.min(lhash, rhash);
+		rhash = x ^ lhash;
+	}
+	this.hash = (((lhash * 31 | 0) + rhash) * 31 | 0) + op * 1009 | 0;
 	this.hash2 = (op + 5 & 15) | ((l.hash2 & 15) << 4) | ((r.hash2 & 15) << 8);
 	this.op = op;
 	this.r = r;
@@ -263,17 +309,33 @@ Binary.prototype = Object.create(Node.prototype);
 Binary.prototype.constructor = Binary;
 
 Binary.prototype.equals = function(node) {
-	return node.type == 'bin' && node.op == this.op && ((node.l.equals(this.l) && node.r.equals(this.r)) || (commutative[this.op] && node.l.equals(this.r) && node.r.equals(this.l)));
+	if (node.hash != this.hash || node.type != 'bin' || node.op != this.op)
+		return false;
+	if (!commutative[this.op])
+		return node.l.equals(this.l) && node.r.equals(this.r);
+	else
+		return node.l.equals(this.l) && node.r.equals(this.r) ||
+	           node.l.equals(this.r) && node.r.equals(this.l);
 };
 
 Binary.prototype.equals2 = function(node) {
-	return node.type == 'bin' && node.op == this.op && node.l.equals2(this.l) && node.r.equals2(this.r);
+	return node.hash == this.hash && node.type == 'bin' && node.op == this.op && node.l.equals2(this.l) && node.r.equals2(this.r);
 };
 
 Binary.prototype.print = function(varmap) {
 	if (this.op >= 55)
-		return ops[this.op] + "(" + this.l.print(varmap) + ", " + this.r.print(varmap) + ")";
-	return "(" + this.l.print(varmap) + ")" + ops[this.op] + "(" + this.r.print(varmap) + ")";
+		return ops[this.op].substr(1) + "(" + this.l.print(varmap) + ", " + this.r.print(varmap) + ")";
+	var res = "";
+	if (this.l.type == 'bin' || this.l.type == 'ter')
+		res += "(" + this.l.print(varmap) + ")";
+	else
+		res += this.l.print(varmap);
+	res += " " + ops[this.op] + " ";
+	if (this.r.type == 'bin' || this.r.type == 'ter')
+		res += "(" + this.r.print(varmap) + ")";
+	else
+		res += this.r.print(varmap);
+	return res;
 };
 
 Binary.prototype.toBddFunc = function() {

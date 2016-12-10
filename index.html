@@ -42,7 +42,7 @@ function performQuery(input) {
     bddf = expr.toBddFunc();
   }
   catch (err) {
-    if (err == "BDD full")
+    if (err == "BDD full" || err == "multiplication seems hard")
       circuitf = expr.toCircuitFunc();
     else
       throw err;
@@ -63,25 +63,31 @@ function performQuery(input) {
     update();
   }
   else {
-    data = {
-      simp: bddf.Identify(varmap),
-      varmap: varmap,
-    };
-    if (data.simp == undefined) {
-      data.msg = "bdd structural pattern matcher didn't work (it's still quite broken)"
+    if (bddf) {
+      data = {
+        simp: bddf.Identify(varmap),
+        varmap: varmap,
+      };
+      if (data.simp == undefined) {
+        data.msg = "bdd structural pattern matcher didn't work (it's still quite broken)"
+      }
+      else {
+        var pf = new ProofFinder(20);
+        pf.Search(expr, data.simp, function (flatproof) {
+          data.proof = flatproof;
+          update();
+        }, update);
+      }
+      
+      data.properties = bddf.AnalyzeProperties(varmap, null);
+      update();
     }
     else {
-      var pf = new ProofFinder(20);
-      pf.Search(expr, data.simp, function (flatproof) {
-        data.proof = flatproof;
-        update();
-      }, update);
-    }
-    update();
-    bddf.AnalyzeProperties(varmap, function (props) {
-      data.properties = props;
+      data = {
+        msg: "SAT fallback can only handle expressions that result in true or false"
+      };
       update();
-    });
+    }
   }
 }
 
@@ -233,8 +239,13 @@ function parseproofstep(proofstep, ix, varmap) {
   varmap[0];
   var container = $j('<div/>').addClass("proofj");
   container.attr("id", "proofj" + (ix + 1));
-  container.append(proofstep[0]);
-  if (proofstep.length > 1) {
+  var explanation = $j('<div/>').html(proofstep[0]).contents();
+  if (proofstep[2]) {
+    var ex = escape(proofstep[2].print(varmap));
+    explanation.filter('.replace').attr('href', 'index.html?q=' + ex);
+  }
+  container.append(explanation);
+  if (proofstep[1]) {
     container.append(", ");
     var pattern = formatexpr(["#",-1,proofstep[1].l], ix, varmap);
     var patternr = formatexpr(["#",-1,proofstep[1].r], ix + 2, varmap);
@@ -458,8 +469,7 @@ $j(document).ready(function(){
     <p>== binds less strongly than bitwise operators.</p>
     <p>Finding proofs can be slow and often nothing is found at all.</p>
     <p>The BDD structural matcher has not been fully ported yet.</p>
-    <p><s>Division, remainder and multiplication will not work if both operands are variable, and even in some cases where one operand is a constant. That's not a bug but an inherent limitation of the techniques used. This situation may be improved (with reduced functionality) someday if I get around to coding up the SAT fallback.</s></p>
-    <p>SAT fallback now exists, using MiniSat compiled with Emscripten. This is brand new so expect bugs (not due to MiniSat, but for example I don't entirely trust my circuit builder and circuit-to-SAT converter). It takes a while before haroldbot gives up on BDDs and switches to SAT, even if it could have known from the start that BDDs were never going to work. I'll probably improve that.</p>
+    <p>SAT fallback now exists, using MiniSat compiled with Emscripten. This is brand new so expect bugs (not due to MiniSat, but for example I don't entirely trust my circuit builder and circuit-to-SAT converter). haroldbot should now give up early on (some) multiplications that would create a gigantic BDD.</p>
     <p>In general, there <i>are</i> many bugs.</p>
     <p>Since everything happens client-side now, I don't get automatic bug reports. Please <a href="https://github.com/IJzerbaard/haroldbot/issues">open an issue</a> or contact me (if you know how).</p>
   </div>
@@ -469,7 +479,7 @@ $j(document).ready(function(){
   </div>
 </div>
 <div id="footer">
-  haroldbot &copy; Harold Aptroot 2014-2016 <a rel="license"  href="http://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>
+  haroldbot &copy; Harold Aptroot 2014-2017 <a rel="license"  href="http://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>
 </div>
 </body>
 </html>
