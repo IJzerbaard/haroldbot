@@ -207,6 +207,16 @@ BDDFunction.shrs = function(x, y) {
 }
 
 BDDFunction.mul = function(x, y) {
+	function countNonconstant(bits) {
+		var count = 0;
+		for (var i = 0; i < 32; i++) {
+			if (bits[i] != 0 && bits[i] != -1)
+				count++;
+		}
+		return count;
+	}
+	if (countNonconstant(x._bits) * countNonconstant(y._bits) > 256)
+		throw "multiplication seems hard";
 	var r = BDDFunction.constant(0);
 	for (var i = 0; i < 32; i++) {
 		r = BDDFunction.add(r, BDDFunction.and(x, BDDFunction.nthbit(y, i)));
