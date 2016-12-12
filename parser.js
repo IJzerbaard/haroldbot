@@ -335,10 +335,10 @@ function parse(query) {
 		if (res.length > 2) return undefined;
 		var left = t;
 		while (ws() && ((t = l("==")) || (t = l("!=")) ||
-				(t = l("<=")) || (t = l("<=u")) || (t = l("<=s")) ||
-				(t = l(">=")) || (t = l(">=u")) || (t = l(">=s")) ||
-				(t = l("<")) || (t = l("<u")) || (t = l("<s")) ||
-				(t = l(">")) || (t = l(">u")) || (t = l(">s")))) {
+				(t = l("<=s")) || (t = l("<=u")) || (t = l("<=")) ||
+				(t = l(">=s")) || (t = l(">=u")) || (t = l(">=")) ||
+				(t = l("<s")) || (t = l("<u")) || (t = l("<")) ||
+				(t = l(">s")) || (t = l(">u")) || (t = l(">")))) {
 			var right = or();
 			if (res.length > 2) return undefined;
 			if (!right) return error("invalid expression");
