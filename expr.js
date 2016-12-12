@@ -92,7 +92,9 @@ Constant.prototype.copy = function() {
 
 Constant.prototype.analyze = function(env) {
 	var v = this.value;
-	env.nr[this.id] = { z: ~v, o: v, l: v, u: v };
+	var r = { z: ~v, o: v };
+	env.nr[this.id] = r;
+	return r;
 };
 
 
@@ -132,7 +134,9 @@ Variable.prototype.copy = function() {
 };
 
 Variable.prototype.analyze = function(env) {
-	env.nr[this.id] = { z: -1, o: -1, l: 0, u: -1 };
+	var r = { z: -1, o: -1 };
+	env.nr[this.id] = r;
+	return r;
 };
 
 
@@ -261,21 +265,19 @@ Unary.prototype.copy = function() {
 };
 
 Unary.prototype.analyze = function(env) {
-	// z, o, l, u
-	this.value.analyze(env);
-	var v = env.nr[this.inner.id];
-	var r = { z: -1, o: -1, l: 0, u: -1 };
+	var v = this.value.analyze(env);
+	var r = null;
 	switch (this.op) {
-		case 0:
-			r = Bitfield.invert(v);
-			break;
-		case 1:
-			r = Bitfield.negate(v);
-			break;
-		default:
-			break;
+		case 0:	r = Bitfield.invert(v); break;
+		case 1:	r = Bitfield.negate(v); break;
+		case 2:	r = Bitfield.popcnt(v); break;
+		case 3:	r = Bitfield.ntz(v); break;
+		case 4:	r = Bitfield.nlz(v); break;
+		case 5:	r = Bitfield.rbit(v); break;
+		default:	r = { z: -1, o: -1 }; break;
 	}
 	env.nr[this.id] = r;
+	return r;
 };
 
 
@@ -555,6 +557,31 @@ Binary.prototype.copy = function() {
 	return new Binary(this.op, this.l.copy(), this.r.copy());
 };
 
+Binary.prototype.analyze = function(env) {
+	var l = this.l.analyze(env);
+	var r = this.r.analyze(env);
+	var res = { z: -1, o: -1 };
+	switch (this.op) {
+		case 1:	res = Bitfield.and(l, r); break;
+		case 2:	res = Bitfield.or(l, r); break;
+		case 3:	res = Bitfield.xor(l, r); break;
+		case 4:	res = Bitfield.add(l, r); break;
+		case 5:	res = Bitfield.sub(l, r); break;
+		case 6:	res = Bitfield.shl(l, r); break;
+		case 7:
+		case 31:	res = Bitfield.shru(l, r); break;
+		case 30:	res = Bitfield.shrs(l, r); break;
+		case 8:	res = Bitfield.rol(l, r); break;
+		case 9:	res = Bitfield.ror(l, r); break;
+		case 11:	res = Bitfield.mul(l, r); break;
+		case 20:	res = Bitfield.eq(l, r); break;
+		case 21:	res = Bitfield.neq(l, r); break;
+		default:
+			break;
+	}
+	env.nr[this.id] = res;
+	return res;
+};
 
 
 function Ternary(cond, t, f) {
@@ -626,4 +653,13 @@ Ternary.prototype.containsDoubleUnary = function() {
 
 Ternary.prototype.copy = function() {
 	return new Ternary(this.cond.copy(), this.t.copy(), this.f.copy());
+};
+
+Ternary.prototype.analyze = function(env) {
+	var cond = this.cond.analyze(env);
+	var t = this.t.analyze(env);
+	var f = this.f.analyze(env);
+	var res = Bitfield.mux(cond, t, f);
+	env.nr[this.id] = res;
+	return res;
 };

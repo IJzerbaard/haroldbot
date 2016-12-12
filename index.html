@@ -9,6 +9,7 @@
 <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
 <script type="text/javascript" src="jquery.color-2.1.2.min.js"></script>
 <script type="text/javascript" src="util.js"></script>
+<script type="text/javascript" src="abstractinterp.js"></script>
 <script type="text/javascript" src="expr.js"></script>
 <script type="text/javascript" src="parser.js"></script>
 <script type="text/javascript" src="bigint.js"></script>
@@ -34,6 +35,11 @@ function performQuery(input) {
     update();
     return;
   }
+
+  var abstractinterpEnv = {
+    nr: []
+  };
+  expr.analyze(abstractinterpEnv);
 
   var bddf;
   var circuitf;
