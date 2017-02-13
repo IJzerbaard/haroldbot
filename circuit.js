@@ -27,6 +27,8 @@ var circuit = {
 			debugger;*/
 		// make new gate, use only very simple merging of equal gates
 		var key = ((op * 991 | 0) + a * 997 | 0) + b * 1009 | 0;
+		if (key == 0)
+			key = 1;
 		var hash = (key & 0x7fffffff) % 50021;
 		if (this.h[hash << 1] == key) {
 			// check match

@@ -289,11 +289,9 @@ CFunction.prototype.sat = function() {
 	return null;
 };
 
-CFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallback) {
-	var res = {
-		msg: "Using SAT fallback"
-	};
-	res.varmap = vars;
+CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcallback) {
+	var res = data;
+	res.msg = "Using SAT fallback";
 
 	if (this._divideError == 0) {
 		var sat = new SAT();

@@ -41,6 +41,35 @@ function performQuery(input) {
   };
   expr.analyze(abstractinterpEnv);
 
+  ls.set('explicitparens', 2);
+
+  // try limited search for proof first
+  data = {
+    varmap: varmap
+  };
+  if (expr.type == 'bin' && expr.op == 20) {
+    var pf = new ProofFinder(expr.op);
+    var proof = null;
+    pf.Search(expr.l.removeDummy(), expr.r.removeDummy(), function (proofsteps) {
+      proof = proofsteps;
+    }, function (exprc, backwards) {
+      if (backwards) {
+        //$j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
+      }
+      else {
+        //$j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
+      }
+    }, 'synchronous', 400);
+    if (proof != null) {
+      data.true = {
+        count: '#always',
+        proof: proof
+      };
+      update();
+      return;
+    }
+  }
+
   var bddf;
   var circuitf;
   try {
@@ -56,7 +85,7 @@ function performQuery(input) {
 
   if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 26 || expr.op >= 40 && expr.op <= 48)) {
     // comparison
-    data = (bddf||circuitf).AnalyzeTruth(expr.removeDummy(), varmap, function () {
+    (bddf||circuitf).AnalyzeTruth(data, expr.removeDummy(), varmap, function () {
       update();
     }, function (exprc, backwards) {
       if (backwards) {
@@ -70,10 +99,7 @@ function performQuery(input) {
   }
   else {
     if (bddf) {
-      data = {
-        simp: bddf.Identify(varmap),
-        varmap: varmap,
-      };
+      data.simp = bddf.Identify(varmap);
       if (data.simp == undefined) {
         data.msg = "bdd structural pattern matcher didn't work (it's still quite broken)"
       }
@@ -89,9 +115,7 @@ function performQuery(input) {
       update();
     }
     else {
-      data = {
-        msg: "SAT fallback can only handle expressions that result in true or false"
-      };
+      data.msg = "SAT fallback can only handle expressions that result in true or false";
       update();
     }
   }

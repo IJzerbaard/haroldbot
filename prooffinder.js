@@ -32,7 +32,17 @@ function ProofFinder(op) {
 			false, "and with 0", , 
 		],
 		[
+			["&", [0], [a(0)]],
+			[0],
+			false, "and with 0", , 
+		],
+		[
 			["&", [a(0)], [-1]],
+			[a(0)],
+			false, "and with -1", ,
+		],
+		[
+			["&", [-1], [a(0)]],
 			[a(0)],
 			false, "and with -1", ,
 		],
@@ -43,6 +53,11 @@ function ProofFinder(op) {
 		],
 		[
 			["&", [a(0)], ["~", [a(0)]]],
+			[0],
+			false, "and with complement of self", ,
+		],
+		[
+			["&", ["~", [a(0)]], [a(0)]],
 			[0],
 			false, "and with complement of self", ,
 		],
@@ -58,7 +73,17 @@ function ProofFinder(op) {
 			false, "or with 0", ,
 		],
 		[
+			["|", [0], [a(0)]],
+			[a(0)],
+			false, "or with 0", ,
+		],
+		[
 			["|", [a(0)], [-1]],
+			[-1],
+			false, "or with -1", ,
+		],
+		[
+			["|", [-1], [a(0)]],
 			[-1],
 			false, "or with -1", ,
 		],
@@ -69,6 +94,11 @@ function ProofFinder(op) {
 		],
 		[
 			["|", [a(0)], ["~", [a(0)]]],
+			[-1],
+			false, "or with complement of self", ,
+		],
+		[
+			["|", ["~", [a(0)]], [a(0)]],
 			[-1],
 			false, "or with complement of self", ,
 		],
@@ -89,7 +119,17 @@ function ProofFinder(op) {
 			false, "xor with 0", ,
 		],
 		[
+			["^", [0], [a(0)]],
+			[a(0)],
+			false, "xor with 0", ,
+		],
+		[
 			["^", [a(0)], [-1]],
+			["~", [a(0)]],
+			false, "xor with -1", ,
+		],
+		[
+			["^", [-1], [a(0)]],
 			["~", [a(0)]],
 			false, "xor with -1", ,
 		],
@@ -105,6 +145,11 @@ function ProofFinder(op) {
 		],
 		[
 			["^", [a(0)], ["~", [a(0)]]],
+			[-1],
+			false, "xor with complement of self", ,
+		],
+		[
+			["^", ["~", [a(0)]], [a(0)]],
 			[-1],
 			false, "xor with complement of self", ,
 		],
@@ -155,9 +200,29 @@ function ProofFinder(op) {
 			false, "additive identity", ,
 		],
 		[
+			["+", [0], [a(0)]],
+			[a(0)],
+			false, "additive identity", ,
+		],
+		[
 			["+", [a(0)], ["~", [a(0)]]],
 			[-1],
 			false, "add to complement of self", ,
+		],
+		[
+			["+", ["~", [a(0)]], [a(0)]],
+			[-1],
+			false, "add to complement of self", ,
+		],
+		[
+			["+", [a(0)], ["-", [a(0)]]],
+			[0],
+			false, "add to negation of self", ,
+		],
+		[
+			["+", ["-", [a(0)]], [a(0)]],
+			[0],
+			false, "add to negation of self", ,
 		],
 		[
 			["+", ["+", [a(0)], [a(1)]], [a(2)]],
@@ -342,11 +407,31 @@ function ProofFinder(op) {
 			["+", [a(0)], [a(0)]],
 			false, "shift by one is *2", ,
 		],
+		[
+			["<<", [a(0)], [1]],
+			["*", [a(0)], [2]],
+			false, "shift by one is *2", ,
+		],
 		// properties of multiplication
 		[
 			["*", ["*", [a(0)], [a(1)]], [a(2)]],
 			["*", [a(0)], ["*", [a(1)], [a(2)]]],
 			true, "associativity of multiplication", ,
+		],
+		[
+			["*", [a(0)], [1]],
+			[a(0)],
+			false, "multiplicative identity", ,
+		],
+		[
+			["*", [1], [a(0)]],
+			[a(0)],
+			false, "multiplicative identity", ,
+		],
+		[
+			["*", [a(0)], [-1]],
+			["-", [a(0)]],
+			false, "multiplication by minus one", ,
 		],
 		// properties of reverse
 		[
@@ -361,12 +446,12 @@ function ProofFinder(op) {
 		[
 			["&", [a(0)], ["|", [a(0)], [a(1)]]],
 			[a(0)],
-			false, "and cancels or", ,
+			false, "and cancels or (absorption law)", ,
 		],
 		[
 			["|", [a(0)], ["&", [a(0)], [a(1)]]],
 			[a(0)],
-			false, "or cancels and", ,
+			false, "or cancels and (absorption law)", ,
 		],
 		// De Morgan
 		[
@@ -441,6 +526,16 @@ function ProofFinder(op) {
 			["+", ["*", [a(0)], [a(1)]], ["*", [a(2)], [a(1)]]],
 			["*", ["+", [a(0)], [a(2)]], [a(1)]],
 			true, "multiplication distributes over addition", ,
+		],
+		[
+			["*", [a(0)], ["-", [a(1)], [a(2)]]],
+			["-", ["*", [a(0)], [a(1)]], ["*", [a(0)], [a(2)]]],
+			true, "multiplication distributes over subtraction", ,
+		],
+		[
+			["-", ["*", [a(0)], [a(1)]], ["*", [a(2)], [a(1)]]],
+			["*", ["-", [a(0)], [a(2)]], [a(1)]],
+			true, "multiplication distributes over subtraction", ,
 		],
 		[
 			["max_u", [a(0)], ["min_u", [a(1)], [a(2)]]],
@@ -653,6 +748,12 @@ function ProofFinder(op) {
 			[">=s", [a(0)], [a(1)]],
 			[">=u", ["^", [a(0)], [0x80000000]], ["^", [a(1)], [0x80000000]]],
 			true, "unsigned/signed comparison conversion", ,
+		],
+		// add/sub
+		[
+			["+", ["-", [a(0)], [a(1)]], [a(1)]],
+			[a(0)],
+			false, "adding and subtracting the same thing cancels", ,
 		],
 		// conditional rules
 		[
@@ -909,7 +1010,7 @@ function ProofFinder(op) {
 	return;
 }
 
-ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
+ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode, timelimit) {
 
 	/* proof node format:
        [parent, expr, explanation, backwards, depth, pattern]
@@ -918,6 +1019,10 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 
 	if (this.dead)
 		return;
+
+	if (timelimit == undefined)
+		timelimit = 99999999;
+	var starttime = new Date();
 
 	function hash_update(htable, key, val) {
 		var h = (key.hash & 0x7fffffff) % 65521;
@@ -1608,6 +1713,11 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 		var proofsteps = [];
 
 		while (q1.length + q2.length > 0 && counter < 10) {
+			var time = new Date();
+			if (time.getTime() - starttime.getTime() > timelimit) {
+				cb(null);
+				return;
+			}
 			counter++;
 			// forward step
 			var doReset = false;
@@ -1656,6 +1766,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback) {
 		else if (index > 100) {
 			cb(null);
 		}
+		else if (mode === 'synchronous')
+			loop_async(index + 1, q1, q2, h1, h2, from, to, rules, cb);
 		else {
 			setTimeout(function() {
 				loop_async(index + 1, q1, q2, h1, h2, from, to, rules, cb);

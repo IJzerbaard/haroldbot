@@ -373,9 +373,8 @@ BDDFunction.fixlerp = function (a, b, x, y) {
 	
 }
 
-BDDFunction.prototype.AnalyzeTruth = function(root, vars, callback, debugcallback) {
-	var res = new Object();
-	res.varmap = vars;
+BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcallback) {
+	var res = data;
 
 	var remap = new Array(2048);
 	var index = 0;
