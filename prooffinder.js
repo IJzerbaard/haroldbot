@@ -1414,7 +1414,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 						if (rules[i][5] == "no intersect")
 							results.push([patternNode[0], n, rules[i], new Binary(20, new Binary(1, root.l, root.r), new Constant(0))]);
 						else if (rules[i][5] == "non negative")
-							results.push([patternNode[0], n, rules[i], new Binary(44, root.value, new Constant(0))]);
+							results.push([patternNode[0], n, rules[i], new Binary(20, new Binary(1, root.value, new Constant(0x80000000)), new Constant(0))]);
 						else
 							results.push([patternNode[0], n, rules[i]]);
 					}
@@ -1660,7 +1660,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 							if (!special_handle(explanation[2][5], explanation[3].l)) { explanation = null; continue; }
 							break;
 						case "non negative":
-							if (!special_handle(explanation[2][5], new Unary(6, explanation[3].l))) { explanation = null; continue; }
+							if (!special_handle(explanation[2][5], new Unary(6, explanation[3].l.l))) { explanation = null; continue; }
 							break;
 						default: debugger;
 					}
@@ -1689,7 +1689,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 								if (!special_handle(explanation[2][5], explanation[3].l)) { explanation = null; continue; }
 								break;
 							case "non negative":
-								if (!special_handle(explanation[2][5], new Unary(6, explanation[3].l))) { explanation = null; continue; }
+								if (!special_handle(explanation[2][5], new Unary(6, explanation[3].l.l))) { explanation = null; continue; }
 								break;
 							default: debugger;
 						}
