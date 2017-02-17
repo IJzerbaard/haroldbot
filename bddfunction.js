@@ -337,6 +337,96 @@ BDDFunction.rems = function (a, b) {
 	return BDDFunction.xor(sign, BDDFunction.add(sign, div));
 }
 
+function bdd_mul64(a, b, signed) {
+	var c = new Int32Array(64);
+	var a_sh = new Int32Array(64);
+	for (var i = 0; i < 32; i++)
+		a_sh[i] = a[i];
+	for (var j = 0; j < 32; j++) {
+		var m = b[j];
+		if (m != 0) {
+			var carry = 0;
+			for (var i = 0; i < 64; i++) {
+				var am = bdd.and(m, a_sh[i]);
+				var ac = bdd.xor(am, c[i]);
+				var nc = bdd.or(bdd.and(ac, carry), bdd.and(am, c[i]));
+				c[i] = bdd.xor(ac, carry);
+				carry = nc;
+			}
+		}
+		for (var i = 63; i > 0; i--)
+			a_sh[i] = a_sh[i - 1];
+		a_sh[0] = 0;
+	}
+	if (signed) {
+		var bfa = new BDDFunction(a, 0);
+		var bfb = new BDDFunction(b, 0);
+		var t1 = BDDFunction.and(bfa, BDDFunction.nthbit(bfb, 31));
+		var t2 = BDDFunction.and(bfb, BDDFunction.nthbit(bfa, 31));
+		var tophalf = new Int32Array(32);
+		for (var i = 0; i < 32; i++)
+			tophalf[i] = c[i + 32];
+		var x = new BDDFunction(tophalf, 0);
+		x = BDDFunction.sub(x, BDDFunction.add(t1, t2));
+		for (var i = 0; i < 32; i++)
+			c[i + 32] = x._bits[i];
+	}
+	return c;
+}
+
+BDDFunction.hmul = function (a, b, signed) {
+	var prod = bdd_mul64(a._bits, b._bits, signed);
+	var bits = new Int32Array(32);
+	for (var i = 0; i < 32; i++)
+		bits[i] = prod[i + 32];
+	return new BDDFunction(bits, bdd.or(a._divideError, b._divideError));
+};
+
+BDDFunction.fixscale = function (a, x, y) {
+	// (64 bit)a * x / y
+
+	function div64_32(a, b) {
+		var P = new Int32Array(128);
+		for (var i = 0; i < 64; i++)
+			P[i] = a[i];
+		var D = new Int32Array(128);
+		for (var i = 0; i < 32; i++)
+			D[i + 64] = b[i];
+		var bits = new Int32Array(64);
+
+		for (var i = 63; i >= 0; i--) {
+			for (var j = P.length - 1; j > 0; j--)
+				P[j] = P[j - 1];
+			P[0] = 0;
+			var borrow = new Int32Array(128);
+			var newP = new Int32Array(128);
+			for (var j = 0; j < P.length; j++) {
+				var ab = bdd.xor(P[j], D[j]);
+				newP[j] = ab;
+				if (j > 0) {
+					newP[j] = bdd.xor(newP[j], borrow[j - 1]);
+					borrow[j] = bdd.or(bdd.and(~ab, borrow[j - 1]), bdd.and(~P[j], D[j]));
+				}
+				else
+					borrow[j] = bdd.and(~P[j], D[j]);
+			}
+			bits[i] = ~borrow[127];
+			if (i != 0) {
+				for (var j = 127; j > 0; j--)
+					P[j] = bdd.or(bdd.and(newP[j], ~borrow[127]), bdd.and(P[j], borrow[127]));
+			}
+		}
+
+		var res = new Int32Array(32);
+		for (var i = 0; i < 32; i++)
+			res[i] = bits[i];
+		return res;
+	}
+
+	var diverror = bdd.or(BDDFunction.eqz(y), bdd.or(a._divideError, bdd.or(x._divideError, y._divideError)));
+	return new BDDFunction(div64_32(bdd_mul64(a._bits, x._bits, false), y._bits), diverror);
+}
+
 BDDFunction.fixlerp = function (a, b, x, y) {
 	// (a * x + b * y) / (x + y)
 	// c = a * x
@@ -345,6 +435,7 @@ BDDFunction.fixlerp = function (a, b, x, y) {
 
 	function fullmul(a, b) {
 		var prod = new Int32Array(64);
+		var c = new Int32Array(64);
 		var a_sh = new Int32Array(64);
 		for (var i = 0; i < 32; i++)
 			a_sh[i] = a[i];
@@ -605,6 +696,146 @@ BDDFunction.prototype.Identify = function(vars) {
 	}
 
 	// identify a function of the form
+	// (XOR[i] v[i] & a[i]) ^ x & b | d
+	function is_xor(bits) {
+		var a = new Int32Array(vars.length);
+		var x = 0, b = 0, d = 0;
+
+		for (var i = 0; i < bits.length; i++) {
+			var c = bits[i];
+			if (c == 0) continue;
+			if (c == -1) { d |= 1 << i; continue; }
+			b |= 1 << i;
+			do {
+				var inv = c >> 31;
+				var v = bdd._v[c ^ inv];
+				var lo = bdd._lo[c ^ inv] ^ inv;
+				var hi = bdd._hi[c ^ inv] ^ inv;
+				// if the checked bit is not from the current bit index, it's not a nice bitwise function
+				if (((v >> 6) ^ 31) != i)
+					return null;
+				a[v & 63] |= 1 << i;
+
+				/* hi == ~lo, xor with v[i]
+				   otherwise: not an xor
+				*/
+				if (hi == ~lo) {
+					x ^= 1 << i;
+					c = lo;
+					if (hi != 0)
+						x ^= 1 << i;
+				}
+				else return null;
+			} while (c != 0 && c != -1);
+		}
+
+		return [a, x, b, d];
+	}
+
+	function format_or(r_or) {
+		var a = r_or[0];
+		var x = r_or[1];
+		var b = r_or[2];
+		var d = r_or[3];
+
+		var ignored = ~b | d;
+
+		var used_vars = 0;
+		var complemented_vars = 0;
+		for (var i = 0; i < a.length; i++) {
+			if (a[i] != 0)
+				used_vars++;
+			if ((x[i] | ignored) == -1)
+				complemented_vars++;
+		}
+		// TODO: if the number of complemented vars is bigger than uncomplemented vars, format as ~and(stuff)
+		//if (complemented_vars > used_vars - complemented_vars) {
+		{
+			var res = null;
+			for (var i = 0; i < a.length; i++) {
+				if (a[i] == 0) continue;
+				var v = new Variable(i);
+				if ((x[i] | ignored) == -1)
+					v = new Unary(0, v);
+				else if (x[i] != 0)
+					v = new Binary(ops.indexOf('^'), v, new Constant(nicestConstant(x[i], b, d)));
+
+				res = res ? new Binary(ops.indexOf('|'), res, v) : v;
+			}
+
+			if ((b | d) != -1)
+				res = new Binary(ops.indexOf('&'), res, new Constant(nicestConstant(b, -1, d)));
+
+			if (d != 0)
+				res = new Binary(ops.indexOf('|'), res, new Constant(d));
+			return res;
+		}
+	}
+
+	function format_invor(r_or) {
+		var a = r_or[0];
+		var x = r_or[1];
+		var b = r_or[2];
+		var d = r_or[3];
+
+		var ignored = ~b | d;
+
+		// TODO: if the number of complemented vars is bigger than uncomplemented vars, format as ~and(stuff)
+		//if (complemented_vars > used_vars - complemented_vars) {
+		{
+			var res = null;
+			for (var i = 0; i < a.length; i++) {
+				if (a[i] == 0) continue;
+				var v = new Variable(i);
+				if ((x[i] | ignored) == -1)
+					v = v; // no inversion
+				else if ((x[i] & ~ignored) == 0)
+					v = new Unary(0, v);
+				else
+					v = new Binary(ops.indexOf('^'), v, new Constant(nicestConstant(~x[i], b, d)));
+
+				res = res ? new Binary(ops.indexOf('&'), res, v) : v;
+			}
+
+			if (~d != -1)
+				res = new Binary(ops.indexOf('&'), res, new Constant(~d));
+
+			if ((~b & ~d) != 0)
+				res = new Binary(ops.indexOf('|'), res, new Constant(~b & ~d));
+			return res;
+		}
+	}
+
+	function format_xor(r_xor) {
+		var a = r_xor[0];
+		var x = r_xor[1];
+		var b = r_xor[2];
+		var d = r_xor[3];
+
+		var ignored = ~b | d;
+
+		var res = null;
+		for (var i = 0; i < a.length; i++) {
+			if (a[i] == 0) continue;
+			var v = new Variable(i);
+			if ((a[i] | ignored) != -1)
+				v = new Binary(ops.indexOf('&'), v, new Constant(nicestConstant(a[i], b, d)));
+
+			res = res ? new Binary(ops.indexOf('^'), res, v) : v;
+		}
+
+		if ((x & ~ignored) != 0)
+			res = new Binary(ops.indexOf('^'), res, new Constant(nicestConstant(x, b, d)));
+
+		if ((b | d) != -1)
+			res = new Binary(ops.indexOf('&'), res, new Constant(nicestConstant(b, -1, d)));
+
+		if (d != 0)
+			res = new Binary(ops.indexOf('|'), res, new Constant(d));
+		return res;
+	}
+
+	// identify a function of the form
 	// v == c
 	// returns: [v, c]
 	function is_eqc(bits) {
@@ -649,55 +880,106 @@ BDDFunction.prototype.Identify = function(vars) {
 	}
 
 	var r_or = is_or(this._bits);
-	if (r_or) {
-		var a = r_or[0];
-		var x = r_or[1];
-		var b = r_or[2];
-		var d = r_or[3];
+	if (r_or)
+		return format_or(r_or);
 
-		var ignored = ~b | d;
+	var r_xor = is_xor(this._bits);
+	if (r_xor)
+		return format_xor(r_xor);
 
-		var used_vars = 0;
-		var complemented_vars = 0;
-		for (var i = 0; i < a.length; i++) {
-			if (a[i] != 0)
-				used_vars++;
-			if ((x[i] | ignored) == -1)
-				complemented_vars++;
-		}
-		// TODO: if the number of complemented vars is bigger than uncomplemented vars, format as ~and(stuff)
-		// if (complemented_vars > used_vars - complemented_vars) {
-		{
-			var res = null;
-			for (var i = 0; i < a.length; i++) {
-				if (a[i] == 0) continue;
-				var v = new Variable(i);
-				if ((x[i] | ignored) == -1)
-					v = new Unary(v, 0);
-				else if (x[i] != 0)
-					v = new Binary(ops.indexOf('^'), v, new Constant(nicestConstant(x[i], b, d)));
-
-				res = res ? new Binary(ops.indexOf('|'), res, v) : v;
-			}
-
-			if ((b | d) != -1)
-				res = new Binary(ops.indexOf('&'), res, new Constant(nicestConstant(b, -1, d)));
-
-			if (d != 0)
-				res = new Binary(ops.indexOf('|'), res, new Constant(d));
-			return res;
-		}
-	}
 	var r_eqc = is_eqc(this._bits);
 	if (r_eqc) {
 		return new Binary(ops.indexOf('=='), new Variable(r_eqc[0]), new Constant(r_eqc[1]));
 	}
 
+	var invbits = new Int32Array(32);
+	for (var i = 0; i < 32; i++)
+		invbits[i] = ~this._bits[i];
+
+	r_or = is_or(invbits);
+	if (r_or)
+		return format_invor(r_or);
 };
 
-BDDFunction.prototype.AnalyzeProperties = function(vars, callback) {
-	var res = new Object();
-	var isInteresting = false;
+BDDFunction.prototype.AnalyzeProperties = function(data, vars, callback) {
+
+	function getLowestUnsigned(res, bits, mustBeZero, maxvar, remap) {
+		try {
+			var bitsCombined = -1;
+			var val = 0;
+			for (var i = 31; i >= 0; i--) {
+				var tryZero = bdd.and(bitsCombined, ~bits[i]);
+				if (tryZero != 0) {
+					bitsCombined = tryZero;
+					continue;
+				}
+				var tryOne = bdd.and(bitsCombined, bits[i]);
+				if (tryOne != 0) {
+					bitsCombined = tryOne;
+					val |= 1 << i;
+					continue;
+				}
+				// unreachable
+				debugger;
+			}
+			// only use it if not trivial
+			if (val != 0 && val -1 && val != ~mustBeZero) {
+				res.lowestUnsigned = {
+					value: val,
+					count: bdd.satCount(bitsCombined, maxvar, remap).toString(),
+					examples: function(ix) {
+						return bdd.indexedSat(bitsCombined, ix, maxvar, remap)
+					}
+				};
+				return true;
+			}
+			return false;
+		}
+		catch (ex) {
+			debugger;
+		}
+	}
+
+	function getHighestUnsigned(res, bits, mustBeOne, maxvar, remap) {
+		try {
+			var bitsCombined = -1;
+			var val = 0;
+			for (var i = 31; i >= 0; i--) {
+				var tryOne = bdd.and(bitsCombined, bits[i]);
+				if (tryOne != 0) {
+					bitsCombined = tryOne;
+					val |= 1 << i;
+					continue;
+				}
+				var tryZero = bdd.and(bitsCombined, ~bits[i]);
+				if (tryZero != 0) {
+					bitsCombined = tryZero;
+					continue;
+				}
+				// unreachable
+				debugger;
+			}
+			// only use it if not trivial
+			if (val != -1 && val != 0 && val != mustBeOne) {
+				res.highestUnsigned = {
+					value: val,
+					count: bdd.satCount(bitsCombined, maxvar, remap).toString(),
+					examples: function(ix) {
+						return bdd.indexedSat(bitsCombined, ix, maxvar, remap)
+					}
+				};
+				return true;
+			}
+			return false;
+		}
+		catch (ex) {
+			debugger;
+		}
+	}
+
+	if (!data.properties)
+		data.properties = {};
+	var res = data.properties;
 
 	// "constant bit" masks
 	var mustBeZero = 0;
@@ -730,7 +1012,6 @@ BDDFunction.prototype.AnalyzeProperties = function(vars, callback) {
 		// if no nibmask is possible or if it's all wildcards anyway, don't use it
 		if (nibmask != null && nibmask != "0x********") {
 			res.nibmask = nibmask;
-			isInteresting = true;
 		}
 	}
 
@@ -746,7 +1027,6 @@ BDDFunction.prototype.AnalyzeProperties = function(vars, callback) {
 				bitmask += '*';
 		}
 		res.bitmask = bitmask;
-		isInteresting = true;
 	}
 	
 	var remap = new Array(2048);
@@ -756,86 +1036,12 @@ BDDFunction.prototype.AnalyzeProperties = function(vars, callback) {
 			remap[(i << 6) + j] = index++;
 	}
 
-	isInteresting = getLowestUnsigned(res, this._bits, mustBeZero, index, remap) || isInteresting;
+	getLowestUnsigned(res, this._bits, mustBeZero, index, remap);
 
-	isInteresting = getHighestUnsigned(res, this._bits, mustBeZero, index, remap) || isInteresting;
+	getHighestUnsigned(res, this._bits, mustBeOne, index, remap);
 
 	if (callback)
 		callback(res);
 
 	return res;
 };
-
-function getLowestUnsigned(res, bits, mustBeOne, maxvar, remap) {
-	try {
-		var bitsCombined = -1;
-		var val = 0;
-		for (var i = 31; i >= 0; i--) {
-			var tryZero = bdd.and(bitsCombined, ~bits[i]);
-			if (tryZero != 0) {
-				bitsCombined = tryZero;
-				continue;
-			}
-			var tryOne = bdd.and(bitsCombined, bits[i]);
-			if (tryOne != 0) {
-				bitsCombined = tryOne;
-				val |= 1 << i;
-				continue;
-			}
-			// unreachable
-			debugger;
-		}
-		// only use it if not trivial
-		if (val != 0 && val -1 && val != mustBeOne) {
-			res.lowestUnsigned = {
-				value: val,
-				count: bdd.satCount(bitsCombined, maxvar, remap).toString(),
-				examples: function(ix) {
-					return bdd.indexedSat(bitsCombined, ix, maxvar, remap)
-				}
-			};
-			return true;
-		}
-		return false;
-	}
-	catch (ex) {
-		debugger;
-	}
-}
-
-function getHighestUnsigned(res, bits, mustBeZero, maxvar, remap) {
-	try {
-		var bitsCombined = -1;
-		var val = 0;
-		for (var i = 31; i >= 0; i--) {
-			var tryOne = bdd.and(bitsCombined, bits[i]);
-			if (tryOne != 0) {
-				bitsCombined = tryOne;
-				val |= 1 << i;
-				continue;
-			}
-			var tryZero = bdd.and(bitsCombined, ~bits[i]);
-			if (tryZero != 0) {
-				bitsCombined = tryZero;
-				continue;
-			}
-			// unreachable
-			debugger;
-		}
-		// only use it if not trivial
-		if (val != -1 && val != 0 && val != ~mustBeZero) {
-			res.highestUnsigned = {
-				value: val,
-				count: bdd.satCount(bitsCombined, maxvar, remap).toString(),
-				examples: function(ix) {
-					return bdd.indexedSat(bitsCombined, ix, maxvar, remap)
-				}
-			};
-			return true;
-		}
-		return false;
-	}
-	catch (ex) {
-		debugger;
-	}
-}

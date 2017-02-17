@@ -409,9 +409,9 @@ Binary.prototype.toBddFunc = function() {
 		case 35:
 			return BDDFunction.remu(l, r);
 		case 59:
-			return BDDFunction.hmul(l, r);
+			return BDDFunction.hmul(l, r, false);
 		case 60:
-			return BDDFunction.hmuls(l, r);
+			return BDDFunction.hmul(l, r, true);
 	}
 	debugger;
 	alert("Severe bug in Binary.toBddFunc");
@@ -486,9 +486,9 @@ Binary.prototype.toCircuitFunc = function() {
 		case 35:
 			return CFunction.remu(l, r);
 		case 59:
-			return CFunction.hmul(l, r);
+			return CFunction.hmul(l, r, false);
 		case 60:
-			return CFunction.hmuls(l, r);
+			return CFunction.hmul(l, r, true);
 	}
 	debugger;
 	alert("Severe bug in Binary.toCircuitFunc");
@@ -541,6 +541,8 @@ Binary.prototype.constantFold = function() {
 				return new Constant(Math.max(l.value >>> 0, r.value >>> 0));
 			case 58: 	// max_s
 				return new Constant(Math.max(l.value | 0, r.value | 0));
+			case 59: 	// hmul
+				return new Constant(hmul_u32(l.value, r.value));
 		}
 	}
 	if (l.id != this.l.id ||
@@ -662,4 +664,96 @@ Ternary.prototype.analyze = function(env) {
 	var res = Bitfield.mux(cond, t, f);
 	env.nr[this.id] = res;
 	return res;
+};
+
+
+function Fun(name, args) {
+	Node.call(this);
+	this.hash = args.reduce(function(a, b) {
+		return  31 * a + b.hash | 0;
+	}, 0xcafebabe);
+	this.hash2 = 0;
+	this.fun = name;
+	this.args = args;
+	this.type = 'fun';
+
+	this.weight = args.reduce(function(a, b) {
+		return a + b.weight;
+	}, 1.0);
+}
+
+// structural equality with commutivity
+Fun.prototype.equals = function(node) {
+	if (node.type != 'fun' ||
+		node.fun != this.fun ||
+		node.args.length != this.args.length)
+		return false;
+	for (var i = 0; i < this.args.length; i++)
+		if (!this.args[i].equals(node.args[i]))
+			return false;
+	return true;
+};
+
+// structural equality without commutivity
+Fun.prototype.equals2 = function(node) {
+	if (node.type != 'fun' ||
+		node.fun != this.fun ||
+		node.args.length != this.args.length)
+		return false;
+	for (var i = 0; i < this.args.length; i++)
+		if (!this.args[i].equals2(node.args[i]))
+			return false;
+	return true;
+};
+
+Fun.prototype.print = function(varmap) {
+	return this.args.reduce(function(a, b, i) {
+		return a + (i != 0 ? ", " : "") + b.print(varmap);
+	}, this.fun + "(") + ")";
+};
+
+Fun.prototype.toBddFunc = function() {
+	var a = this.args.map(function(x) { return x.toBddFunc(); });
+	switch (this.fun) {
+		case "$fixscale":
+			return BDDFunction.fixscale(a[0], a[1], a[2]);
+		default:
+			throw "unimplemented function";
+	}
+	return null;
+};
+
+Fun.prototype.toCircuitFunc = function() {
+	var a = this.args.map(function(x) { return x.toCircuitFunc(); });
+	switch (this.fun) {
+		case "$fixscale":
+			return CFunction.fixscale(a[0], a[1], a[2]);
+		default:
+			throw "unimplemented function";
+	}
+	return null;
+};
+
+Fun.prototype.removeDummy = function() {
+	this.args = this.args.map(function(x) { return x.removeDummy(); });
+	return this;
+};
+
+Fun.prototype.constantFold = function() {
+	this.args = this.args.map(function(x) { return x.constantFold(); });
+	return this;
+};
+
+Fun.prototype.containsDoubleUnary = function() {
+	return this.args.reduce(function(a, b) {
+		return a + b.containsDoubleUnary();
+	}, 0);
+};
+
+Fun.prototype.copy = function() {
+	return new Fun(this.fun, this.args);
+};
+
+Fun.prototype.analyze = function(env) {
+	return null;
 };

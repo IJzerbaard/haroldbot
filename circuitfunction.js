@@ -62,9 +62,12 @@ CFunction.add = function(x, y) {
 	for (var i = 0; i < 32; i++) {
 		var a = x._bits[i];
 		var b = y._bits[i];
-		bits[i] = circuit.or_big(circuit.and_big(a, b, carry), circuit.and_big(~a, ~b, carry), circuit.and_big(a, ~b, ~carry), circuit.and_big(~a, b, ~carry));
-		if (i < 31)
-			carry = circuit.or_big(circuit.and(a, b), circuit.and(a, carry), circuit.and(b, carry));
+		var ab = circuit.and(a, b);
+		var aob = circuit.or(a, b);
+		var abc = circuit.and(ab, carry);
+		var nabc = circuit.and(~aob, ~carry);
+		carry = circuit.or(circuit.and(carry, aob), ab);
+		bits[i] = circuit.and(circuit.or(~carry, abc), ~nabc);
 	}
 	return new CFunction(bits, circuit.or(x._divideError, y._divideError));
 }
@@ -272,6 +275,53 @@ CFunction.rems = function (a, b) {
 	var sign = CFunction.xor(CFunction.nthbit(a, 31), CFunction.nthbit(b, 31));
 	var div = CFunction.remu(CFunction.abs(a), CFunction.abs(b));
 	return CFunction.xor(sign, CFunction.add(sign, div));
+}
+
+function cf_mul64(a, b, signed) {
+	var c = new Int32Array(64);
+	var a_sh = new Int32Array(64);
+	for (var i = 0; i < 32; i++)
+		a_sh[i] = a[i];
+	for (var j = 0; j < 32; j++) {
+		var m = b[j];
+		if (m != 0) {
+			var carry = 0;
+			for (var i = 0; i < 64; i++) {
+				var am = circuit.and(m, a_sh[i]);
+				var ac = circuit.and(am, c[i]);
+				var aoc = circuit.or(am, c[i]);
+				var acc = circuit.and(ac, carry);
+				var nacc = circuit.and(~aoc, ~carry);
+				carry = circuit.or(circuit.and(carry, aoc), ac);
+				c[i] = circuit.and(circuit.or(~carry, acc), ~nacc);
+			}
+		}
+		for (var i = 63; i > 0; i--)
+			a_sh[i] = a_sh[i - 1];
+		a_sh[0] = 0;
+	}
+	if (signed) {
+		var bfa = new CFunction(a, 0);
+		var bfb = new CFunction(b, 0);
+		var t1 = CFunction.and(bfa, CFunction.nthbit(bfb, 31));
+		var t2 = CFunction.and(bfb, CFunction.nthbit(bfa, 31));
+		var tophalf = new Int32Array(32);
+		for (var i = 0; i < 32; i++)
+			tophalf[i] = c[i + 32];
+		var x = new CFunction(tophalf, 0);
+		x = CFunction.sub(x, CFunction.add(t1, t2));
+		for (var i = 0; i < 32; i++)
+			c[i + 32] = x._bits[i];
+	}
+	return c;
+}
+
+CFunction.hmul = function(x, y, signed) {
+	var prod = cf_mul64(x._bits, y._bits, signed);
+	var bits = new Int32Array(32);
+	for (var i = 0; i < 32; i++)
+		bits[i] = prod[i + 32];
+	return new CFunction(bits, circuit.or(x._divideError, y._divideError));
 }
 
 CFunction.prototype.sat = function() {

@@ -50,7 +50,7 @@ function parse(query) {
 						return tokens;
 					else {
 						tokens.push({ val: null, type: 'invalid', pos: b });
-						debugger;
+						//debugger;
 					}
 					break;
 				case 1:
@@ -501,6 +501,8 @@ function parse(query) {
 			return fun1("reverse");
 		} else if (l("hmul")) {
 			return fun2("hmul", true);
+		} else if (l("fixscale")) {
+			return fun3("fixscale", false);
 		} else if (query.charAt(pos) >= '0' && query.charAt(pos) <= '9') {
 			if (query.charAt(pos) == '0' && query.charAt(pos + 1) == 'x') {
 				pos += 2;
@@ -556,6 +558,29 @@ function parse(query) {
 		if (canBeSigned)
 			name = name + (signed ? "_s" : "_u");
 		return new Binary(ops.indexOf(name), a, b);
+	}
+
+	function fun3(name, canBeSigned) {
+		var signed = false;
+		if (canBeSigned) {
+			if (l("_s")) signed = true;
+			else l("_u");
+		}
+		ws();
+		if (!l("(")) return error("'" + name + "' is a function but it is used as a variable");
+		var a = expr();
+		ws();
+		if (!l(",")) return error("expected ',' in '" + name + "'");
+		var b = expr();
+		ws();
+		if (!l(",")) return error("expected ',' in '" + name + "'");
+		var c = expr();
+		ws();
+		if (!l(")")) return error("unclosed parenthesis");
+		name = "$" + name;
+		if (canBeSigned)
+			name = name + (signed ? "_s" : "_u");
+		return new Fun(name, [a, b, c]);
 	}
 
 	function ident() {

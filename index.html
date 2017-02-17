@@ -41,8 +41,6 @@ function performQuery(input) {
   };
   expr.analyze(abstractinterpEnv);
 
-  ls.set('explicitparens', 2);
-
   // try limited search for proof first
   data = {
     varmap: varmap
@@ -105,13 +103,20 @@ function performQuery(input) {
       }
       else {
         var pf = new ProofFinder(20);
-        pf.Search(expr, data.simp, function (flatproof) {
+        pf.Search(expr.removeDummy(), data.simp, function (flatproof) {
           data.proof = flatproof;
           update();
-        }, update);
+        }, function (exprc, backwards) {
+          if (backwards) {
+            //$j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
+          }
+          else {
+            //$j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
+          }
+        });
       }
       
-      data.properties = bddf.AnalyzeProperties(varmap, null);
+      bddf.AnalyzeProperties(data, varmap, null);
       update();
     }
     else {
@@ -502,6 +507,18 @@ $j(document).ready(function(){
     <p>SAT fallback now exists, using MiniSat compiled with Emscripten. This is brand new so expect bugs (not due to MiniSat, but for example I don't entirely trust my circuit builder and circuit-to-SAT converter). haroldbot should now give up early on (some) multiplications that would create a gigantic BDD.</p>
     <p>In general, there <i>are</i> many bugs.</p>
     <p>Since everything happens client-side now, I don't get automatic bug reports. Please <a href="https://github.com/IJzerbaard/haroldbot/issues">open an issue</a> or contact me (if you know how).</p>
+  </div>
+  <div>
+    <h2>List of available functions</h2>
+    <ul>
+      <li><tt>min = min_u, min_s</tt></li>
+      <li><tt>max = max_u, max_s</tt></li>
+      <li><tt>popcnt</tt></li>
+      <li><tt>nlz</tt> number of leading zeroes</li>
+      <li><tt>ntz</tt> number of trailing zeroes</li>
+      <li><tt>reverse</tt> bit-reversal</li>
+      <li><tt>hmul = hmul_u, hmul_s</tt> high half of product</li>
+    </ul>
   </div>
   <div id="exprdebug">
     <div id="exprdebug0"></div>

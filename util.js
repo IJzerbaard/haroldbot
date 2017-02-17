@@ -71,6 +71,24 @@ function rbit(x) {
     return (x << 16) | (x >>> 16);
 }
 
+function hmul_u32(a, b) {
+    var ah = (a >> 16) & 0xffff, al = a & 0xffff;
+    var bh = (b >> 16) & 0xffff, bl = b & 0xffff;
+    var l = al * bl;
+    var m = ah * bl + al * bh;
+    var h = ah * bh;
+    m += k >>> 16;
+    h += m >>> 16;
+    return h >>> 0;
+}
+
+function hmul_i32(a, b) {
+    var h = hmul_u32(a, b);
+    var t1 = (a >> 31) & b;
+    var t2 = (b >> 31) & a;
+    return h - t1 - t2;
+}
+
 function insertionSort(array, cmp) {
     for (var i = 1; i < array.length; i++) {
         var j = i;
