@@ -1017,6 +1017,11 @@ function ProofFinder(op) {
 			}
 		}
 	}
+
+	var rulecount_hist = new Int32Array(64);
+	for (var i = 0; i < this.Rules.length; i++)
+		rulecount_hist[this.Rules[i].length]++;
+	
 	return;
 }
 
@@ -1473,6 +1478,49 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		}
 	}
 
+	function fixup_ids_search(a, b, pattern) {
+		// some sub-expression of 'a' matches the pattern,
+		// change the ids in the pattern to the corresponding ids in 'b'
+		switch (a.type) {
+			case 'const':
+			case 'var':
+				if (a.id != pattern.id)
+					return false;
+				fixup_ids(a, b, pattern);
+				return true;
+			case 'un':
+				if (a.id == pattern.id) {
+					fixup_ids(a, b, pattern);
+					return true;
+				}
+				else if (b.type == 'un' && b.op == a.op)
+					return fixup_ids_search(a.value, b.value, pattern);
+				else return false;
+			case 'bin':
+				if (a.id == pattern.id) {
+					fixup_ids(a, b, pattern);
+					return true;
+				}
+				else if (b.type == 'bin' && b.op == a.op)
+					return fixup_ids_search(a.l, b.l, pattern) ||
+						   fixup_ids_search(a.r, b.r, pattern);
+				else return false;
+			case 'ter':
+				if (a.id == pattern.id) {
+					fixup_ids(a, b, pattern);
+					return true;
+				}
+				else if (b.type == 'ter')
+					return fixup_ids_search(a.cond, b.cond, pattern) ||
+				           fixup_ids_search(a.t, b.t, pattern) ||
+				           fixup_ids_search(a.f, b.f, pattern);
+				else return false;
+			case 'fun':
+				return false;
+			default: debugger;
+		}
+	}
+
 	function fixup_ids(a, b, pattern) {
 		// a has the same ids as pattern
 		// returns: nothing
@@ -1524,6 +1572,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 					fixup_ids(a.f, b.f, pattern);
 				}
 				break;
+			case 'fun':
+				break;
 			default: debugger;
 		}
 	}
@@ -1547,8 +1597,6 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			if (p[2] && p[2][5]) {
 				if (!special_handle(p[2][5], p[5], p[2][6]))
 					continue;
-				else if (p[2][5] == "non negative")
-					debugger;
 			}
 			if (p[1].weight < maxweight && hash_update(htable, p[1], p)) {
 				heap_add(q, p);
@@ -1604,11 +1652,23 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			for (var k = 0; k < forwardSet.length; k++) {
 				if (forwardSet[k] && t.equals(forwardSet[k][1])) {
 					explanation = forwardSet[k];
-					if (explanation[2][5] && !special_handle(explanation[2][5], explanation[3])) continue;
-					if (explanation[0]) fixup_ids(explanation[1], t, explanation[0].r)
+					switch (explanation[2][5]) {
+						case null:
+						case undefined:
+							break;
+						case "no intersect":
+							if (!special_handle(explanation[2][5], explanation[3].l)) { explanation = null; continue; }
+							break;
+						case "non negative":
+							if (!special_handle(explanation[2][5], new Unary(6, explanation[3].l))) { explanation = null; continue; }
+							break;
+						default: debugger;
+					}
+					if (explanation[0]) fixup_ids_search(explanation[1], t, explanation[0].r)
 					possibleExplanations.push(explanation);
 				}
 			}
+			//explanation = null;
 			for (var k = 0; k < possibleExplanations.length; k++) {
 				explanation = possibleExplanations[k];
 				if (explanation[2][3] == "constant folding")
@@ -1621,12 +1681,23 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				for (var k = 0; k < backwardSet.length; k++) {
 					if (backwardSet[k] && f.equals(backwardSet[k][1])) {
 						explanation = backwardSet[k];
-						if (explanation[2][5] && !special_handle(explanation[2][5], explanation[3])) continue;
+						switch (explanation[2][5]) {
+							case null:
+							case undefined:
+								break;
+							case "no intersect":
+								if (!special_handle(explanation[2][5], explanation[3].l)) { explanation = null; continue; }
+								break;
+							case "non negative":
+								if (!special_handle(explanation[2][5], new Unary(6, explanation[3].l))) { explanation = null; continue; }
+								break;
+							default: debugger;
+						}
 						explbackwards = true;
 						if (explanation[0]) {
 							var patl = explanation[0].l;
 							var patr = explanation[0].r;
-							fixup_ids(explanation[1], f, patr);
+							fixup_ids_search(explanation[1], f, patr);
 							explanation[0].l = patr;
 							explanation[0].r = patl;
 						}
@@ -1687,6 +1758,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				if (v.type == 'bin' &&
 					v.op == 1 &&
 					((v.r.type == 'const' && (v.r.value|0) >= 0) || (v.l.type == 'const' && (v.l.value|0) >= 0)))
+					return true;
+				if (v.type == 'un' && v.op >= 2 && v.op <= 4)
 					return true;
 				return false;
 			case "extra steps":

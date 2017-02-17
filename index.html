@@ -52,10 +52,10 @@ function performQuery(input) {
       proof = proofsteps;
     }, function (exprc, backwards) {
       if (backwards) {
-        $j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        //$j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
       else {
-        $j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        //$j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
     }, 'synchronous', 400);
     if (proof != null) {
@@ -81,7 +81,7 @@ function performQuery(input) {
       throw err;
   }
 
-  if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 26 || expr.op >= 40 && expr.op <= 48)) {
+  if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 28 || expr.op >= 40 && expr.op <= 48)) {
     // comparison
     (bddf||circuitf).AnalyzeTruth(data, expr.removeDummy(), varmap, function () {
       update();
@@ -492,7 +492,7 @@ $j(document).ready(function(){
     <h2>Examples</h2>
     <p>Just do some math<br/>
       &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=1000%20%2B%2015%20%26%20-16"><tt>1000 + 15 &amp; -16</tt></a></p>
-    <p>Find out whether two expression are equivalent<br/>
+    <p>Find out whether two expressions are equivalent<br/>
       &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=let+x+%3D+a+%2B+b+in+%28x+<+a%29+%3D%3D+%28x+<+max%28a%2C+b%29%29"><tt>let x = a + b in (x &lt; a) == (x &lt; max(a, b))</tt></a></p></p>
     <p><i>Prove</i> that two expressions are equivalent<br/>
       &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=a+%5E+%28%28a+%5E+b%29+%26+mask%29+%3D%3D+%28a+%26+~mask%29+%7C+%28b+%26+mask%29"><tt>a ^ ((a ^ b) &amp; mask) == (a &amp; ~mask) | (b &amp; mask)</tt></a></p></p>
