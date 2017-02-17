@@ -439,6 +439,34 @@ function ProofFinder(op) {
 			[a(0)],
 			false, "double reverse cancels", ,
 		],
+		// properties of nlz
+		[
+			["$nlz", [a(0)]],
+			["&", ["$nlz", [a(0)]], [0x3F]],
+			true, "nlz only goes up to 32, so the top bits are always zero", ,
+		],
+		// properties of ntz
+		[
+			["$ntz", [a(0)]],
+			["&", ["$ntz", [a(0)]], [0x3F]],
+			true, "ntz only goes up to 32, so the top bits are always zero", ,
+		],
+		// properties of popcnt
+		[
+			["$popcnt", [a(0)]],
+			["&", ["$popcnt", [a(0)]], [0x3F]],
+			true, "popcnt only goes up to 32, so the top bits are always zero", ,
+		],
+		[
+			["$popcnt", ["~", [a(0)]]],
+			["-", [32], ["$popcnt", [a(0)]]],
+			true, "count the bits that are zero", ,
+		],
+		[
+			["+", ["$popcnt", [a(0)]], ["$popcnt", ["~", [a(0)]]]],
+			[32],
+			false, "the number of ones plus the number of zeroes is all bits", ,
+		],
 
 		// interrelations between operations
 
