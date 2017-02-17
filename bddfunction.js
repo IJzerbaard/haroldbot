@@ -338,6 +338,16 @@ BDDFunction.rems = function (a, b) {
 }
 
 function bdd_mul64(a, b, signed) {
+	function countNonconstant(bits) {
+		var count = 0;
+		for (var i = 0; i < bits.length; i++) {
+			if (bits[i] != 0 && bits[i] != -1)
+				count++;
+		}
+		return count;
+	}
+	if (countNonconstant(a) * countNonconstant(b) > 256)
+		throw "multiplication seems hard";
 	var c = new Int32Array(64);
 	var a_sh = new Int32Array(64);
 	for (var i = 0; i < 32; i++)
