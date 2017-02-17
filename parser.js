@@ -491,6 +491,8 @@ function parse(query) {
 			return fun2("min", true);
 		} else if (l("max")) {
 			return fun2("max", true);
+		} else if (l("abs")) {
+			return fun1("abs");
 		} else if (l("popcnt")) {
 			return fun1("popcnt");
 		} else if (l("nlz")) {

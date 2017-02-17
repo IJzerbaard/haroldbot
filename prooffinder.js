@@ -475,6 +475,11 @@ function ProofFinder(op) {
 			[aex(0, except_neg)],
 			true, "double negation", ,
 		],
+		[
+			["$abs", ["$abs", [a(0)]]],
+			["$abs", [a(0)]],
+			false, "abs is idempotent", ,
+		],
 		// double shift
 		[
 			["<<", [">>u", [a(0)], [a(1)]], [a(1)]],
@@ -770,6 +775,11 @@ function ProofFinder(op) {
 			["^", [a(0)], [a(1)]],
 			["+", [a(0)], [a(1)]],
 			true, "xor is addition when bits <a class='replace'>don't intersect</a>", , "no intersect"
+		],
+		[
+			["$abs", [a(0)]],
+			[a(0)],
+			false, "abs does nothing when the input is <a class='replace'>non-negative</a>", , "non negative"
 		],
 		// special
 		[
@@ -1212,19 +1222,25 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				} else return false;
 			}
 		} else if (pattern.length == 4) {
-			if (expr.type != 'ter')
+			if (expr.type == 'ter') {
+				var t_res_pattern = res_pattern ? [null] : null;
+				var f_res_pattern = res_pattern ? [null] : null;
+				if (isTopLevelMatch(pattern[1], expr.cond, wildcards, rev, res_pattern) &&
+					isTopLevelMatch(pattern[2], expr.t, wildcards, rev, t_res_pattern) &&
+					isTopLevelMatch(pattern[3], expr.f, wildcards, rev, f_res_pattern)) {
+					if (res_pattern) {
+						res_pattern[0] = new Ternary(res_pattern[0], t_res_pattern[0], f_res_pattern[0]);
+						res_pattern[0].id = expr.id;
+					}
+					return true;
+				} else return false;
+			}
+			else if (expr.type == 'fun') {
+				if (pattern[0] != expr.fun)
+					return false;
 				return false;
-			var t_res_pattern = res_pattern ? [null] : null;
-			var f_res_pattern = res_pattern ? [null] : null;
-			if (isTopLevelMatch(pattern[1], expr.cond, wildcards, rev, res_pattern) &&
-				isTopLevelMatch(pattern[2], expr.t, wildcards, rev, t_res_pattern) &&
-				isTopLevelMatch(pattern[3], expr.f, wildcards, rev, f_res_pattern)) {
-				if (res_pattern) {
-					res_pattern[0] = new Ternary(res_pattern[0], t_res_pattern[0], f_res_pattern[0]);
-					res_pattern[0].id = expr.id;
-				}
-				return true;
-			} else return false;
+			}
+			else return false;
 		}
 	}
 
@@ -1392,11 +1408,14 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 					if (getPattern) {
 						if (rules[i][5] == "no intersect")
 							results.push([patternNode[0], n, rules[i], new Binary(20, new Binary(1, root.l, root.r), new Constant(0))]);
+						else if (rules[i][5] == "non negative")
+							results.push([patternNode[0], n, rules[i], new Binary(44, root.value, new Constant(0))]);
 						else
 							results.push([patternNode[0], n, rules[i]]);
 					}
 					else {
-						if (rules[i][5] == "no intersect")
+						if (rules[i][5] == "no intersect" ||
+							rules[i][5] == "non negative")
 							results.push([parent, n, rules[i], backwards, parent[4] + 3, root]);
 						else
 							results.push([parent, n, rules[i], backwards, parent[4] + 1, null]);
@@ -1444,6 +1463,13 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				else
 					results.push([parent, res, null, backwards, parent[4] + 1, null]);
 			}
+		}
+
+		if (root.type != 'const') {
+			if (getPattern)
+				results.push([, root.constantFold(), [,,,"constant folding", "constant folding"]]);
+			else
+				results.push([parent, root.constantFold(), null, backwards, parent[4] + 1, null]);
 		}
 	}
 
@@ -1521,6 +1547,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			if (p[2] && p[2][5]) {
 				if (!special_handle(p[2][5], p[5], p[2][6]))
 					continue;
+				else if (p[2][5] == "non negative")
+					debugger;
 			}
 			if (p[1].weight < maxweight && hash_update(htable, p[1], p)) {
 				heap_add(q, p);
@@ -1572,12 +1600,19 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			// try forwards
 			var forwardSet = [];
 			applyRules(f, forwardSet, [,,,,0], false, rules, true);
+			var possibleExplanations = [];
 			for (var k = 0; k < forwardSet.length; k++) {
 				if (forwardSet[k] && t.equals(forwardSet[k][1])) {
 					explanation = forwardSet[k];
+					if (explanation[2][5] && !special_handle(explanation[2][5], explanation[3])) continue;
 					if (explanation[0]) fixup_ids(explanation[1], t, explanation[0].r)
-					break;
+					possibleExplanations.push(explanation);
 				}
+			}
+			for (var k = 0; k < possibleExplanations.length; k++) {
+				explanation = possibleExplanations[k];
+				if (explanation[2][3] == "constant folding")
+					break;
 			}
 			// try backwards
 			if (!explanation) {
@@ -1586,6 +1621,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				for (var k = 0; k < backwardSet.length; k++) {
 					if (backwardSet[k] && f.equals(backwardSet[k][1])) {
 						explanation = backwardSet[k];
+						if (explanation[2][5] && !special_handle(explanation[2][5], explanation[3])) continue;
 						explbackwards = true;
 						if (explanation[0]) {
 							var patl = explanation[0].l;
@@ -1638,6 +1674,20 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 						   test(rl, ll, lr) ||
 						   test(rr, ll, lr);
 				}
+				return false;
+			case "non negative":
+				if (node.type != 'un')
+					return false;
+				var v = node.value;
+				if (v.type == 'bin' &&
+					v.op == 31 &&
+					v.r.type == 'const' &&
+					(v.r.value & 31) > 0)
+					return true;
+				if (v.type == 'bin' &&
+					v.op == 1 &&
+					((v.r.type == 'const' && (v.r.value|0) >= 0) || (v.l.type == 'const' && (v.l.value|0) >= 0)))
+					return true;
 				return false;
 			case "extra steps":
 				// handled elsewhere

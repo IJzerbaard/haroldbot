@@ -195,6 +195,8 @@ Unary.prototype.toBddFunc = function() {
 			return BDDFunction.clz(inner);
 		case 5:
 			return BDDFunction.rbit(inner);
+		case 6:
+			return BDDFunction.abs(inner);
 	}
 	debugger;
 	alert("Severe bug in Unary.toBddFunc");
@@ -217,6 +219,8 @@ Unary.prototype.toCircuitFunc = function() {
 			return CFunction.clz(inner);
 		case 5:
 			return CFunction.rbit(inner);
+		case 6:
+			return CFunction.abs(inner);
 	}
 	debugger;
 	alert("Severe bug in Unary.toCircuitFunc");
@@ -249,6 +253,10 @@ Unary.prototype.constantFold = function() {
 				return new Constant(clz(inner.value));
 			case 5:
 				return new Constant(rbit(inner.value))
+			case 6:
+				var t = inner.value | 0;
+				var m = t >> 31;
+				return new Constant((t ^ m) - m | 0);
 		}
 	}
 	if (inner.id != this.value.id)

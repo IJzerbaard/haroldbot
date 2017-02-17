@@ -52,10 +52,10 @@ function performQuery(input) {
       proof = proofsteps;
     }, function (exprc, backwards) {
       if (backwards) {
-        //$j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        $j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
       else {
-        //$j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        $j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
     }, 'synchronous', 400);
     if (proof != null) {
