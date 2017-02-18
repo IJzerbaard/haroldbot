@@ -86,7 +86,7 @@ function hmul_i32(a, b) {
     var h = hmul_u32(a, b);
     var t1 = (a >> 31) & b;
     var t2 = (b >> 31) & a;
-    return h - t1 - t2;
+    return h - t1 - t2 | 0;
 }
 
 function insertionSort(array, cmp) {

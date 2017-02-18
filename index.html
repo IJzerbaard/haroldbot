@@ -24,6 +24,9 @@ var $j = jQuery.noConflict();
 var id = 0;
 
 function performQuery(input) {
+  id = 0;
+  bdd.reset();
+  circuit.reset();
   var p = parse(input);
   var expr = p[0];
   var varmap = p[1];
@@ -77,8 +80,11 @@ function performQuery(input) {
   catch (err) {
     if (err == "BDD full" || err == "multiplication seems hard")
       circuitf = expr.toCircuitFunc();
-    else
-      throw err;
+    else {
+      //throw err;
+      data.msg = err;
+      return;
+    }
   }
 
   if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 28 || expr.op >= 40 && expr.op <= 48)) {
@@ -126,7 +132,12 @@ function performQuery(input) {
   }
 }
 
-function formatVariableAssignment(assignment, varmap) {
+function formatVariableAssignment(assignment, varmap_in, ext_examples) {
+  var varmap = varmap_in.slice();
+  if (ext_examples) {
+    varmap.push('lhs');
+    varmap.push('rhs');
+  }
   var table = $j('<table class="varassignment"></table>');
   for (var i = 0; i < varmap.length; i++) {
     var row = $j('<tr></tr>');
@@ -138,7 +149,12 @@ function formatVariableAssignment(assignment, varmap) {
   return table;
 }
 
-function formatVariableAssignments(assignment, varmap) {
+function formatVariableAssignments(assignment, varmap_in, ext_examples) {
+  var varmap = varmap_in.slice();
+  if (ext_examples) {
+    varmap.push('lhs');
+    varmap.push('rhs');
+  }
   var wrapper = $j('<div/>');
   var table = $j('<table class="varassignment"></table>');
   var headers = $j('<tr/>');
@@ -362,13 +378,13 @@ function update() {
     if (stuff.count.startsWith('#')) {
       container.append('<p>' + stuff.count.substring(1) + '</p>');
       if (stuff.examples)
-        container.append($j('<p>for example:</p>').append(formatVariableAssignments(stuff.examples, varmap)));
+        container.append($j('<p>for example:</p>').append(formatVariableAssignments(stuff.examples, varmap, stuff.ext_examples)));
       if (stuff.proof)
         formatproof(container, stuff.proof, varmap);
     }
     else if (stuff.count == '1') {
       if (stuff.examples) {
-        var varassign = formatVariableAssignment(stuff.examples(0), varmap);
+        var varassign = formatVariableAssignment(stuff.examples(0), varmap, stuff.ext_examples);
         container.append($j('<p>once, namely:</p>').append(varassign));
       }
       else
@@ -377,7 +393,7 @@ function update() {
     else if (stuff.count) {
       container.append('<p>in ' + stuff.count + ' cases</p>');
       if (stuff.examples)
-        container.append($j('<p>for example:</p>').append(formatVariableAssignments(stuff.examples, varmap)));
+        container.append($j('<p>for example:</p>').append(formatVariableAssignments(stuff.examples, varmap, stuff.ext_examples)));
     }
     else {
       debugger;
@@ -420,9 +436,9 @@ function update() {
     function makeCollapsible(base, text, value, count, examples, varmap) {
       var extra = null;
       if (count == "1")
-        extra = $j('<div/>').append('once:').append(formatVariableAssignment(examples(0), varmap));
+        extra = $j('<div/>').append('once:').append(formatVariableAssignment(examples(0), varmap, false));
       else
-        extra = $j('<div/>').append(count + ' cases').append(formatVariableAssignments(examples, varmap));
+        extra = $j('<div/>').append(count + ' cases').append(formatVariableAssignments(examples, varmap, false));
       extra.css('overflow', 'hidden');
       var showbutton = $j('<a/>', {
         text: '▸',
@@ -457,8 +473,6 @@ function doquery(f) {
   $j('#q').val(decodeURIComponent(f.replace(/\+/g, " ")));
   $j('#resultDiv').empty();
   $j('#resultDiv').text('Waiting for result...');
-  bdd.reset();
-  circuit.reset();
   performQuery(decodeURIComponent(f.replace(/\+/g, " ")));
 }
 $j(document).ready(function(){

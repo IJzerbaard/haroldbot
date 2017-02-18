@@ -19,6 +19,13 @@ BDDFunction.constant = function(value) {
 	return new BDDFunction(bits, 0);
 }
 
+BDDFunction.to_constant = function(x) {
+	var res = 0;
+	for (var i = 0; i < 32; i++)
+		res |= (1 << i) & x._bits[i];
+	return res;
+};
+
 BDDFunction.not = function(x) {
 	var bits = new Int32Array(32);
 	for (var i = 0; i < bits.length; i++) {
@@ -392,6 +399,21 @@ BDDFunction.hmul = function (a, b, signed) {
 	return new BDDFunction(bits, bdd.or(a._divideError, b._divideError));
 };
 
+BDDFunction.fixmul = function (a, b, q, signed) {
+	// (64 bit)a * b >> q
+	var prod = bdd_mul64(a._bits, b._bits, signed);
+	var sh = 0;
+	for (var i = 0; i < 5; i++) {
+		if (q._bits[i] != 0 && q._bits[i] != -1)
+			throw "fixed point math must have a fixed point";
+		sh |= (1 << i) & q._bits[i];
+	}
+	var bits = new Int32Array(32);
+	for (var i = 0; i < 32; i++)
+		bits[i] = prod[i + sh];
+	return new BDDFunction(bits, bdd.or(bdd.or(a._divideError, b._divideError), q._divideError));
+};
+
 BDDFunction.fixscale = function (a, x, y) {
 	// (64 bit)a * x / y
 
@@ -489,6 +511,18 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugc
 			res.false = {
 				count: "#always"
 			};
+			if (root.type == 'bin' && root.op == 20) {
+				res.false.ext_examples = true;
+				res.false.examples = function(ix) {
+					var len = vars.length;
+					var var_values = new Int32Array(len + 2);
+					for (var i = 0; i < 32; i++)
+						var_values[i] |= ((ix >>> i) & 1) << ~~(i / len);
+					var_values[len] = root.l.eval(var_values);
+					var_values[len + 1] = root.r.eval(var_values);
+					return var_values;
+				};
+			}
 		} else if (this._bits[0] == -1) {
 			var resobj = {
 				count: "#always",

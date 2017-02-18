@@ -55,6 +55,11 @@ Node.prototype.analyze = function(env) {
 	return null;
 };
 
+Node.prototype.eval = function(vars) {
+	alert("This object should not exist");
+	return null;
+};
+
 function Constant(val) {
 	Node.call(this);
 	this.hash = val | 0;
@@ -97,6 +102,10 @@ Constant.prototype.analyze = function(env) {
 	return r;
 };
 
+Constant.prototype.eval = function(vars) {
+	return this.value;
+};
+
 
 function Variable(index) {
 	Node.call(this);
@@ -137,6 +146,10 @@ Variable.prototype.analyze = function(env) {
 	var r = { z: -1, o: -1 };
 	env.nr[this.id] = r;
 	return r;
+};
+
+Variable.prototype.eval = function(vars) {
+	return vars[this.index];
 };
 
 
@@ -286,6 +299,22 @@ Unary.prototype.analyze = function(env) {
 	}
 	env.nr[this.id] = r;
 	return r;
+};
+
+Unary.prototype.eval = function(vars) {
+	var inner = this.value.eval(vars);
+	switch (this.op) {
+		default: debugger;
+		case 0: return ~inner;
+		case 1: return -inner | 0;
+		case 2: return popcnt(inner);
+		case 3: return ctz(inner);
+		case 4: return clz(inner);
+		case 5: return rbit(inner);
+		case 6:
+			var t = (inner|0) >> 31;
+			return ((inner ^ t) - t) | 0;
+	}
 };
 
 
@@ -536,11 +565,19 @@ Binary.prototype.constantFold = function() {
 			case 30:
 				return new Constant(l.value >> (r.value & 31));
 			case 8: // <<<
-				return new Constant((l.value >>> ((r.value & 31) ^ 31)) | (l.value << (r.value & 31)));
+				return new Constant((l.value >>> (-r.value & 31)) | (l.value << (r.value & 31)));
 			case 9: // >>>
-				return new Constant((l.value << ((r.value & 31) ^ 31)) | (l.value >>> (r.value & 31)));
+				return new Constant((l.value << (-r.value & 31)) | (l.value >>> (r.value & 31)));
 			case 11:// *
 				return new Constant(Math.imul(l.value, r.value));
+			case 20:
+				return new Constant(l.value == r.value ? -1 : 0);
+			case 21:
+				return new Constant(l.value != r.value ? -1 : 0);
+			case 27:
+				return new Constant((l.value & r.value) != 0 ? -1 : 0);
+			case 28:
+				return new Constant((l.value | r.value) != 0 ? -1 : 0);
 			case 55: 	// min_u
 				return new Constant(Math.min(l.value >>> 0, r.value >>> 0));
 			case 56: 	// min_s
@@ -591,6 +628,55 @@ Binary.prototype.analyze = function(env) {
 	}
 	env.nr[this.id] = res;
 	return res;
+};
+
+Binary.prototype.eval = function(vars) {
+	var l = this.l.eval(vars) | 0;
+	var r = this.r.eval(vars) | 0;
+	var m = 0x80000000;
+	switch (this.op) {
+		default: debugger; throw "not implemented";
+		case 1: return l & r;
+		case 2: return l | r;
+		case 3: return l ^ r;
+		case 4: return l + r | 0;
+		case 5: return l - r | 0;
+		case 6: return l << (r & 31);
+		case 7:
+		case 31: return (l >>> (r & 31)) | 0;
+		case 30: return l >> (r & 31);
+		case 8: return (l << (r & 31)) | (l >>> (-r & 31));
+		case 9: return (l >>> (r & 31)) | (l << (-r & 31));
+		case 10:
+		case 33: return BDDFunction.to_constant(BDDFunction.divu(BDDFunction.constant(l), BDDFunction.constant(r)));
+		case 32: return BDDFunction.to_constant(BDDFunction.divs(BDDFunction.constant(l), BDDFunction.constant(r)));
+		case 34: return BDDFunction.to_constant(BDDFunction.rems(BDDFunction.constant(l), BDDFunction.constant(r)));
+		case 35: return BDDFunction.to_constant(BDDFunction.remu(BDDFunction.constant(l), BDDFunction.constant(r)));
+		case 11: return Math.imul(l, r);
+		case 20: return l == r ? -1 : 0;
+		case 21: return l != r ? -1 : 0;
+		case 41:
+		case 22: return (l ^ m) <= (r ^ m) ? -1 : 0;
+		case 43:
+		case 23: return (l ^ m) < (r ^ m) ? -1 : 0;
+		case 45:
+		case 24: return (l ^ m) >= (r ^ m) ? -1 : 0;
+		case 47:
+		case 25: return (l ^ m) > (r ^ m) ? -1 : 0;
+		case 26: return (l == 0 || r != 0) ? -1 : 0;
+		case 27: return (l != 0 && r != 0) ? -1 : 0;
+		case 28: return (l != 0 || r != 0) ? -1 : 0;
+		case 40: return l <= r ? -1 : 0;
+		case 42: return l < r ? -1 : 0;
+		case 44: return l >= r ? -1 : 0;
+		case 46: return l > r ? -1 : 0;
+		case 55: return Math.min(l ^ m, r ^ m) ^ m;
+		case 56: return Math.min(l, r) | 0;
+		case 57: return Math.max(l ^ m, r ^ m) ^ m;
+		case 58: return Math.max(l, r) | 0;
+		case 59: return hmul_u32(l, r) | 0;
+		case 60: return hmul_i32(l, r);
+	}
 };
 
 
@@ -655,6 +741,13 @@ Ternary.prototype.constantFold = function() {
 		f.id != this.f.id)
 		return new Ternary(cond, t, f);
 	return this;
+};
+
+Ternary.prototype.eval = function(vars) {
+	var c = this.c.eval(vars) | 0;
+	var t = this.t.eval(vars) | 0;
+	var f = this.f.eval(vars) | 0;
+	return (c & t) | (~c & f);
 };
 
 Ternary.prototype.containsDoubleUnary = function() {
@@ -725,6 +818,8 @@ Fun.prototype.toBddFunc = function() {
 	switch (this.fun) {
 		case "$fixscale":
 			return BDDFunction.fixscale(a[0], a[1], a[2]);
+		case "$fixmul_u":
+			return BDDFunction.fixmul(a[0], a[1], a[2], false);
 		default:
 			throw "unimplemented function";
 	}
@@ -736,6 +831,8 @@ Fun.prototype.toCircuitFunc = function() {
 	switch (this.fun) {
 		case "$fixscale":
 			return CFunction.fixscale(a[0], a[1], a[2]);
+		case "$fixmul_u":
+			return CFunction.fixmul(a[0], a[1], a[2], false);
 		default:
 			throw "unimplemented function";
 	}
@@ -763,5 +860,12 @@ Fun.prototype.copy = function() {
 };
 
 Fun.prototype.analyze = function(env) {
-	return null;
+	var res = { z: -1, o: -1 };
+	env.nr[this.id] = res;
+	return res;
+};
+
+Fun.prototype.eval = function(vars) {
+	debugger;
+	throw "not implemented";
 };

@@ -503,6 +503,8 @@ function parse(query) {
 			return fun1("reverse");
 		} else if (l("hmul")) {
 			return fun2("hmul", true);
+		} else if (l("fixmul")) {
+			return fun3("fixmul", true);
 		} else if (l("fixscale")) {
 			return fun3("fixscale", false);
 		} else if (query.charAt(pos) >= '0' && query.charAt(pos) <= '9') {
