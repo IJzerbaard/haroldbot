@@ -232,6 +232,12 @@ BDDFunction.mul = function(x, y) {
 	return r;
 }
 
+BDDFunction.ez80mlt = function(x) {
+	var a = BDDFunction.and(x, BDDFunction.constant(0xFF));
+	var b = BDDFunction.and(BDDFunction.shruc(x, 8), BDDFunction.constant(0xFF));
+	return BDDFunction.mul(a, b);
+}
+
 BDDFunction.ctz = function (x) {
 	x = BDDFunction.and(BDDFunction.not(x), BDDFunction.add(x, BDDFunction.constant(-1)));
 	return BDDFunction.popcnt(x);
@@ -517,7 +523,7 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugc
 					var len = vars.length;
 					var var_values = new Int32Array(len + 2);
 					for (var i = 0; i < 32; i++)
-						var_values[i] |= ((ix >>> i) & 1) << ~~(i / len);
+						var_values[i % len] |= ((ix >>> i) & 1) << ~~(i / len);
 					var_values[len] = root.l.eval(var_values);
 					var_values[len + 1] = root.r.eval(var_values);
 					return var_values;

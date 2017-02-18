@@ -196,20 +196,14 @@ Unary.prototype.toBddFunc = function() {
 	if (this.op == "dummy")
 		return inner;
 	switch (this.op) {
-		case 0:
-			return BDDFunction.not(inner);
-		case 1:
-			return BDDFunction.sub(BDDFunction.constant(0), inner);
-		case 2:
-			return BDDFunction.popcnt(inner);
-		case 3:
-			return BDDFunction.ctz(inner);
-		case 4:
-			return BDDFunction.clz(inner);
-		case 5:
-			return BDDFunction.rbit(inner);
-		case 6:
-			return BDDFunction.abs(inner);
+		case 0:	return BDDFunction.not(inner);
+		case 1:	return BDDFunction.sub(BDDFunction.constant(0), inner);
+		case 2:	return BDDFunction.popcnt(inner);
+		case 3:	return BDDFunction.ctz(inner);
+		case 4:	return BDDFunction.clz(inner);
+		case 5:	return BDDFunction.rbit(inner);
+		case 6:	return BDDFunction.abs(inner);
+		case 7: return BDDFunction.ez80mlt(inner);
 	}
 	debugger;
 	alert("Severe bug in Unary.toBddFunc");
@@ -220,20 +214,14 @@ Unary.prototype.toCircuitFunc = function() {
 	if (this.op == "dummy")
 		return inner;
 	switch (this.op) {
-		case 0:
-			return CFunction.not(inner);
-		case 1:
-			return CFunction.sub(CFunction.constant(0), inner);
-		case 2:
-			return CFunction.popcnt(inner);
-		case 3:
-			return CFunction.ctz(inner);
-		case 4:
-			return CFunction.clz(inner);
-		case 5:
-			return CFunction.rbit(inner);
-		case 6:
-			return CFunction.abs(inner);
+		case 0:	return CFunction.not(inner);
+		case 1:	return CFunction.sub(CFunction.constant(0), inner);
+		case 2:	return CFunction.popcnt(inner);
+		case 3:	return CFunction.ctz(inner);
+		case 4:	return CFunction.clz(inner);
+		case 5:	return CFunction.rbit(inner);
+		case 6:	return CFunction.abs(inner);
+		case 7: return CFunction.ez80mlt(inner);
 	}
 	debugger;
 	alert("Severe bug in Unary.toCircuitFunc");
@@ -252,24 +240,19 @@ Unary.prototype.constantFold = function() {
 	var inner = this.value.constantFold();
 	if (inner.type == 'const') {
 		switch (this.op) {
-			default:
-				return this;
-			case 0:
-				return new Constant(~inner.value);
-			case 1:
-				return new Constant(-inner.value | 0);
-			case 2:
-				return new Constant(popcnt(inner.value));
-			case 3:
-				return new Constant(ctz(inner.value));
-			case 4:
-				return new Constant(clz(inner.value));
-			case 5:
-				return new Constant(rbit(inner.value))
+			case "dummy": return this;
+			default: debugger;
+			case 0:	return new Constant(~inner.value);
+			case 1:	return new Constant(-inner.value | 0);
+			case 2:	return new Constant(popcnt(inner.value));
+			case 3:	return new Constant(ctz(inner.value));
+			case 4:	return new Constant(clz(inner.value));
+			case 5:	return new Constant(rbit(inner.value))
 			case 6:
 				var t = inner.value | 0;
 				var m = t >> 31;
 				return new Constant((t ^ m) - m | 0);
+			case 7:	return new Constant((inner.value & 0xFF) * ((inner.value >> 8) & 0xFF));
 		}
 	}
 	if (inner.id != this.value.id)
@@ -295,6 +278,7 @@ Unary.prototype.analyze = function(env) {
 		case 3:	r = Bitfield.ntz(v); break;
 		case 4:	r = Bitfield.nlz(v); break;
 		case 5:	r = Bitfield.rbit(v); break;
+		case 7: r = { z: -1, o: 0xFFFF }; break;
 		default:	r = { z: -1, o: -1 }; break;
 	}
 	env.nr[this.id] = r;
@@ -314,6 +298,7 @@ Unary.prototype.eval = function(vars) {
 		case 6:
 			var t = (inner|0) >> 31;
 			return ((inner ^ t) - t) | 0;
+		case 7: return (inner & 0xFF) * ((inner >> 8) & 0xFF);
 	}
 };
 

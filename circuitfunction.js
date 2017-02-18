@@ -185,6 +185,12 @@ CFunction.mul = function(x, y) {
 	return r;
 }
 
+CFunction.ez80mlt = function(x) {
+	var a = CFunction.and(x, CFunction.constant(0xFF));
+	var b = CFunction.and(CFunction.shruc(x, 8), CFunction.constant(0xFF));
+	return CFunction.mul(a, b);
+}
+
 CFunction.abs = function(x) {
 	var m = CFunction.nthbit(x, 31);
 	return CFunction.xor(CFunction.add(x, m), m);
@@ -400,6 +406,18 @@ CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcal
 				res.false = {
 					count: "#always"
 				};
+				if (root.type == 'bin' && root.op == 20) {
+					res.false.ext_examples = true;
+					res.false.examples = function(ix) {
+						var len = vars.length;
+						var var_values = new Int32Array(len + 2);
+						for (var i = 0; i < 32; i++)
+							var_values[i % len] |= ((ix >>> i) & 1) << ~~(i / len);
+						var_values[len] = root.l.eval(var_values);
+						var_values[len + 1] = root.r.eval(var_values);
+						return var_values;
+					};
+				}
 			}
 			else {
 				var falseobj = {
