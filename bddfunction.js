@@ -73,7 +73,7 @@ BDDFunction.add = function(x, y) {
 		var xy = bdd.xor(x._bits[i], y._bits[i]);
 		bits[i] = bdd.xor(xy, carry);
 		if (i < 31)
-			carry = bdd.or(bdd.and(xy, carry), bdd.and(x._bits[i], y._bits[i]));
+			carry = bdd.orand(xy, carry, x._bits[i], y._bits[i]);
 	}
 	return new BDDFunction(bits, bdd.or(x._divideError, y._divideError));
 }

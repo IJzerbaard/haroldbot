@@ -68,6 +68,21 @@ var bdd = {
 		throw "BDD full";
 	},
 
+	orand: function(a, b, c, d) {
+		// (a & b) | (c & d)
+		if (a == -1 && b == -1) return -1;
+		if (c == -1 && d == -1) return -1;
+
+		if (a == 0 || b == 0 || a == ~b)
+			return this.and(c, d);
+		if (c == 0 || d == 0 || c == ~d)
+			return this.and(a, b);
+
+		var ab = this.and(a, b);
+		if (ab == -1) return -1;
+		return this.or(ab, this.and(c, d));
+	},
+
 	or: function(f, g) {
 		return ~this.and(~f, ~g);
 	},
