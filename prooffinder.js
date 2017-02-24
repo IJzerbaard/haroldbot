@@ -3,6 +3,7 @@ function ProofFinder(op) {
 	var except_neg = 2;
 	var except_zero = 3;
 	var except_unknown_or_zero = 4;
+	var except_non_mersenne = 5;
 
 	this.dead = op != 20;
 
@@ -159,14 +160,29 @@ function ProofFinder(op) {
 			true, "definition #1 of xor", ,
 		],
 		[
+			["|", ["&", ["~", [a(0)]], [a(1)]], ["&", [a(0)], ["~", [a(1)]]]],
+			["^", [a(0)], [a(1)]],
+			false, "definition #1 of xor", ,
+		],
+		[
 			["^", [a(0)], [a(1)]],
 			["&", ["|", [a(0)], [a(1)]], ["|", ["~", [a(0)]], ["~", [a(1)]]]],
 			true, "definition #2 of xor", ,
 		],
 		[
+			["&", ["|", ["~", [a(0)]], ["~", [a(1)]]], ["|", [a(0)], [a(1)]]],
+			["^", [a(0)], [a(1)]],
+			false, "definition #2 of xor", ,
+		],
+		[
 			["^", [a(0)], [a(1)]],
 			["&", ["|", [a(0)], [a(1)]], ["~", ["&", [a(0)], [a(1)]]]],
 			true, "definition #3 of xor", ,
+		],
+		[
+			["&", ["~", ["&", [a(0)], [a(1)]]], ["|", [a(0)], [a(1)]]],
+			["^", [a(0)], [a(1)]],
+			false, "definition #3 of xor", ,
 		],
 		[
 			["^", ["^", [a(0)], [a(1)]], [a(2)]],
@@ -191,7 +207,7 @@ function ProofFinder(op) {
 		[
 			["^", ["~", [a(0)]], [a(1)]],
 			["^", [a(0)], ["~", [a(1)]]],
-			false, "move complement", ,
+			true, "move complement", ,
 		],
 		// properties of addition
 		[
@@ -225,6 +241,16 @@ function ProofFinder(op) {
 			false, "add to negation of self", ,
 		],
 		[
+			["&", ["+", [a(0)], [a(1)]], [aex(2, except_non_mersenne)]],
+			["&", ["+", ["&", [a(0)], [aex(2, except_non_mersenne)]], ["&", [a(1)], [aex(2, except_non_mersenne)]]], [aex(2, except_non_mersenne)]],
+			false, "low bits of the result depend only on low bits of the inputs (condition: z is a power of two minus one)", ,
+		],
+		[
+			["&", ["+", ["&", [a(0)], [aex(1, except_non_mersenne)]], ["&", [a(2)], [aex(1, except_non_mersenne)]]], [aex(1, except_non_mersenne)]],
+			["&", ["+", [a(0)], [a(2)]], [aex(1, except_non_mersenne)]],
+			false, "low bits of the result depend only on low bits of the inputs (condition: y is a power of two minus one)", ,
+		],
+		[
 			["+", ["+", [a(0)], [a(1)]], [a(2)]],
 			["+", [a(0)], ["+", [a(1)], [a(2)]]],
 			true, "associativity of addition", ,
@@ -254,6 +280,16 @@ function ProofFinder(op) {
 			["-", [aex(0, except_zero)], [a(1)]],
 			["-", ["-", [a(1)], [a(0)]]],
 			true, "anticommutativity of subtraction", ,
+		],
+		[
+			["&", ["-", [a(0)], [a(1)]], [aex(2, except_non_mersenne)]],
+			["&", ["-", ["&", [a(0)], [aex(2, except_non_mersenne)]], ["&", [a(1)], [aex(2, except_non_mersenne)]]], [aex(2, except_non_mersenne)]],
+			false, "low bits of the result depend only on low bits of the inputs (condition: z is a power of two minus one)", ,
+		],
+		[
+			["&", ["-", ["&", [a(0)], [aex(1, except_non_mersenne)]], ["&", [a(2)], [aex(1, except_non_mersenne)]]], [aex(1, except_non_mersenne)]],
+			["&", ["-", [a(0)], [a(2)]], [aex(1, except_non_mersenne)]],
+			false, "low bits of the result depend only on low bits of the inputs (condition: y is a power of two minus one)", ,
 		],
 		// properties of rbit
 		[
@@ -291,6 +327,16 @@ function ProofFinder(op) {
 			["?", [a(0)], [a(1)], [a(2)]],
 			["|", ["&", [a(0)], [a(1)]], ["&", ["~", [a(0)]], [a(2)]]],
 			true, "definition of mux", ,
+		],
+		[
+			["?", [a(0)], [a(1)], [a(2)]],
+			["|", ["&", [a(0)], [a(1)]], ["&", [a(2)], ["~", [a(0)]]]],
+			true, "definition of mux", ,
+		],
+		[
+			["|", ["&", ["~", [a(0)]], [a(1)]], ["&", [a(0)], [a(2)]]],
+			["?", [a(0)], [a(2)], [a(1)]],
+			false, "definition of mux", ,
 		],
 		// properties of min_u
 		[
@@ -432,6 +478,16 @@ function ProofFinder(op) {
 			["*", [a(0)], [-1]],
 			["-", [a(0)]],
 			false, "multiplication by minus one", ,
+		],
+		[
+			["&", ["*", [a(0)], [a(1)]], [aex(2, except_non_mersenne)]],
+			["&", ["*", ["&", [a(0)], [aex(2, except_non_mersenne)]], ["&", [a(1)], [aex(2, except_non_mersenne)]]], [aex(2, except_non_mersenne)]],
+			false, "low bits of the result depend only on low bits of the inputs (condition: z is a power of two minus one)", ,
+		],
+		[
+			["&", ["*", ["&", [a(0)], [aex(1, except_non_mersenne)]], ["&", [a(2)], [aex(1, except_non_mersenne)]]], [aex(1, except_non_mersenne)]],
+			["&", ["*", [a(0)], [a(2)]], [aex(1, except_non_mersenne)]],
+			false, "low bits of the result depend only on low bits of the inputs (condition: y is a power of two minus one)", ,
 		],
 		// properties of reverse
 		[
@@ -698,37 +754,81 @@ function ProofFinder(op) {
 			[">>s", ["^", [a(0)], [a(2)]], [a(1)]],
 			false, "right shift distributes over xor", ,
 		],
-		// everything distributes over mux
+		// bitwise operations distribute over mux
 		[
 			["~", ["?", [a(0)], [a(1)], [a(2)]]],
 			["?", [a(0)], ["~", [a(1)]], ["~", [a(2)]]],
-			true, "everything distributes over mux", ,
-		],
-		[
-			["-", ["?", [a(0)], [a(1)], [a(2)]]],
-			["?", [a(0)], ["-", [a(1)]], ["-", [a(2)]]],
-			true, "everything distributes over mux", ,
+			true, "complement distributes over mux", ,
 		],
 		[
 			["&", ["?", [a(0)], [a(1)], [a(2)]], [a(3)]],
 			["?", [a(0)], ["&", [a(1)], [a(3)]], ["&", [a(2)], [a(3)]]],
-			true, "everything distributes over mux", ,
+			true, "and distributes over mux", ,
 		],
 		[
 			["|", ["?", [a(0)], [a(1)], [a(2)]], [a(3)]],
 			["?", [a(0)], ["|", [a(1)], [a(3)]], ["|", [a(2)], [a(3)]]],
-			true, "everything distributes over mux", ,
+			true, "or distributes over mux", ,
 		],
 		[
 			["^", ["?", [a(0)], [a(1)], [a(2)]], [a(3)]],
 			["?", [a(0)], ["^", [a(1)], [a(3)]], ["^", [a(2)], [a(3)]]],
-			true, "everything distributes over mux", ,
+			true, "xor distributes over mux", ,
 		],
 		[
-			["+", ["?", [a(0)], [a(1)], [a(2)]], [a(3)]],
-			["?", [a(0)], ["+", [a(1)], [a(3)]], ["+", [a(2)], [a(3)]]],
-			true, "everything distributes over mux", ,
+			["$reverse", ["?", [a(0)], [a(1)], [a(2)]]],
+			["?", ["$reverse", [a(0)]], ["$reverse", [a(1)]], ["$reverse", [a(2)]]],
+			true, "reverse distributes over mux", ,
 		],
+		// reverse distributes over all bitwise operations
+		[
+			["$reverse", ["&", [a(0)], [a(1)]]],
+			["&", ["$reverse", [a(0)]], ["$reverse", [a(1)]]],
+			true, "reverse distributes over and", ,
+		],
+		[
+			["$reverse", ["|", [a(0)], [a(1)]]],
+			["|", ["$reverse", [a(0)]], ["$reverse", [a(1)]]],
+			true, "reverse distributes over or", ,
+		],
+		[
+			["$reverse", ["^", [a(0)], [a(1)]]],
+			["^", ["$reverse", [a(0)]], ["$reverse", [a(1)]]],
+			true, "reverse distributes over xor", ,
+		],
+		// reversing a boolean has no effect
+		[
+			["$reverse", ["==", [a(0)], [a(1)]]],
+			["==", [a(0)], [a(1)]],
+			false, "reversing a boolean has no effect", ,
+		],
+		[
+			["$reverse", ["!=", [a(0)], [a(1)]]],
+			["!=", [a(0)], [a(1)]],
+			false, "reversing a boolean has no effect", ,
+		],
+		[
+			["$reverse", ["<u", [a(0)], [a(1)]]],
+			["<u", [a(0)], [a(1)]],
+			false, "reversing a boolean has no effect", ,
+		],
+		[
+			["$reverse", ["<s", [a(0)], [a(1)]]],
+			["<s", [a(0)], [a(1)]],
+			false, "reversing a boolean has no effect", ,
+		],
+		[
+			["$reverse", ["<=u", [a(0)], [a(1)]]],
+			["<=u", [a(0)], [a(1)]],
+			false, "reversing a boolean has no effect", ,
+		],
+		[
+			["$reverse", ["<=s", [a(0)], [a(1)]]],
+			["<=s", [a(0)], [a(1)]],
+			false, "reversing a boolean has no effect", ,
+		],
+		// top bit addition
+
 		
 		// two's complement relations
 		[
@@ -932,8 +1032,8 @@ function ProofFinder(op) {
 
 	this.oldrules = rules;
 
-	this.Rules = new Array(0x1000);
-	for (var i = 0; i < 0x1000; i++)
+	this.Rules = new Array(0x8000);
+	for (var i = 0; i < 0x8000; i++)
 		this.Rules[i] = [];
 
 	for (var i = 0; i < rules.length; i++) {
@@ -941,7 +1041,7 @@ function ProofFinder(op) {
 		var from = rule[0];
 		if (from.length == 1) {
 			if (from[0].any != undefined) {
-				for (var p = 0; p < 0x1000; p++)
+				for (var p = 0; p < 0x8000; p++)
 					this.Rules[p].push(rule);
 			}
 			else {
@@ -953,8 +1053,8 @@ function ProofFinder(op) {
 		else if (from.length == 2) {
 			// unary
 			if (from[1][0].any != undefined) {
-				var bottom = (from[0] + 1) & 15;
-				for (var p = bottom; p < 0x1000; p += 16)
+				var bottom = (from[0] + 1) & 31;
+				for (var p = bottom; p < 0x8000; p += 32)
 					this.Rules[p].push(rule);
 			}
 			else if (from[1].length == 1)
@@ -965,16 +1065,16 @@ function ProofFinder(op) {
 			}
 			else if (from[1].length == 2) {
 				// nested unary
-				this.Rules[(from[0] + 1 & 15) + ((from[1][0] + 1 & 15) << 4)].push(rule);
+				this.Rules[(from[0] + 1 & 31) + ((from[1][0] + 1 & 31) << 5)].push(rule);
 			}
 			else if (from[1].length == 3) {
 				// unary with binary as operand
-				this.Rules[(from[0] + 1 & 15) + ((from[1][0] + 5 & 15) << 4)].push(rule);
+				this.Rules[(from[0] + 1 & 31) + ((from[1][0] + 5 & 32) << 5)].push(rule);
 			}
 			else if (from[1].length == 4) {
 				// ternary as operand
-				var bottom = (from[0] + 1) & 15;
-				for (var p = bottom; p < 0x1000; p += 16)
+				var bottom = (from[0] + 1) & 31;
+				for (var p = bottom; p < 0x8000; p += 32)
 					this.Rules[p].push(rule);
 			}
 			else {
@@ -983,23 +1083,23 @@ function ProofFinder(op) {
 			}
 		}
 		else if (from.length == 3) {
-			var bits = from[0] + 5 & 15;
-			var mask = 0x00F;
+			var bits = from[0] + 5 & 31;
+			var mask = 0x01F;
 			for (var j = 0; j < 2; j++) {
 				switch (from[j + 1].length) {
 					case 1:
 						if (from[j + 1][0].any == undefined) {
-							bits |= ((from[j + 1] & 7) | ((from[j + 1] >>> 31) << 3)) << (4 + 4 * j);
-							mask |= 0x0F0 << (4 * j);
+							bits |= ((from[j + 1] & 15) | ((from[j + 1] >>> 31) << 4)) << (5 + 5 * j);
+							mask |= 0x3E0 << (5 * j);
 						}
 						break;
 					case 2:
-						bits |= (from[j + 1][0] + 1 & 15) << (4 + 4 * j);
-						mask |= 0x0F0 << (4 * j);
+						bits |= (from[j + 1][0] + 1 & 31) << (5 + 5 * j);
+						mask |= 0x3E0 << (5 * j);
 						break;
 					case 3:
-						bits |= (from[j + 1][0] + 5 & 15) << (4 + 4 * j);
-						mask |= 0x0F0 << (4 * j);
+						bits |= (from[j + 1][0] + 5 & 31) << (5 + 5 * j);
+						mask |= 0x3E0 << (5 * j);
 						break;
 					case 4:
 						break;
@@ -1009,18 +1109,18 @@ function ProofFinder(op) {
 						break;
 				}
 			}
-			for (var p = 0; p < 0x1000; p = (p | mask) + 1 & ~mask) {
+			for (var p = 0; p < 0x8000; p = (p | mask) + 1 & ~mask) {
 				this.Rules[p | bits].push(rule);
 			}
 		}
 		else if (from.length == 4) {
-			var bits = 0;
-			var mask = 0;
+			var bits = 0x7000;
+			var mask = 0x7000;
 			for (var j = 0; j < 3; j++) {
 				switch (from[j + 1].length) {
 					case 1:
 						if (from[j + 1][0].any == undefined) {
-							bits |= ((from[j + 1] & 7) | ((from[j + 1] >>> 31) << 3)) << (4 * j);
+							bits |= (((from[j + 1] & 15) | ((from[j + 1] >>> 31) << 4)) << (4 * j)) & 0x15;
 							mask |= 0x00F << (4 * j);
 						}
 						break;
@@ -1040,7 +1140,7 @@ function ProofFinder(op) {
 						break;
 				}
 			}
-			for (var p = 0; p < 0x1000; p = (p | mask) + 1 & ~mask) {
+			for (var p = 0; p < 0x8000; p = (p | mask) + 1 & ~mask) {
 				this.Rules[p | bits].push(rule);
 			}
 		}
@@ -1049,7 +1149,7 @@ function ProofFinder(op) {
 	var rulecount_hist = new Int32Array(64);
 	for (var i = 0; i < this.Rules.length; i++)
 		rulecount_hist[this.Rules[i].length]++;
-	
+	this.RulecountHist = rulecount_hist;
 	return;
 }
 
@@ -1130,13 +1230,6 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		}
 	}
 
-	function heapify(heap) {
-		"use strict";
-		for (var i = (heap.length + 1) >> 1; i >= 0; i--) {
-			heap_siftdown(heap, i);
-		}
-	}
-
 	function heap_add(heap, item) {
 		"use strict";
 		var index = heap.length;
@@ -1166,6 +1259,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		var except_not = 1;
 		var except_neg = 2;
 		var except_zero = 3;
+		var except_unknown_or_zero = 4;
+		var except_non_mersenne = 5;
 		if (pattern.length == 1) {
 			if (pattern[0].any == undefined) {
 				// constant
@@ -1202,6 +1297,14 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 								if (expr.type == 'const' && expr.value == 0)
 									return false;
 								break;
+							case except_unknown_or_zero:
+								if (expr.type != 'const' || expr.value == 0)
+									return false;
+								break;
+							case except_non_mersenne:
+								if (expr.type != 'const' || (expr.value & (expr.value + 1)) != 0 || expr.value == 0)
+									return false;
+								break;
 						}
 					}
 					wildcards[any_index] = expr;
@@ -1235,24 +1338,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				}
 				return true;
 			} else {
-				wildcards.length = backup.length;
-				for (var i = 0; i < backup.length; i++)
-					wildcards[i] = backup[i];
-				if (commutative[expr.op] &&
-					// if both sides are Any, no point in trying to swap them
-					!(pattern[1].any != undefined && pattern[2].any != undefined) &&
-					// if both sides are Unary(op, Any) for equal op, no point in swapping
-					!(pattern[1].length == 2 && pattern[2].length == 2 && pattern[1][0] == pattern[2][0] && pattern[1][1].any != undefined && pattern[2][1].any != undefined)) {
-					if (isTopLevelMatch(pattern[2], expr.l, wildcards, rev, res_pattern) &&
-						isTopLevelMatch(pattern[1], expr.r, wildcards, rev, r_res_pattern)) {
-						rev.push(expr.id);
-						if (res_pattern) {
-							res_pattern[0] = new Binary(expr.op, res_pattern[0], r_res_pattern[0]);
-							res_pattern[0].id = expr.id;
-						}
-						return true;
-					}
-				} else return false;
+				return false;
 			}
 		} else if (pattern.length == 4) {
 			if (expr.type == 'ter') {
@@ -1649,6 +1735,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				steps.unshift(c[1]);
 				c = c[0];
 			}
+			steps[steps.length - 1] = connection[1];
 			c = connection;
 			while (c != null && c[0] != null) {
 				if (!c[3]) debugger;
@@ -1828,6 +1915,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 
 	from = fromc;
 	to = toc;
+	from.start = true;
+	to.end = true;
 
 	if (from.equals(to)) {
 		var v1 = new Variable(-1);
@@ -1837,9 +1926,6 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		callback([from, ["structurally equal after normalization", new Binary(20, v1, v2)], to]);
 		return;
 	}
-
-	var maxForwardWeight = from.weight + 4;
-	var maxBackwardWeight = to.weight + 4;
 
 	// priority queues
 	q1 = [];
@@ -1853,6 +1939,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 	hash_update(h1, from, q1[0]);
 	hash_update(h2, to, q2[0]);
 
+
 	var w = [];
 	var maxstep = 999999;
 
@@ -1863,7 +1950,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		var found = false;
 		var proofsteps = [];
 
-		while (q1.length + q2.length > 0 && counter < 10) {
+		while (q1.length + q2.length > 0 && counter < 10 && (counter == 0 || mode !== 'slow')) {
 			var time = new Date();
 			if (time.getTime() - starttime.getTime() > timelimit) {
 				cb(null);
@@ -1874,7 +1961,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			var doReset = false;
 			if (q1.length > 0) {
 				var pn = removeMin(q1);
-				if (debugcallback) debugcallback(pn[1], false);
+				if (debugcallback) debugcallback(pn[1], false, pn[0]);
 				var found = processNode(pn, false, h1, q1, h2, maxForwardWeight, rules);
 				if (found != null && found[0] < maxstep) {
 					doReset = w.length == 0;
@@ -1883,9 +1970,9 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				}
 			}
 			// backward step
-			if (q2.length > 0) {
+			if (q2.length > 0 && !doReset) {
 				var pn = removeMin(q2);
-				if (debugcallback) debugcallback(pn[1], true);
+				if (debugcallback) debugcallback(pn[1], true, pn[0]);
 				var found = processNode(pn, true, h2, q2, h1, maxBackwardWeight, rules);
 				if (found != null && found[0] < maxstep) {
 					doReset = w.length == 0;
@@ -1894,7 +1981,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				}
 			}
 			//
-			if (doReset) {
+			if (doReset && mode !== 'slow') {
 				// used after the first proof is found
 				// search again from scratch with more focus on short proofs
 				complexity_weight = 0;
@@ -1909,12 +1996,12 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				hash_update(h2, to, q2[0]);
 			}
 		}
-		if (w.length > 0 && index > 10) {
+		if (w.length > 0 && (index > 10 || mode === 'slow')) {
 			var witness = w.pop();
 			proofsteps = makesteps(witness[3], witness[1], witness[2], rules);
 			cb(proofsteps);
 		}
-		else if (index > 100) {
+		else if (index > 100 && mode !== 'slow' || index > 1000) {
 			cb(null);
 		}
 		else if (mode === 'synchronous')
@@ -1922,7 +2009,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		else {
 			setTimeout(function() {
 				loop_async(index + 1, q1, q2, h1, h2, from, to, rules, cb);
-			}, 0);
+			}, mode === 'slow' ? 200 : 0);
 		}
 	}
 

@@ -63,7 +63,7 @@ Node.prototype.eval = function(vars) {
 function Constant(val) {
 	Node.call(this);
 	this.hash = val | 0;
-	this.hash2 = (val & 7) | ((val >>> 31) << 3);
+	this.hash2 = (val & 15) | ((val >>> 31) << 4);
 	this.value = val;
 	this.type = 'const';
 }
@@ -157,7 +157,7 @@ function Unary(op, val) {
 	Node.call(this);
 	if (op < 0 || val == null || val == undefined) debugger;
 	this.hash = (val.hash << 17) - val.hash + op + 1 | 0;
-	this.hash2 = (op + 1 & 15) | ((val.hash2 & 15) << 4);
+	this.hash2 = (op + 1 & 31) | ((val.hash2 & 31) << 5);
 	this.op = op;
 	this.value = val;
 	this.weight = val.weight;
@@ -315,7 +315,7 @@ function Binary(op, l, r) {
 		rhash = x ^ lhash;
 	}
 	this.hash = (((lhash * 31 | 0) + rhash) * 31 | 0) + op * 1009 | 0;
-	this.hash2 = (op + 5 & 15) | ((l.hash2 & 15) << 4) | ((r.hash2 & 15) << 8);
+	this.hash2 = (op + 5 & 31) | ((l.hash2 & 31) << 5) | ((r.hash2 & 31) << 10);
 	this.op = op;
 	this.r = r;
 	this.l = l;
@@ -669,7 +669,7 @@ function Ternary(cond, t, f) {
 	Node.call(this);
 	if (cond == null || t == null || f == null) debugger;
 	this.hash = (t.hash * 31) ^ (f.hash * 1009) ^ (cond.hash * 65521) ^ 0xdeadbeef;
-	this.hash2 = (cond.hash2 & 15) | ((t.hash2 & 15) << 4) | ((f.hash2 & 15) << 8);
+	this.hash2 = (cond.hash2 & 15) | ((t.hash2 & 15) << 4) | ((f.hash2 & 15) << 8) | 0x7000;
 	this.cond = cond;
 	this.t = t;
 	this.f = f;
