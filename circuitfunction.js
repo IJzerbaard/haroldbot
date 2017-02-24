@@ -320,7 +320,7 @@ function cf_mul64(a, b, signed) {
 			c[i + 32] = x._bits[i];
 	}
 	return c;
-}
+};
 
 CFunction.hmul = function(x, y, signed) {
 	var prod = cf_mul64(x._bits, y._bits, signed);
@@ -328,14 +328,72 @@ CFunction.hmul = function(x, y, signed) {
 	for (var i = 0; i < 32; i++)
 		bits[i] = prod[i + 32];
 	return new CFunction(bits, circuit.or(x._divideError, y._divideError));
-}
+};
+
+CFunction.ctz = function (x) {
+	x = CFunction.and(CFunction.not(x), CFunction.add(x, CFunction.constant(-1)));
+	return CFunction.popcnt(x);
+};
+
+CFunction.clz = function (x) {
+	x = CFunction.or(x, CFunction.shruc(x, 1));
+	x = CFunction.or(x, CFunction.shruc(x, 2));
+	x = CFunction.or(x, CFunction.shruc(x, 4));
+	x = CFunction.or(x, CFunction.shruc(x, 8));
+	x = CFunction.or(x, CFunction.shruc(x, 16));
+	return CFunction.popcnt(CFunction.not(x));
+};
+
+CFunction.popcnt = function(x) {
+	var bits = [[]];
+	for (var i = 0; i < 32; i++)
+		bits[0].push(x._bits[i]);
+	while (!bits[5]) {
+		var i = 0;
+		while (i < 5 && bits[i].length < 3) i++;
+		if (i < 5) {
+			var b1 = bits[i].pop();
+			var b2 = bits[i].pop();
+			var b3 = bits[i].pop();
+			bits[i].unshift(circuit.xor(circuit.xor(b1, b2), b3));
+			if (!bits[i + 1]) bits[i + 1] = [];
+			bits[i + 1].unshift(circuit.or(circuit.and(b1, b2), circuit.and(b3, circuit.xor(b1, b2))));
+		}
+		else {
+			i = 0;
+			while (i < 5 && bits[i].length < 2) i++;
+			var b1 = bits[i].pop();
+			var b2 = bits[i].pop();
+			bits[i].unshift(circuit.xor(b1, b2));
+			if (!bits[i + 1]) bits[i + 1] = [];
+			bits[i + 1].unshift(circuit.and(b1, b2));
+		}
+	}
+	var r = new Int32Array(32);
+	r[0] = bits[0][0];
+	r[1] = bits[1][0];
+	r[2] = bits[2][0];
+	r[3] = bits[3][0];
+	r[4] = bits[4][0];
+	r[5] = circuit.and_big(x._bits);
+	return new CFunction(r, x._divideError);
+};
+
+CFunction.popcnt2 = function(x) {
+	var one = CFunction.constant(1);
+	var r = CFunction.shruc(x, 31);
+	for (var i = 30; i >= 0; i--) {
+		r = CFunction.add(r, CFunction.and(CFunction.shruc(x, i), one));
+	}
+	return r;
+};
 
 CFunction.prototype.sat = function() {
 	var sat = new SAT();
 	circuit.to_cnf(this._bits[0], sat);
 	var res = sat.solve();
 	if (res) {		
-		var values = new Int32Array(4);
+		var values = new Int32Array(64);
 		for (var i = 0; i < 4 * 32; i++) {
 			if (res[i + 1] == 1)
 				values[i >> 5] |= 1 << (i & 31);
