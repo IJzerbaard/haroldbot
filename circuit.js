@@ -47,43 +47,6 @@ var circuit = {
 		return index;
 	},
 
-	mk_big: function (op, args) {
-		/*
-		for (var i = 0; i < args.length; i++) {
-			var a = args[i];
-			if (a >= this.gates.length ||
-				~a >= this.gates.length)
-				debugger;
-		}*/
-		// check if its exists
-		var key = op * 19 | 0;
-		for (var i = 0; i < args.length; i++)
-			key = key * 31 + args[i] | 0;
-		var hash = (key & 0x7fffffff) % 50021;
-		if (this.h[hash << 1] == key) {
-			// check match
-			var index = this.h[(hash << 1) | 1]
-			var gate = this.gates[index];
-			if (gate.length == args.length + 1 && gate[0] == op) {
-				var equal = true;
-				for (var i = 0; i < args.length && equal; i++) {
-					equal = equal && args[i] == gate[i + 1];
-				}
-				if (equal)
-					return index;
-			}
-		}
-		// not found, make new gate
-		var gate = new Int32Array(args.length + 1);
-		gate[0] = op;
-		for (var i = 0; i < args.length; i++) gate[i + 1] = args[i];
-		var index = this.gates.length;
-		this.gates[index] = gate;
-		this.h[hash << 1] = key;
-		this.h[(hash << 1) | 1] = index;
-		return index;
-	},
-
 	or: function (x, y) {
 		// propagate constants and x|x and x|~x
 		if (x == 0 || y == 0 || x == -1 || y == -1 || x == y || x == ~y)
@@ -104,41 +67,6 @@ var circuit = {
 		var yinv = y >> 31;
 		var rinv = xinv ^ yinv;
 		return this.mk(2, x ^ xinv, y ^ yinv) ^ rinv;
-	},
-
-	fa_sum: function (a, b, c) {
-		// make arguments positive
-		var ainv = a >> 31;
-		var binv = b >> 31;
-		var cinv = c >> 31;
-		var rinv = ainv ^ binv ^ cinv;
-		a ^= ainv;
-		b ^= binv;
-		c ^= cinv;
-		// optimize special cases
-		if (a == 0)
-			return rinv ^ this.xor(b, c);
-		if (b == 0)
-			return rinv ^ this.xor(a, c);
-		if (c == 0)
-			return rinv ^ this.xor(a, b);
-		// reorder for canonicity
-		if (a > b) {
-			var t = a;
-			a = b;
-			b = t;
-		}
-		if (b > c) {
-			var t = b;
-			b = c;
-			c = t;
-		}
-		if (a > b) {
-			var t = a;
-			a = b;
-			b = t;
-		}
-		return rinv ^ this.mk_big(3, a, b, c);
 	},
 
 	or_big: function () {
@@ -168,18 +96,17 @@ var circuit = {
 				if (args[i] == args[i - 1])
 					continue;
 				else if (args[i] == ~args[i - 1])
-					return 0;
+					return -1;
 			}
 			res[j++] = args[i];
 		}
-		if (j == 0)
-			return 0;
-		else if (j == 1)
-			return res[0];
-		else if (j == 2)
-			return this.or(res[0], res[1]);
 
-		return this.mk_big(1, res.subarray(0, j));
+		var bits = [0];
+		for (var i = j; i >= 0; i--)
+			bits.push(res[i]);
+		while (bits.length > 1)
+			bits.unshift(this.or(bits.pop(), bits.pop()));
+		return bits.pop();
 	},
 
 	and_big: function () {
@@ -191,7 +118,7 @@ var circuit = {
 		return ~this.or_big(args);
 	},
 
-	to_cnf: function (index, sat) {
+	to_cnf: function (index, sat, inputs) {
 		sat.addClause(new Int32Array([index]));
 		if (index == 0) {
 			sat.addClause(new Int32Array([~index]));
@@ -199,6 +126,9 @@ var circuit = {
 		}
 		var stack = [];
 		stack.push(index ^ (index >> 31));
+
+		if (!inputs)
+			inputs = 32 * 64;
 
 		var had = new Int32Array((this.gates.length + 31) >> 5);
 		do {
@@ -210,7 +140,7 @@ var circuit = {
 			had[index >> 5] |= 1 << (index & 31);
 
 			var gate = this.gates[index];
-			if (index < 1 + 32 * 64) {
+			if (index < 1 + inputs) {
 				// input variable, no clause
 			}
 			else if (gate[0] == 1) {
@@ -252,15 +182,6 @@ var circuit = {
 				cl[1] ^= -1;
 				cl[2] ^= -1;
 				sat.addClause(cl);
-			}
-			else if (gate[0] == 3) {
-				// 3-xor
-				// enqueue dependencies
-				stack.push(gate[1]);
-				stack.push(gate[2]);
-				stack.push(gate[3]);
-				var cl = new Int32Array(gate);
-				cl[0] = ~index;
 			}
 			else {
 				debugger;
