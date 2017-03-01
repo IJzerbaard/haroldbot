@@ -34,11 +34,17 @@ var bdd = {
 		var hash2 = ((((v << 16) + v) ^ ((lo << 8) + lo) ^ ((hi << 4) + hi)) & 0x7fffffff) % 8388593;
 		var upper = (hash2 + 100000) % 8388593;
 
+		if (hash1 == 0)
+			hash1 = 1;
+		if (hash2 == 0)
+			hash2 = 1;
+
 		if (this._lo[hash1] == lo && this._hi[hash1] == hi && this._v[hash1] == v)
 			return hash1 ^ invert;
 		if (this._lo[hash2] == lo && this._hi[hash2] == hi && this._v[hash2] == v)
 			return hash2 ^ invert;
 		for (var i = hash2; this._lo[i] != 0 && this._hi[i] != 0 && i != upper; i = (i + 1) % 8388593) {
+			if (i == 0) continue;
 			if (this._lo[i] == lo && this._hi[i] == hi && this._v[i] == v)
 				return i ^ invert;
 		}
@@ -57,6 +63,7 @@ var bdd = {
 			return hash2 ^ invert;
 		}
 		for (var i = hash2; i != upper; i = (i + 1) % 8388593) {
+			if (i == 0) continue;
 			if (this._lo[i] == 0 && this._hi[i] == 0 && i != 0) {
 				this._lo[i] = lo;
 				this._hi[i] = hi;
