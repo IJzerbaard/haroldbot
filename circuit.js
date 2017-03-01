@@ -11,6 +11,13 @@ var circuit = {
 		return res;
 	},
 
+	argument8: function (index) {
+		var res = new Int32Array(8);
+		for (var i = 0; i < 8; i++)
+			res[i] = (index << 3) + (i + 1);
+		return res;
+	},
+
 	mk: function (op, a, b) {
 		a = a | 0; b = b | 0;
 		// sort for canonical order
@@ -19,12 +26,6 @@ var circuit = {
 			a = b;
 			b = temp;
 		}
-		/*
-		if (a >= this.gates.length ||
-			~a >= this.gates.length ||
-			b >= this.gates.length ||
-			~b >= this.gates.length)
-			debugger;*/
 		// make new gate, use only very simple merging of equal gates
 		var key = ((op * 991 | 0) + a * 997 | 0) + b * 1009 | 0;
 		if (key == 0)
@@ -40,6 +41,42 @@ var circuit = {
 		// not found, make new gate
 		var gate = new Int32Array(3);
 		gate[0] = op; gate[1] = a; gate[2] = b;
+		var index = this.gates.length;
+		this.gates[index] = gate;
+		this.h[hash << 1] = key;
+		this.h[(hash << 1) | 1] = index;
+		return index;
+	},
+
+	mk4: function (op, ai, bi, ci, di) {
+		// can't do a full sort, but sort pairs (a, b) and (c, d) internally and then with each other
+		var a = Math.min(ai, bi);
+		var b = ai ^ bi ^ a;
+		var c = Math.min(ci, di);
+		var d = ci ^ di ^ c;
+		if (a < c || a == c && b < d) {
+			var t = a;
+			a = c;
+			c = t;
+			t = b;
+			b = d;
+			d = t;
+		}
+		// make new gate, use only very simple merging of equal gates
+		var key = (((a * 31 | 0) + (b * 1009 | 0) | 0) + ((c * 97 | 0) + (d * 997 | 0) | 0) | 0) + (op * 127 | 0) | 0;
+		if (key == 0)
+			key = 1;
+		var hash = (key & 0x7fffffff) % 50021;
+		if (this.h[hash << 1] == key) {
+			// check match
+			var index = this.h[(hash << 1) | 1]
+			var gate = this.gates[index];
+			if (gate.length == 3 && gate[0] == op && gate[1] == a && gate[2] == b && gate[3] == c && gate[4] == d)
+				return index;
+		}
+		// not found, make new gate
+		var gate = new Int32Array(5);
+		gate[0] = op; gate[1] = a; gate[2] = b; gate[3] = c; gate[4] = d;
 		var index = this.gates.length;
 		this.gates[index] = gate;
 		this.h[hash << 1] = key;
@@ -67,6 +104,20 @@ var circuit = {
 		var yinv = y >> 31;
 		var rinv = xinv ^ yinv;
 		return this.mk(2, x ^ xinv, y ^ yinv) ^ rinv;
+	},
+
+	orand: function (a, b, c, d) {
+		// optimize constants
+		if (a == 0 || b == 0 || a == ~b) return this.and(c, d);
+		if (c == 0 || d == 0 || c == ~d) return this.and(a, b);
+		if (a == -1 && b == -1 || c == -1 && d == -1)
+			return -1;
+		if (a == -1) return this.or(b, this.and(c, d));
+		if (b == -1) return this.or(a, this.and(c, d));
+		if (c == -1) return this.or(d, this.and(a, b));
+		if (d == -1) return this.or(c, this.and(a, b));
+
+		return this.mk4(3, a, b, c, d);
 	},
 
 	or_big: function () {
@@ -181,6 +232,43 @@ var circuit = {
 				cl[0] = ~index;
 				cl[1] ^= -1;
 				cl[2] ^= -1;
+				sat.addClause(cl);
+			}
+			else if (gate[0] == 3) {
+				// orand
+				stack.push(gate[1]);
+				stack.push(gate[2]);
+				stack.push(gate[3]);
+				stack.push(gate[4]);
+				var cl = new Int32Array(3);
+				cl[0] = index;
+				cl[1] = ~gate[1];
+				cl[2] = ~gate[2];
+				sat.addClause(cl);
+				cl = new Int32Array(3);
+				cl[0] = index;
+				cl[1] = ~gate[3];
+				cl[2] = ~gate[4];
+				sat.addClause(cl);
+				cl = new Int32Array(3);
+				cl[0] = ~index;
+				cl[1] = gate[1];
+				cl[2] = gate[3];
+				sat.addClause(cl);
+				cl = new Int32Array(3);
+				cl[0] = ~index;
+				cl[1] = gate[1];
+				cl[2] = gate[4];
+				sat.addClause(cl);
+				cl = new Int32Array(3);
+				cl[0] = ~index;
+				cl[1] = gate[2];
+				cl[2] = gate[3];
+				sat.addClause(cl);
+				cl = new Int32Array(3);
+				cl[0] = ~index;
+				cl[1] = gate[2];
+				cl[2] = gate[4];
 				sat.addClause(cl);
 			}
 			else {

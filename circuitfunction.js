@@ -56,7 +56,7 @@ CFunction.mux = function(x, y, z) {
 	return new CFunction(bits, circuit.or_big(x._divideError, y._divideError, z._divideError));
 }
 
-CFunction.add = function(x, y) {
+CFunction.add2 = function(x, y) {
 	var bits = new Int32Array(32);
 	var carry = 0;
 	for (var i = 0; i < 32; i++) {
@@ -68,6 +68,19 @@ CFunction.add = function(x, y) {
 		var nabc = circuit.and(~aob, ~carry);
 		carry = circuit.or(circuit.and(carry, aob), ab);
 		bits[i] = circuit.and(circuit.or(~carry, abc), ~nabc);
+	}
+	return new CFunction(bits, circuit.or(x._divideError, y._divideError));
+}
+
+CFunction.add = function(x, y) {
+	var bits = new Int32Array(32);
+	var carry = 0;
+	for (var i = 0; i < 32; i++) {
+		var a = x._bits[i];
+		var b = y._bits[i];
+		var axb = circuit.xor(a, b);
+		bits[i] = circuit.xor(axb, carry);
+		carry = circuit.orand(a, b, carry, axb);
 	}
 	return new CFunction(bits, circuit.or(x._divideError, y._divideError));
 }
@@ -389,11 +402,13 @@ CFunction.popcnt2 = function(x) {
 };
 
 CFunction.prototype.sat = function() {
+	if (this._bits[0] == 0)
+		return null;
 	var sat = new SAT();
 	circuit.to_cnf(this._bits[0], sat);
 	var res = sat.solve();
 	if (res) {		
-		var values = new Int32Array(64);
+		var values = new Int32Array(4);
 		for (var i = 0; i < 4 * 32; i++) {
 			if (res[i + 1] == 1)
 				values[i >> 5] |= 1 << (i & 31);

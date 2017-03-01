@@ -517,7 +517,7 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugc
 			res.false = {
 				count: "#always"
 			};
-			if (root.type == 'bin' && root.op == 20) {
+			if (root.type == 'bin' && root.op == 20 && vars.length > 0) {
 				res.false.ext_examples = true;
 				res.false.examples = function(ix) {
 					var len = vars.length;
