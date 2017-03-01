@@ -300,6 +300,10 @@ function parseproofstep(proofstep, ix, varmap) {
     container.append(", ");
     var pattern = formatexpr(["#",-1,proofstep[1].l], ix, varmap);
     var patternr = formatexpr(["#",-1,proofstep[1].r], ix + 2, varmap);
+    if (proofstep[1].l.type == 'bin' && precedence(proofstep[1].l.op) <= precedence(proofstep[1].op))
+      pattern = $j("<span />").append("(").append(pattern).append(")");
+    if (proofstep[1].r.type == 'bin' && precedence(proofstep[1].r.op) <= precedence(proofstep[1].op))
+      patternr = $j("<span />").append("(").append(patternr).append(")");
     var patternholder = $j('<span/>');
     patternholder.css('font-family', 'Consolas,monospace');
     patternholder.append(pattern).append(" " + ops[proofstep[1].op] + " ").append(patternr);

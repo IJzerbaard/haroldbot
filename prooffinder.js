@@ -523,6 +523,88 @@ function ProofFinder(op) {
 			[32],
 			false, "the number of ones plus the number of zeroes is all bits", ,
 		],
+		// properties of ==
+		[
+			["==", [a(0)], [a(0)]],
+			[-1],
+			false, "equality is reflexive", ,
+		],
+		[
+			["==", [a(0)], ["~", [a(0)]]],
+			[0],
+			false, "nothing is equal to its complement", ,
+		],
+		[
+			["==", ["~", [a(0)]], [a(0)]],
+			[0],
+			false, "nothing is equal to its complement", ,
+		],
+		[
+			["==", [a(0)], ["^", [a(0)], [aex(1, except_unknown_or_zero)]]],
+			[0],
+			false, "some bits changed, so unequal", ,
+		],
+		[
+			["==", ["^", [a(0)], [aex(1, except_unknown_or_zero)]], [a(0)]],
+			[0],
+			false, "some bits changed, so unequal", ,
+		],
+		[
+			["==", [a(0)], ["+", [a(0)], [aex(1, except_unknown_or_zero)]]],
+			[0],
+			false, "adding a non-zero amount changes the value", ,
+		],
+		[
+			["==", ["+", [a(0)], [aex(1, except_unknown_or_zero)]], [a(0)]],
+			[0],
+			false, "adding a non-zero amount changes the value", ,
+		],
+		[
+			["==", ["^", [a(0)], [a(1)]], [a(2)]],
+			["==", [a(1)], ["^", [a(2)], [a(0)]]],
+			false, "xor with x on both sides", ,
+		],
+		[
+			["==", ["^", [a(0)], [a(1)]], [a(2)]],
+			["==", [a(0)], ["^", [a(2)], [a(1)]]],
+			false, "xor with y on both sides", ,
+		],
+		[
+			["==", [a(0)], ["^", [a(1)], [a(2)]]],
+			["==", ["^", [a(0)], [a(1)]], [a(2)]],
+			false, "xor with y on both sides", ,
+		],
+		[
+			["==", [a(0)], ["^", [a(1)], [a(2)]]],
+			["==", ["^", [a(0)], [a(2)]], [a(1)]],
+			false, "xor with z on both sides", ,
+		],
+		[
+			["==", ["$popcnt", [a(0)]], [0]],
+			["==", [a(0)], [0]],
+			false, "only 0 has no bits set", ,
+		],
+		[
+			["==", ["$popcnt", [a(0)]], [32]],
+			["==", [a(0)], [-1]],
+			false, "only -1 has all bits set", ,
+		],
+		[
+			["==", ["$nlz", [a(0)]], [32]],
+			["==", [a(0)], [0]],
+			false, "only 0 has 32 leading zeroes", ,
+		],
+		[
+			["==", ["$ntz", [a(0)]], [32]],
+			["==", [a(0)], [0]],
+			false, "only 0 has 32 trailing zeroes", ,
+		],
+		// properties of <s
+		[
+			["<s", [a(0)], [0]],
+			[">>s", [a(0)], [31]],
+			true, "numbers are negative iff the top bit is set", ,
+		],
 
 		// interrelations between operations
 
