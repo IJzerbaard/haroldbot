@@ -910,6 +910,28 @@ function ProofFinder(op) {
 			false, "reversing a boolean has no effect", ,
 		],
 		// top bit addition
+		[
+			["+", [a(0)], [0x80000000|0]],
+			["^", [a(0)], [0x80000000|0]],
+			true, "carry out of the top bit is irrelevant", ,
+		],
+		[
+			["-", [a(0)], [0x80000000|0]],
+			["^", [a(0)], [0x80000000|0]],
+			true, "borrow out of the top bit is irrelevant", ,
+		],
+		// hmul/division
+		[
+			[">>u", ["$hmul_u", [a(0)], [0xaaaaaaab|0]], [1]],
+			["/u", [a(0)], [3]],
+			false, "divide by hmul", ,
+		],
+		[
+			[">>u", ["$hmul_u", [a(0)], [0xcccccccd|0]], [2]],
+			["/u", [a(0)], [5]],
+			false, "divide by hmul", ,
+		],
+
 
 		
 		// two's complement relations

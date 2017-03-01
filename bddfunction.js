@@ -372,7 +372,7 @@ function bdd_mul64(a, b, signed) {
 			for (var i = 0; i < 64; i++) {
 				var am = bdd.and(m, a_sh[i]);
 				var ac = bdd.xor(am, c[i]);
-				var nc = bdd.or(bdd.and(ac, carry), bdd.and(am, c[i]));
+				var nc = bdd.orand(ac, carry, am, c[i]);
 				c[i] = bdd.xor(ac, carry);
 				carry = nc;
 			}
@@ -395,7 +395,7 @@ function bdd_mul64(a, b, signed) {
 			c[i + 32] = x._bits[i];
 	}
 	return c;
-}
+};
 
 BDDFunction.hmul = function (a, b, signed) {
 	var prod = bdd_mul64(a._bits, b._bits, signed);

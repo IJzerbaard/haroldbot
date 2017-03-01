@@ -1,7 +1,13 @@
 var bdd = {
 	reset: function() {
+		if (!Int32Array.prototype.fill) {
+			Int32Array.prototype.fill = function (value) {
+				for (var i = 0; i < this.length; i++)
+					this[i] = value;
+			};
+		}
 		if (!this._v) {
-			this._v = new Int32Array(8388593);
+			this._v = new Int16Array(8388593);
 			this._lo = new Int32Array(8388593);
 			this._hi = new Int32Array(8388593);
 			this._memo = new Int32Array(1048573);
@@ -11,16 +17,35 @@ var bdd = {
 			this._memoop = new Int32Array(1048573);
 		}
 		else {
-			if (!Int32Array.prototype.fill) {
-				Int32Array.prototype.fill = function (value) {
-					for (var i = 0; i < this.length; i++)
-						this[i] = value;
-				};
-			}
 			this._lo.fill(0);
 			this._hi.fill(0);
 			this._memoop.fill(0);
 		}
+	},
+
+	viz: function () {
+		var img = new Uint8ClampedArray(1920 * 4370 * 4);
+		var streak = 0;
+		for (var i = 0; i < this._hi.length; i++) {
+			if (this._lo[i] != 0 ||
+				this._hi[i] != 0) {
+				if (streak > 1000) {
+					img[i * 4 + 2] = 255;
+				}
+				else {
+					img[i * 4] = 0xFF;
+					img[i * 4 + 1] = streak;
+					img[i * 4 + 2] = streak - 256;
+				}
+				img[i * 4 + 3] = 0xFF;
+				streak++;
+			}
+			else {
+				img[i * 4 + 3] = 0xFF;
+				streak = 0;
+			}
+		}
+		return new ImageData(img, 1920, 4370);
 	},
 
 	mk: function(v, lo, hi) {
@@ -32,7 +57,7 @@ var bdd = {
 
 		var hash1 = ((((v << 17) - v) ^ ((lo << 13) - lo) ^ ((hi << 7) - hi)) & 0x7fffffff) % 8388593;
 		var hash2 = ((((v << 16) + v) ^ ((lo << 8) + lo) ^ ((hi << 4) + hi)) & 0x7fffffff) % 8388593;
-		var upper = (hash2 + 100000) % 8388593;
+		var upper = (hash2 + 1000) % 8388593;
 
 		if (hash1 == 0)
 			hash1 = 1;
@@ -43,7 +68,7 @@ var bdd = {
 			return hash1 ^ invert;
 		if (this._lo[hash2] == lo && this._hi[hash2] == hi && this._v[hash2] == v)
 			return hash2 ^ invert;
-		for (var i = hash2; this._lo[i] != 0 && this._hi[i] != 0 && i != upper; i = (i + 1) % 8388593) {
+		for (var i = hash2; (this._lo[i] | this._hi[i]) != 0 && i != upper; i = (i + 1) % 8388593) {
 			if (i == 0) continue;
 			if (this._lo[i] == lo && this._hi[i] == hi && this._v[i] == v)
 				return i ^ invert;

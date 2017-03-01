@@ -28,6 +28,7 @@ function toDecSigned(x) {
    return (x|0).toString(10);
 }
 function formatConstant(x) {
+    x |= 0;
     if (x >= -2 && x <= 16)
         return toDecSigned(x);
     if ((x & (x - 1)) == 0 && x > 0 && x <= 256)

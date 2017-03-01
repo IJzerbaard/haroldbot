@@ -524,7 +524,7 @@ CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcal
 		circuit.to_cnf(true_without_de, sat);
 		var tmodel_raw = sat.solve();
 
-		var fmodel = new Int32Array(64);
+		var fmodel = new Int32Array(66);
 			if (fmodel_raw) {
 			for (var i = 1; i <= 32 * 64; i++) {
 				if (fmodel_raw[i] == 1)
@@ -619,8 +619,14 @@ CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcal
 					};
 				}
 				if (can_be_false) {
+					var ext_examples = root.type == 'bin' && root.op == 20;
+					if (ext_examples) {
+						fmodel[vars.length] = root.l.eval(fmodel);
+						fmodel[vars.length + 1] = root.r.eval(fmodel);
+					}
 					res.false = {
 						count: "#at least once",
+						ext_examples: ext_examples,
 						examples: function(ix) {
 							if (ix == 0)
 								return fmodel;
