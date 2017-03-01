@@ -550,10 +550,20 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugc
 					return bdd.indexedSat(bit0, ix, index, remap);
 				}
 			};
+			var makeExamples = root.type == 'bin' && root.op == 20 && vars.length > 0;
 			res.false = {
 				count: bdd.satCount(~bit0, index, remap).toString(),
+				ext_examples: makeExamples,
 				examples: function(ix) {
-					return bdd.indexedSat(~bit0, ix, index, remap);
+					var values = bdd.indexedSat(~bit0, ix, index, remap);
+					if (!makeExamples) return values;
+					var len = vars.length;
+					var res = new Int32Array(len + 2);
+					for (var i = 0; i < len; i++)
+						res[i] = values[i];
+					res[len] = root.l.eval(res);
+					res[len + 1] = root.r.eval(res);
+					return res;
 				}
 			};
 		}
