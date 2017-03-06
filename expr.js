@@ -531,7 +531,7 @@ Binary.prototype.constantFold = function() {
 	if (l.type == 'const' && r.type == 'const') {
 		switch (this.op) {
 			default:
-				return this;
+				break;
 			case 1: // &
 				return new Constant(l.value & r.value);
 			case 2: // |
