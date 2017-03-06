@@ -9,9 +9,7 @@ SAT.prototype.addClause = function(clause) {
 	var str = "";
 	for (var i = 0; i < clause.length; i++) {
 		var v = clause[i];
-		if (v < 0)
-			v = -(~v + 1);
-		else
+		if (v >= 0)
 			v = v + 1;
 		this.highestvar = Math.max(this.highestvar, Math.max(v, -v));
 		str += v.toString() + " ";

@@ -6,6 +6,12 @@ var bdd = {
 					this[i] = value;
 			};
 		}
+		if (!Uint8Array.prototype.fill) {
+			Uint8Array.prototype.fill = function (value) {
+				for (var i = 0; i < this.length; i++)
+					this[i] = value;
+			};
+		}
 		if (!this._v) {
 			this._v = new Int16Array(8388593);
 			this._lo = new Int32Array(8388593);
@@ -14,7 +20,7 @@ var bdd = {
 			this._memokey1 = new Int32Array(1048573);
 			this._memokey2 = new Int32Array(1048573);
 			this._memokey3 = new Int32Array(1048573);
-			this._memoop = new Int32Array(1048573);
+			this._memoop = new Uint8Array(1048573);
 		}
 		else {
 			this._lo.fill(0);
@@ -34,8 +40,8 @@ var bdd = {
 				}
 				else {
 					img[i * 4] = 0xFF;
-					img[i * 4 + 1] = streak;
-					img[i * 4 + 2] = streak - 256;
+					img[i * 4 + 1] = streak * 16;
+					img[i * 4 + 2] = (streak - 16) * 16;
 				}
 				img[i * 4 + 3] = 0xFF;
 				streak++;
@@ -55,9 +61,9 @@ var bdd = {
 		if (lo == hi)
 			return lo ^ invert;
 
-		var hash1 = ((((v << 17) - v) ^ ((lo << 13) - lo) ^ ((hi << 7) - hi)) & 0x7fffffff) % 8388593;
-		var hash2 = ((((v << 16) + v) ^ ((lo << 8) + lo) ^ ((hi << 4) + hi)) & 0x7fffffff) % 8388593;
-		var upper = (hash2 + 1000) % 8388593;
+		var hash2 = ((((v << 17) - v) ^ ((lo << 13) - lo) ^ ((hi << 16) + hi)) & 0x7fffffff) % 8388593;
+		hash1 = hash2 & -8;
+		var upper = (hash1 + 1000) % 8388593;
 
 		if (hash1 == 0)
 			hash1 = 1;
@@ -68,7 +74,7 @@ var bdd = {
 			return hash1 ^ invert;
 		if (this._lo[hash2] == lo && this._hi[hash2] == hi && this._v[hash2] == v)
 			return hash2 ^ invert;
-		for (var i = hash2; (this._lo[i] | this._hi[i]) != 0 && i != upper; i = (i + 1) % 8388593) {
+		for (var i = hash1; (this._lo[i] | this._hi[i]) != 0 && i != upper; i = (i + 1) % 8388593) {
 			if (i == 0) continue;
 			if (this._lo[i] == lo && this._hi[i] == hi && this._v[i] == v)
 				return i ^ invert;
@@ -87,7 +93,7 @@ var bdd = {
 			this._v[hash2] = v;
 			return hash2 ^ invert;
 		}
-		for (var i = hash2; i != upper; i = (i + 1) % 8388593) {
+		for (var i = hash1; i != upper; i = (i + 1) % 8388593) {
 			if (i == 0) continue;
 			if (this._lo[i] == 0 && this._hi[i] == 0 && i != 0) {
 				this._lo[i] = lo;
@@ -98,21 +104,6 @@ var bdd = {
 		}
 
 		throw "BDD full";
-	},
-
-	orand: function(a, b, c, d) {
-		// (a & b) | (c & d)
-		if (a == -1 && b == -1) return -1;
-		if (c == -1 && d == -1) return -1;
-
-		if (a == 0 || b == 0 || a == ~b)
-			return this.and(c, d);
-		if (c == 0 || d == 0 || c == ~d)
-			return this.and(a, b);
-
-		var ab = this.and(a, b);
-		if (ab == -1) return -1;
-		return this.or(ab, this.and(c, d));
 	},
 
 	or: function(f, g) {
@@ -191,6 +182,125 @@ var bdd = {
 		return value ^ invert;
 	},
 
+	xorxor: function(f, g, h) {
+		function issink(x) {
+			return (x == 0 || x == -1) ? 1 : 0;
+		}
+
+		if (f == ~g || f == ~h || g == ~h)
+			return f ^ g ^ h;
+		if ((f ^ (f >> 31)) == 0 ||
+			(g ^ (g >> 31)) == 0) return this.xor(f ^ g, h);
+		if ((h ^ (h >> 31)) == 0) return this.xor(f, g ^ h);
+		if (issink(f) + issink(g) + issink(h) >= 2)
+			return f ^ g ^ h;
+
+		var invert = (f ^ g ^ h) >> 31;
+		f ^= f >> 31;
+		g ^= g >> 31;
+		h ^= h >> 31;
+
+		var key1 = Math.min(f, g, h);
+		var key2 = Math.max(f, g, h);
+		var key3 = (f ^ g ^ h) ^ (key1 ^ key2);
+		var hash = ((((key1 << 17) - key1) ^ ((key2 << 16) + key2) ^ ((key3 << 19) - key3)) & 0x7fffffff) % 1048573;
+		if (this._memoop[hash] == 4 && this._memokey1[hash] == key1 && this._memokey2[hash] == key2 && this._memokey3[hash] == key3)
+			return this._memo[hash] ^ invert;
+
+		var fv = this._v[f];
+		var gv = this._v[g];
+		var hv = this._v[h];
+		var minv = Math.min(fv, gv, hv);
+		var fl = f,
+			fh = f,
+			gl = g,
+			gh = g,
+			hl = h,
+			hh = h;
+		if (fv == minv) {
+			fl = this._lo[f];
+			fh = this._hi[f];
+		}
+		if (gv == minv) {
+			gl = this._lo[g];
+			gh = this._hi[g];
+		}
+		if (hv == minv) {
+			hl = this._lo[h];
+			hh = this._hi[h];
+		}
+
+		var res = this.mk(minv, this.xorxor(fl, gl, hl), this.xorxor(fh, gh, hh));
+		this._memoop[hash] = 4;
+		this._memokey1[hash] = f;
+		this._memokey2[hash] = g;
+		this._memokey3[hash] = h;
+		this._memo[hash] = res;
+		return res ^ invert;
+	},
+
+	carry: function(f, g, h) {
+		function isone(x) {
+			return (x == -1) ? 1 : 0;
+		}
+
+		if (isone(f) + isone(g) + isone(h) >= 2 ||
+			f == ~g && h == -1 ||
+			f == ~h && g == -1 ||
+			g == ~h && f == -1)
+			return -1;
+		if (f == ~g) return h;
+		if (f == ~h) return g;
+		if (g == ~h) return f;
+		if (f == 0 || g == 0) return this.and(f | g, h);
+		if (h == 0) return this.and(f, g);
+		if (f == -1) return this.or(g, h);
+		if (g == -1) return this.or(f, h);
+		if (h == -1) return this.or(f, g);
+
+
+		var key1 = Math.min(f, g, h);
+		var key2 = Math.max(f, g, h);
+		var key3 = (f ^ g ^ h) ^ (key1 ^ key2);
+		var hash = ((((key1 << 17) - key1) ^ ((key2 << 16) + key2) ^ ((key3 << 19) - key3)) & 0x7fffffff) % 1048573;
+		if (this._memoop[hash] == 5 && this._memokey1[hash] == key1 && this._memokey2[hash] == key2 && this._memokey3[hash] == key3)
+			return this._memo[hash];
+
+		var finv = f >> 31;
+		var ginv = g >> 31;
+		var hinv = h >> 31;
+		var fv = this._v[f ^ finv];
+		var gv = this._v[g ^ ginv];
+		var hv = this._v[h ^ hinv];
+		var minv = Math.min(fv, gv, hv);
+		var fl = f,
+			fh = f,
+			gl = g,
+			gh = g,
+			hl = h,
+			hh = h;
+		if (fv == minv) {
+			fl = this._lo[f ^ finv] ^ finv;
+			fh = this._hi[f ^ finv] ^ finv;
+		}
+		if (gv == minv) {
+			gl = this._lo[g ^ ginv] ^ ginv;
+			gh = this._hi[g ^ ginv] ^ ginv;
+		}
+		if (hv == minv) {
+			hl = this._lo[h ^ hinv] ^ hinv;
+			hh = this._hi[h ^ hinv] ^ hinv;
+		}
+
+		var res = this.mk(minv, this.carry(fl, gl, hl), this.carry(fh, gh, hh));
+		this._memoop[hash] = 5;
+		this._memokey1[hash] = key1;
+		this._memokey2[hash] = key2;
+		this._memokey3[hash] = key3;
+		this._memo[hash] = res;
+		return res;
+	},
+
 	mux: function(f, g, h) {
 		if (f == 0 || g == h)
 			return g;
@@ -218,7 +328,7 @@ var bdd = {
 		var fv = this._v[f];
 		var gv = this._v[g ^ invg];
 		var hv = this._v[h ^ invh];
-		var minv = Math.min(Math.min(fv, gv), hv);
+		var minv = Math.min(fv, gv, hv);
 		var fl = f,
 			fh = f,
 			gl = g,

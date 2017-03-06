@@ -70,10 +70,23 @@ BDDFunction.add = function(x, y) {
 	var bits = new Int32Array(32);
 	var carry = 0;
 	for (var i = 0; i < bits.length; i++) {
+		bits[i] = bdd.xorxor(x._bits[i], y._bits[i], carry);
+		if (i < 31) {
+			carry = bdd.carry(carry, x._bits[i], y._bits[i]);
+		}
+	}
+	return new BDDFunction(bits, bdd.or(x._divideError, y._divideError));
+}
+
+BDDFunction.add2 = function(x, y) {
+	var bits = new Int32Array(32);
+	var carry = 0;
+	for (var i = 0; i < bits.length; i++) {
 		var xy = bdd.xor(x._bits[i], y._bits[i]);
 		bits[i] = bdd.xor(xy, carry);
-		if (i < 31)
-			carry = bdd.orand(xy, carry, x._bits[i], y._bits[i]);
+		if (i < 31) {
+			carry = bdd.carry(carry, x._bits[i], y._bits[i]);
+		}
 	}
 	return new BDDFunction(bits, bdd.or(x._divideError, y._divideError));
 }
@@ -371,9 +384,8 @@ function bdd_mul64(a, b, signed) {
 			var carry = 0;
 			for (var i = 0; i < 64; i++) {
 				var am = bdd.and(m, a_sh[i]);
-				var ac = bdd.xor(am, c[i]);
-				var nc = bdd.orand(ac, carry, am, c[i]);
-				c[i] = bdd.xor(ac, carry);
+				var nc = bdd.carry(am, c[i], carry);
+				c[i] = bdd.xorxor(am, c[i], carry);
 				carry = nc;
 			}
 		}
@@ -483,9 +495,8 @@ BDDFunction.fixlerp = function (a, b, x, y) {
 				var carry = 0;
 				for (var i = 0; i < 64; i++) {
 					var am = bdd.and(m, a_sh[i]);
-					var ac = bdd.xor(am, c[i]);
-					var nc = bdd.or(bdd.and(ac, carry), bdd.and(am, c[i]));
-					c[i] = bdd.xor(ac, carry);
+					var nc = bdd.carry(am, c[i], carry);
+					c[i] = bdd.xorxor(am, c[i], carry);
 					carry = nc;
 				}
 			}

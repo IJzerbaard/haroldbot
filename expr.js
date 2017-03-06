@@ -64,7 +64,7 @@ function Constant(val) {
 	Node.call(this);
 	this.hash = val | 0;
 	this.hash2 = (val & 15) | ((val >>> 31) << 4);
-	this.value = val;
+	this.value = val | 0;
 	this.type = 'const';
 }
 

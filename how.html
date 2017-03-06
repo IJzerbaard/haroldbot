@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>haroldbot - how</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<link rel="shortcut icon" href="/favicon.ico" />
+<link rel="stylesheet" type="text/css" href="mainstyle.css" />
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.18.1/vis.min.css" />
+<script type="text/javascript" src="minisat.js"></script>
+<script type="text/javascript" src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
+<script type="text/javascript" src="jquery.color-2.1.2.min.js"></script>
+<script type="text/javascript" src="util.js"></script>
+<script type="text/javascript" src="abstractinterp.js"></script>
+<script type="text/javascript" src="expr.js"></script>
+<script type="text/javascript" src="parser.js"></script>
+<script type="text/javascript" src="bigint.js"></script>
+<script type="text/javascript" src="bdd.js"></script>
+<script type="text/javascript" src="bddfunction.js"></script>
+<script type="text/javascript" src="sat.js"></script>
+<script type="text/javascript" src="circuit.js"></script>
+<script type="text/javascript" src="circuitfunction.js"></script>
+<script type="text/javascript" src="prooffinder.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.18.1/vis.min.js"></script>
+<script type="text/javascript">
+var $j = jQuery.noConflict();
+var id = 0;
+
+function update_graph() {
+    id = 0;
+    var exprString = $j("#q").val();
+    var p = parse(exprString);
+    var expr = p[0];
+    var varmap = p[1];
+    var msg = p[2];
+    if (expr == undefined)
+        return;
+
+    bdd.reset();
+    var bddf = null;
+    try {
+        bddf = expr.toBddFunc();
+    }
+    catch (err) {
+        return;
+    }
+
+    g = {
+        nodes: [],
+        edges: []
+    };
+
+    var nextid = -2;
+
+    function addNodes(root, haveHad, g, level) {
+        var invert = root >> 31;
+
+        var lo = bdd._lo[root ^ invert];
+        var hi = bdd._hi[root ^ invert];
+        var v = bdd._v[root ^ invert];
+
+        if (haveHad[root ^ invert] != undefined) {
+            var thisnode = g.nodes[haveHad[root ^ invert]];
+            if (thisnode.level < level) {
+                thisnode.level = level;
+
+                if ((lo ^ (lo >> 31)) != 0)
+                    addNodes(lo, haveHad, g, level + 1);
+                else {
+                    for (var i = 0; i < g.edges.length; i++) {
+                        if (g.edges[i].from == (root ^ invert)) {
+                            var to = g.edges[i].to;
+                            if (!to.dashed)
+                                continue;
+                            for (var j = 0; j < g.nodes.length; j++) {
+                                if (g.nodes[j].id == to) {
+                                    g.nodes[j].level = level + 1;
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+                if ((hi ^ (hi >> 31)) != 0)
+                    addNodes(hi, haveHad, g, level + 1);
+                else {
+                    for (var i = 0; i < g.edges.length; i++) {
+                        if (g.edges[i].from == (root ^ invert)) {
+                            var to = g.edges[i].to;
+                            if (to.dashed)
+                                continue;
+                            for (var j = 0; j < g.nodes.length; j++) {
+                                if (g.nodes[j].id == to) {
+                                    g.nodes[j].level = level + 1;
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            return;
+        }
+        haveHad[root ^ invert] = g.nodes.length;
+
+        g.nodes.push({
+            id: root ^ invert,
+            label: (root ^ invert) == 0 ? "⊥" : varmap[v & 63] + ((v >> 6) ^ 31),
+            level: level,
+        });
+
+        if (g.nodes.length > 1000)
+            return;
+
+        if ((root ^ invert) != 0) {
+            if (((lo ^ (lo >> 31)) == (hi ^ (hi >> 31))) && (lo ^ (lo >> 31)) == 0) {
+                var complement = lo < 0;
+                var complementh = hi < 0;
+                lo = nextid--;
+                hi = lo;
+                g.nodes.push({
+                    id: lo,
+                    label: "⊥",
+                    level: level + 1
+                });
+                g.edges.push({
+                    from: root ^ invert,
+                    to: lo,
+                    dashes: true,
+                    color: complement ? "red" : undefined,
+                    smooth: { type: "curvedCCW" },
+                });
+                g.edges.push({
+                    from: root ^ invert,
+                    to: hi,
+                    color: complementh ? "red" : undefined,
+                    smooth: { type: "curvedCW" }
+                });
+            }
+            else {
+                if ((lo ^ (lo >> 31)) == 0 && (lo ^ (lo >> 31)) != (hi ^ (hi >> 31))) {
+                    var complement = lo < 0;
+                    lo = nextid--;
+                    g.nodes.push({
+                        id: lo,
+                        label: "⊥",
+                        level: level + 1
+                    });
+
+                    g.edges.push({
+                        from: root ^ invert,
+                        to: lo,
+                        dashes: true,
+                        color: complement ? "red" : undefined
+                    });
+                }
+                else {
+                    addNodes(lo, haveHad, g, level + 1);
+                    g.edges.push({
+                        from: root ^ invert,
+                        to: lo ^ (lo >> 31),
+                        dashes: true,
+                        color: lo < 0 ? "red" : undefined
+                    });
+                }
+
+                if ((hi ^ (hi >> 31)) == 0 && (lo ^ (lo >> 31)) != (hi ^ (hi >> 31))) {
+                    var complement = hi < 0;
+                    hi = nextid--;
+                    g.nodes.push({
+                        id: hi,
+                        label: "⊥",
+                        level: level + 1
+                    });
+
+                    g.edges.push({
+                        from: root ^ invert,
+                        to: hi,
+                        color: complement ? "red" : undefined
+                    });
+                }
+                else {
+                    addNodes(hi, haveHad, g, level + 1);
+                    g.edges.push({
+                        from: root ^ invert,
+                        to: hi ^ (hi >> 31),
+                        color: hi < 0 ? "red" : undefined
+                    });
+                }
+
+                if ((lo ^ (lo >> 31)) == (hi ^ (hi >> 31))) {
+                    g.edges[g.edges.length - 2].smooth = {
+                        type: "curvedCCW"
+                    };
+                    g.edges[g.edges.length - 1].smooth = {
+                        type: "curvedCW"
+                    };
+                }
+            }
+        }
+    }
+
+    var haveHad = [];
+    var bitindex = $j('#bitindex').find(':selected').val();
+    g.nodes.push({
+        id: -1,
+        label: "bit " + bitindex,
+        level: 0
+    });
+    g.edges.push({
+        from: -1,
+        to: bddf._bits[bitindex] ^ (bddf._bits[bitindex] >> 31),
+        color: bddf._bits[bitindex] < 0 ? "red" : undefined
+    })
+    addNodes(bddf._bits[bitindex], haveHad, g, 1);
+
+    var byLevel = [];
+    for (var i = 0; i < g.nodes.length; i++) {
+        var node = g.nodes[i];
+        if (!byLevel[node.level])
+            byLevel[node.level] = [];
+        node.y = node.level * 100;
+        byLevel[node.level].push(i);
+    }
+
+    for (var level = 0; level < byLevel.length; level++) {
+        for (var i = 0; i < byLevel[level].length; i++) {
+            g.nodes[byLevel[level][i]].x = i * 100;
+        }
+    }
+
+    g.nodes = new vis.DataSet(g.nodes);
+    g.edges = new vis.DataSet(g.edges);
+
+
+    var options = {
+        layout: {
+            improvedLayout: false,
+            hierarchical: {
+                enabled: false,
+            }
+        },
+        physics: {
+            enabled: false
+        }
+    };
+    var bddviz = new vis.Network(document.getElementById('bddviz1'), g, options);
+}
+
+function update_circuit() {
+    id = 0;
+    var exprString = $j("#q2").val();
+    var p = parse(exprString);
+    var expr = p[0];
+    var varmap = p[1];
+    var msg = p[2];
+    if (expr == undefined)
+        return;
+
+    circuit.reset();
+    var circuitf = expr.toCircuitFunc();
+
+    g = {
+        nodes: [],
+        edges: []
+    };
+
+    var nextid = -2;
+
+    function addNodes(root, haveHad, g, level) {
+        var invert = root >> 31;
+        var node = circuit.gates[root ^ invert];
+
+        if (haveHad[root ^ invert] != undefined) {
+            var thisnode = g.nodes[haveHad[root ^ invert]];
+            if (thisnode.level < level) {
+                thisnode.level = level;
+            }
+            return;
+        }
+        haveHad[root ^ invert] = g.nodes.length;
+
+        var label = null;
+        if ((root ^ invert) == 0)
+            label = "0";
+        else if ((root ^ invert) < (1 + 32 * 64)) {
+            label = varmap[((root ^ invert) - 1) >> 5] + (((root ^ invert) - 1) & 31);
+        }
+        else {
+            label = [, "or", "xor", "sum≥2"][node[0]];
+        }
+
+        g.nodes.push({
+            id: root ^ invert,
+            label: label,
+            level: level,
+        });
+
+        if (g.nodes.length > 1000)
+            return;
+
+        if ((root ^ invert) >= (1 + 32 * 64)) {
+            for (var i = 1; i < node.length; i++) {
+                g.edges.push({
+                    from: root ^ invert,
+                    to: node[i] ^ (node[i] >> 31),
+                    color: node[i] < 0 ? "red" : undefined,
+                });
+                addNodes(node[i], haveHad, g, level + 1);
+            }
+        }
+    }
+
+    var haveHad = [];
+    var bitindex = $j('#bitindex2').find(':selected').val();
+    g.nodes.push({
+        id: -1,
+        label: "bit " + bitindex,
+        level: 0
+    });
+    g.edges.push({
+        from: -1,
+        to: circuitf._bits[bitindex] ^ (circuitf._bits[bitindex] >> 31),
+        color: circuitf._bits[bitindex] < 0 ? "red" : undefined
+    })
+    addNodes(circuitf._bits[bitindex], haveHad, g, 1);
+
+    var byLevel = [];
+    for (var i = 0; i < g.nodes.length; i++) {
+        var node = g.nodes[i];
+        if (!byLevel[node.level])
+            byLevel[node.level] = [];
+        node.y = node.level * 100;
+        byLevel[node.level].push(i);
+    }
+
+    for (var level = 0; level < byLevel.length; level++) {
+        for (var i = 0; i < byLevel[level].length; i++) {
+            g.nodes[byLevel[level][i]].x = i * 100 + Math.random() * 20;
+        }
+    }
+
+    g.nodes = new vis.DataSet(g.nodes);
+    g.edges = new vis.DataSet(g.edges);
+
+
+    var options = {
+        layout: {
+            improvedLayout: false,
+            hierarchical: {
+                enabled: false,
+            }
+        },
+        physics: {
+            enabled: false
+        }
+    };
+    var circviz = new vis.Network(document.getElementById('circuitviz'), g, options);
+}
+
+function findproof() {
+    $j('#q3-parse-error').empty();
+    $j('#q3-noneq').addClass('hidden');
+
+    var exprstr = $j('#q3').val();
+    var p = parse(exprstr);
+    var expr = p[0];
+    var varmap = p[1];
+    var msg = p[2];
+    if (expr == undefined) {
+        $j('#q3-parse-error').text(msg);
+        return;
+    }
+
+    expr = expr.removeDummy();
+
+    if (expr.type != 'bin' || expr.op != 20) {
+        $j('#q3-noneq').removeClass('hidden');
+        return;
+    }
+
+    $j('#start_proof_search').attr('value', "restart");
+    var pf = new ProofFinder(20);
+
+    var data = {
+        nodes: new vis.DataSet([]),
+        edges: new vis.DataSet([])
+    };
+
+    var options = {};
+    var network = new vis.Network(document.getElementById('exprcloud'), data, options);
+
+    function addnode(expr, backwards, parent) {
+        data.nodes.add({
+            id: expr.id,
+            label: expr.print(varmap),
+            color: expr.start || expr.end ? "green" : undefined,
+            x: expr.start || expr.end ? 0 : (backwards ? 500 : -500)
+        });
+        if (parent) {
+            data.edges.add({
+                id: Math.min(expr.id, parent[1].id) + "," + Math.max(expr.id, parent[1].id),
+                from: parent[1].id,
+                to: expr.id,
+                color: '#97C2FC'
+            });
+            if (data.nodes.get(parent[1].id) == null)
+                addnode(parent[1], backwards, parent[0]);
+        }
+    }
+
+    pf.Search(expr.l, expr.r, function (flatproof) {
+        var updateedges = [];
+        for (var i = 0; i < flatproof.length; i += 2) {
+            if (data.nodes.get(flatproof[i].id) == null) {
+                data.nodes.add({
+                    id: flatproof[i].id,
+                    label: flatproof[i].print(varmap),
+                    color: flatproof[i].start || flatproof[i].end ? "green" : "#9780E0"
+                });
+            }
+            else {
+                data.nodes.update({
+                    id: flatproof[i].id,
+                    color: flatproof[i].start || flatproof[i].end ? "green" : "#9780E0"
+                });
+            }
+        }
+        for (var i = 0; i < flatproof.length - 1; i += 2) {
+            updateedges.push({
+                id: Math.min(flatproof[i].id, flatproof[i + 2].id) + "," + Math.max(flatproof[i].id, flatproof[i + 2].id),
+                from: flatproof[i].id,
+                to: flatproof[i + 2].id,
+                color: 'purple',
+                width: 3
+            });
+        }
+        for (var i = 0; i < updateedges.length; i++) {
+            if (data.edges.get(updateedges[i].id) == null)
+                data.edges.add(updateedges[i]);
+        }
+        data.edges.update(updateedges);
+        $j('#start_proof_search').attr('value', "start");
+        return;
+    }, addnode, "slow");
+}
+
+$j(document).ready(function(){
+    update_graph();
+    $j('#q').on('input propertychange paste', function() {
+        update_graph();
+    });
+    $j('#bitindex').on('change', function() {
+        update_graph();
+    });
+    update_circuit();
+    $j('#q2').on('input propertychange paste', function() {
+        update_circuit();
+    });
+    $j('#bitindex2').on('change', function() {
+        update_circuit();
+    });
+    $j('#start_proof_search').click(findproof);
+});
+</script>
+<style type="text/css">
+#bddviz1, #circuitviz, #exprcloud {
+  width: 747px;
+  height: 400px;
+  border: 1px solid lightgray;
+}
+#q2, #q3 {
+  width: 618px;
+  padding: 5px;
+  height:18px;
+  color: #000;
+}
+div.hidden {
+  display: none;
+}
+</style>
+</head>
+<body>
+<div id="page">
+    <h2>How haroldbot works</h2>
+    <p><h4>Table of contents</h4>
+        <ul>
+            <li><a href="#intro">Introduction</a></li>
+            <li><a href="#BDDs">Binary Decision Diagrams</a></li>
+            <li><a href="#SAT">SAT</a></li>
+            <li><a href="#proof-generation">Automatic Proof Generation</a></li>
+        </ul>
+    </p>
+    <h4 id="intro">Introduction</h4>
+    <p>Haroldbot is a tool that checks the equivalence of arithmetic expressions with 32-bit bitvector semantics, running entirely on the client. This task is mostly accomplished by encoding the expression as an array of 32 binary decision diagrams, one for each bit. Since for a given variable ordering a BDD of a boolean function is canonical, this representation offers and easy equivalence test, at the cost of having to build the BDD first.</p>
+    <p>Some types of expressions, most notably expressions that involve the product of two non-constants, cannot be encoded as a small BDD. For those expressions, haroldbot can fall back to using a SAT solver, by encoding the whole expression as a boolean circuit first and then using the Tseytin transformation to convert the problem to CNF.</p>
+    <p>BDDs, SAT, and even using them this way (bit-blasting everything and solving a boolean formula) are already covered in many other places, so I won't go too in-depth on them.</p>
+    <p>Haroldbot can also (sometimes) find step-by-step proofs for true statements, this is done by applying expression rewrite rules from both ends of proof until a match is found that "connects" the two.</p>
+    <h4 id="BDDs">Binary Decision Diagrams</h4>
+    <p>BDDs, specifically reduced ordered binary decision diagrams (ROBDD) with a fixed order and with "complement edges", form the backbone of haroldbot and have been part of it the longest, with the SAT fallback and proof finder being added during later stages of development.</p>
+    <p>A BDD is a directed acyclic graph consisting of internal nodes with exactly two children that represent testing a boolean variable and taking either the "low" or the "high" edge, and two leaf nodes that represent the constant results 0 and 1. The "reduced" part of ROBDD means that a node that refers to the same child the same way twice (representing a "choice" between two equal things) is skipped and that any equivalent nodes are deduplicated.</p>
+    <p>Skipping useless nodes with two equal children is very easy, since the node-creating function can simply return the child instead of a new node, but keeping nodes deduplicated is more interesting. In abstract terms, the typical solution is to maintain a dictionary <tt>Node -> Node</tt>, where looking up a node gives you the canonical node (or nothing, in which case a new node must be created). In haroldbot this is implemented in the node storage itself, by treating the storage arrays as a hash table with open addressing.</p>
+    <p>Nodes are then referred to by their index in the table, or by the complement of the index to represent a complement edge. The indexes are non-negative, so complement edges are always negative, making them easy to distinguish. To ensure canonicity, only the low edge of a node may be a complement edge. If a node with a complement edge as its high edge is requested, the low edge, high edge, and the index of this node when it is returned are all complemented. The "bottom" sink is represented by 0, there is no "top" sink, instead a complement edge to the "bottom" sink is used.</p>
+    <p>In many parts of haroldbot functions are represented as arrays of 32 BDDs. Below is an example (visualized one bit at the time), low and high edges are indicated by dashed and solid edges respectively, normal edges and complement edges are indicated by blue and red respectively. An extra root node is visualized, it is not part of the BDD but is necessary here to indicate whether the actual root node of the BDD is entered through a complement edge or through a normal edge. To prevent the visualization from blowing up it is limited to 1000 nodes, so big BDDs are only visualized partially.</p>
+    <p>
+        <input type="text" value="a + b" name="q" id="q"/>
+        <select id="bitindex">
+            <option selected value="0">bit 0</option>
+            <option value="1">bit 1</option>
+            <option value="2">bit 2</option>
+            <option value="3">bit 3</option>
+            <option value="4">bit 4</option>
+            <option value="5">bit 5</option>
+            <option value="6">bit 6</option>
+            <option value="7">bit 7</option>
+            <option value="8">bit 8</option>
+            <option value="9">bit 9</option>
+            <option value="10">bit 10</option>
+            <option value="11">bit 11</option>
+            <option value="12">bit 12</option>
+            <option value="13">bit 13</option>
+            <option value="14">bit 14</option>
+            <option value="15">bit 15</option>
+            <option value="16">bit 16</option>
+            <option value="17">bit 17</option>
+            <option value="18">bit 18</option>
+            <option value="19">bit 19</option>
+            <option value="20">bit 20</option>
+            <option value="21">bit 21</option>
+            <option value="22">bit 22</option>
+            <option value="23">bit 23</option>
+            <option value="24">bit 24</option>
+            <option value="25">bit 25</option>
+            <option value="26">bit 26</option>
+            <option value="27">bit 27</option>
+            <option value="28">bit 28</option>
+            <option value="29">bit 29</option>
+            <option value="30">bit 30</option>
+            <option value="31">bit 31</option>
+        </select>
+        <div id="bddviz1"></div>
+        This visualization uses the <a href="http://visjs.org">vis.js</a> library, with custom node-coordinates because the built-in layout algorithms did not seem to react well to typical BDD shapes.
+    </p>
+    <p>BDDs can easily and efficiently be combined according to a logical operation with a recursive algorithm, though the result may have as many as n*m nodes where n and m are the number of nodes in the BDDs that were combined. The potential blow-up of nodes at every bit-operation is not always a problem, for example the addition function (as by default shown above) between two n-bit variables where n&gt;1 needs only 3n+1 nodes.</p>
+    <p>The product of two n-bit number does suffer from the blow-up of the number of nodes, so many formulas that involve multiplication cannot be handled by the BDD part of haroldbot. Originally haroldbot would just give up on functions when it ran out of space in the pre-allocated BDD storage arrays, but it now falls back to using a SAT solver to try to handle those cases, which is often succesful.</p>
+    <p>A BDD representation of a boolean formula can be used to easily count for how many inputs it is true or false in time linear in the size of the BDD. This makes it feasible to count the number of solutions (or counter examples) even if it is very high.</p>
+
+    <h4 id="SAT">SAT</h4>
+    <p>The Boolean Satisfiability Problem (SAT) is perhaps the best known NP-complete problem. Nevertheless, modern Conflict-Driven Clause Learning (CDCL) solvers can solve many instances that are of practical interest. Haroldbot uses <a href="http://minisat.se/">MiniSat</a> compiled to JavaScript with Emscripten.</p>
+    <p>SAT by definition only handles boolean formulas, and solvers typically need the formula in conjunctive normal form (CNF). In order to convert formulas over 32bit integers to CNF, haroldbot first builds a boolean circuit and then converts that to CNF by working backwards from the outputs and applying the Tseytin transformation to the backwards-reachable gates. Gates can become disconnected from any output while the circuit is built up. Disconnected gates are not deallocated, instead they are ignored during the conversion to CNF.</p>
+    <p>Haroldbot prevents the creation of many trivially-equivalent gates by maintaining a fixed-size hash table of gates. Hash collisions are resolved by simply overwriting the old entry, the table does not need to be complete because it is not required for correctness, it is only used to prevent some unnecessary duplication of gates.</p>
+    <p>The types of gate used in haroldbot are the 2-input OR and XOR gates, and a 3-input "carry" gate which outputs true iff 2 or 3 inputs are true.</p>
+    <p>Similar to in the BDD, both normal edges and complement edges are used. Complement edges are simpler to handle in the conversion to CNF than explicit negation gates, because they simply correspond to using the complement of the output-variable of the referenced gate and so don't require any CNF clauses. They also create more opportunities for gate-deduplication.</p>
+    <p>Before converting to CNF, functions are represented by an array of 32 gate-references. Below is an example (visualized one bit at the time), normal edges and complement edges are indicated by blue and red edges respectively. The output (at the top) and inputs (leaf nodes) are not gates, they only exist in the visualization. As with the BDD visualization, there is a limit of 1000 nodes.</p>
+    <p>
+        <input type="text" value="a + b" name="q" id="q2"/>
+        <select id="bitindex2">
+            <option selected value="0">bit 0</option>
+            <option value="1">bit 1</option>
+            <option value="2">bit 2</option>
+            <option value="3">bit 3</option>
+            <option value="4">bit 4</option>
+            <option value="5">bit 5</option>
+            <option value="6">bit 6</option>
+            <option value="7">bit 7</option>
+            <option value="8">bit 8</option>
+            <option value="9">bit 9</option>
+            <option value="10">bit 10</option>
+            <option value="11">bit 11</option>
+            <option value="12">bit 12</option>
+            <option value="13">bit 13</option>
+            <option value="14">bit 14</option>
+            <option value="15">bit 15</option>
+            <option value="16">bit 16</option>
+            <option value="17">bit 17</option>
+            <option value="18">bit 18</option>
+            <option value="19">bit 19</option>
+            <option value="20">bit 20</option>
+            <option value="21">bit 21</option>
+            <option value="22">bit 22</option>
+            <option value="23">bit 23</option>
+            <option value="24">bit 24</option>
+            <option value="25">bit 25</option>
+            <option value="26">bit 26</option>
+            <option value="27">bit 27</option>
+            <option value="28">bit 28</option>
+            <option value="29">bit 29</option>
+            <option value="30">bit 30</option>
+            <option value="31">bit 31</option>
+        </select>
+        <div id="circuitviz"></div>
+        This visualization uses the <a href="http://visjs.org">vis.js</a> library, again with custom layout. Because the circuits tend to be deeper than wide (they're not meant for hardware, so depth isn't much of a concern), edges are often drawn <i>through</i> nodes in ways that make them seems connected in odd ways. Nodes can be selected or dragged to make it clear how they are connected.
+    </p>
+    <h4 id="proof-generation">Automatic Proof Generation</h4>
+    <p>Below is a visualization of the process, though only nodes that have been taken out of the priority queues are drawn, not all nodes that have ever been generated. It was actually meant to visualize the latter (that would more accurately reflect the process), but for interesting proofs so many nodes are generated that visualizing them is hopelessly slow.</p>
+    <p>
+        <input type="text" value="(a &amp; (a ^ a - 1)) | (~a &amp; ~(a ^ a - 1)) == -a" name="q" id="q3"/>
+        <input type="button" value="start" id="start_proof_search"/>
+        <div id="q3-parse-error"></div>
+        <div id="q3-noneq" class="hidden">The expression must have '==' as root operator.<br/><br/></div>
+        <div id="exprcloud"></div>
+    </p>
+</div>
+</body>
+</html>

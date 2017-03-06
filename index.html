@@ -74,7 +74,7 @@ function performQuery(input) {
   var bddf;
   var circuitf;
   try {
-    //throw "BDD full";
+    throw "BDD full";
     bddf = expr.toBddFunc();
   }
   catch (err) {
@@ -486,10 +486,11 @@ $j(document).ready(function(){
     ls.set('explicitparens', $j('#explicitparens').is(':checked') ? 2 : 1);
     update();
   });
+  doquery(urlParam('q'));
 });
 </script>
 </head>
-<body onload="doquery(urlParam('q'))">
+<body>
 <div id="header"><h1>haroldbot 2</h1>
 (due to infrastructure changes this is an entirely new version with new bugs)<br/><br/>
 </div>
