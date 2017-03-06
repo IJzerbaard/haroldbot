@@ -27,7 +27,7 @@ var circuit = {
 			b = temp;
 		}
 		// make new gate, use only very simple merging of equal gates
-		var key = ((op * 991 | 0) + a * 997 | 0) + b * 1009 | 0;
+		var key = ((op * 991 | 0) + a * 65537 | 0) + b * 131071 | 0;
 		if (key == 0)
 			key = 1;
 		var hash = (key & 0x7fffffff) % 50021;
@@ -48,22 +48,15 @@ var circuit = {
 		return index;
 	},
 
-	mk4: function (op, ai, bi, ci, di) {
-		// can't do a full sort, but sort pairs (a, b) and (c, d) internally and then with each other
-		var a = Math.min(ai, bi);
-		var b = ai ^ bi ^ a;
-		var c = Math.min(ci, di);
-		var d = ci ^ di ^ c;
-		if (a < c || a == c && b < d) {
-			var t = a;
-			a = c;
-			c = t;
-			t = b;
-			b = d;
-			d = t;
-		}
+	mk3: function (op, a, b, c) {
+		var at = a | 0, bt = b | 0, ct = c | 0;
+		// sort for canonical order
+		a = Math.min(at, bt, ct);
+		b = Math.max(at, bt, ct);
+		c = (at ^ bt ^ ct) ^ (a ^ b);
+		
 		// make new gate, use only very simple merging of equal gates
-		var key = (((a * 31 | 0) + (b * 1009 | 0) | 0) + ((c * 97 | 0) + (d * 997 | 0) | 0) | 0) + (op * 127 | 0) | 0;
+		var key = (((op * 991 | 0) + a * 65537 | 0) + b * 131071 | 0) + c * 524287 | 0;
 		if (key == 0)
 			key = 1;
 		var hash = (key & 0x7fffffff) % 50021;
@@ -71,12 +64,12 @@ var circuit = {
 			// check match
 			var index = this.h[(hash << 1) | 1]
 			var gate = this.gates[index];
-			if (gate.length == 3 && gate[0] == op && gate[1] == a && gate[2] == b && gate[3] == c && gate[4] == d)
+			if (gate.length == 4 && gate[0] == op && gate[1] == a && gate[2] == b && gate[3] == c)
 				return index;
 		}
 		// not found, make new gate
-		var gate = new Int32Array(5);
-		gate[0] = op; gate[1] = a; gate[2] = b; gate[3] = c; gate[4] = d;
+		var gate = new Int32Array(4);
+		gate[0] = op; gate[1] = a; gate[2] = b; gate[3] = c;
 		var index = this.gates.length;
 		this.gates[index] = gate;
 		this.h[hash << 1] = key;
@@ -106,18 +99,21 @@ var circuit = {
 		return this.mk(2, x ^ xinv, y ^ yinv) ^ rinv;
 	},
 
-	orand: function (a, b, c, d) {
+	carry: function(a, b, c) {
 		// optimize constants
-		if (a == 0 || b == 0 || a == ~b) return this.and(c, d);
-		if (c == 0 || d == 0 || c == ~d) return this.and(a, b);
-		if (a == -1 && b == -1 || c == -1 && d == -1)
-			return -1;
-		if (a == -1) return this.or(b, this.and(c, d));
-		if (b == -1) return this.or(a, this.and(c, d));
-		if (c == -1) return this.or(d, this.and(a, b));
-		if (d == -1) return this.or(c, this.and(a, b));
-
-		return this.mk4(3, a, b, c, d);
+		
+		if (a == ~b) return c;
+		if (a == ~c) return b;
+		if (b == ~c) return a;
+		if (a == 0 || b == 0) return this.and(a | b, c);
+		if (c == 0) 
+			return this.and(a, b);
+		if (a == -1) return this.or(b, c);
+		if (b == -1) return this.or(a, c);
+		if (c == -1) return this.or(a, b);
+		return this.mk3(3, a, b, c);
+		
+		return this.or(this.and(a, b), this.and(this.xor(a, b), c));
 	},
 
 	or_big: function () {
@@ -181,9 +177,14 @@ var circuit = {
 		if (!inputs)
 			inputs = 32 * 64;
 
+		var cl2 = new Int32Array(2);
+		var cl3 = new Int32Array(3);
+		var cl4 = new Int32Array(4);
+
 		var had = new Int32Array((this.gates.length + 31) >> 5);
 		do {
 			index = stack.pop();
+			index ^= index >> 31;
 			if (index == 0 || index == -1)
 				continue;
 			if ((had[index >> 5] & (1 << (index & 31))) != 0)
@@ -195,84 +196,64 @@ var circuit = {
 				// input variable, no clause
 			}
 			else if (gate[0] == 1) {
+				if (gate.length != 3) debugger;
 				// or
-				var mainclause = new Int32Array(gate);
-				mainclause[0] = ~index;
-				sat.addClause(mainclause);
-				for (var i = gate.length - 1; i > 0; i--) {
-					// also make clauses for dependencies
-					var d = gate[i];
-					d ^= d >> 31;
-					if (d >= this.gates.length)
-						debugger;
-					stack.push(d);
-					// make 2-element clauses
-					var cl = new Int32Array(2);
-					cl[0] = index;
-					cl[1] = ~gate[i];
-					sat.addClause(cl);
-				}
+				stack.push(gate[1]);
+				stack.push(gate[2]);
+				cl3[0] = ~index;
+				cl3[1] = gate[1];
+				cl3[2] = gate[2];
+				sat.addClause(cl3);
+				cl2[0] = index;
+				cl2[1] = ~gate[1];
+				sat.addClause(cl2);
+				cl2[1] = ~gate[2];
+				sat.addClause(cl2);
 			}
 			else if (gate[0] == 2) {
+				if (gate.length != 3) debugger;
 				// xor
 				stack.push(gate[1]);
 				stack.push(gate[2]);
-				var cl = new Int32Array(gate);
-				cl[0] = ~index;
-				sat.addClause(cl);
-				cl = new Int32Array(gate);
-				cl[0] = index;
-				cl[1] ^= -1;
-				sat.addClause(cl);
-				cl = new Int32Array(gate);
-				cl[0] = index;
-				cl[2] ^= -1;
-				sat.addClause(cl);
-				cl = new Int32Array(gate);
-				cl[0] = ~index;
-				cl[1] ^= -1;
-				cl[2] ^= -1;
-				sat.addClause(cl);
+				cl3[0] = ~index;
+				cl3[1] = gate[1];
+				cl3[2] = gate[2];
+				sat.addClause(cl3);
+				cl3[1] = ~gate[1];
+				cl3[2] = ~gate[2];
+				sat.addClause(cl3);
+				cl3[0] = index;
+				cl3[1] = ~gate[1];
+				cl3[2] = gate[2];
+				sat.addClause(cl3);
+				cl3[1] = gate[1];
+				cl3[2] = ~gate[2];
+				sat.addClause(cl3);
 			}
 			else if (gate[0] == 3) {
-				// orand
+				// carry
 				stack.push(gate[1]);
 				stack.push(gate[2]);
 				stack.push(gate[3]);
-				stack.push(gate[4]);
-				var cl = new Int32Array(3);
-				cl[0] = index;
-				cl[1] = ~gate[1];
-				cl[2] = ~gate[2];
-				sat.addClause(cl);
-				cl = new Int32Array(3);
-				cl[0] = index;
-				cl[1] = ~gate[3];
-				cl[2] = ~gate[4];
-				sat.addClause(cl);
-				cl = new Int32Array(3);
-				cl[0] = ~index;
-				cl[1] = gate[1];
-				cl[2] = gate[3];
-				sat.addClause(cl);
-				cl = new Int32Array(3);
-				cl[0] = ~index;
-				cl[1] = gate[1];
-				cl[2] = gate[4];
-				sat.addClause(cl);
-				cl = new Int32Array(3);
-				cl[0] = ~index;
-				cl[1] = gate[2];
-				cl[2] = gate[3];
-				sat.addClause(cl);
-				cl = new Int32Array(3);
-				cl[0] = ~index;
-				cl[1] = gate[2];
-				cl[2] = gate[4];
-				sat.addClause(cl);
+				cl3[0] = index;
+				cl3[1] = ~gate[1];
+				cl3[2] = ~gate[2];
+				sat.addClause(cl3);
+				cl3[2] = ~gate[3];
+				sat.addClause(cl3);
+				cl3[1] = ~gate[2];
+				sat.addClause(cl3);
+				cl3[0] = ~index;
+				cl3[1] = gate[1];
+				cl3[2] = gate[2];
+				sat.addClause(cl3);
+				cl3[2] = gate[3];
+				sat.addClause(cl3);
+				cl3[1] = gate[2];
+				sat.addClause(cl3);
 			}
 			else {
-				debugger;
+				//debugger;
 			}
 		} while (stack.length != 0);
 

@@ -80,7 +80,7 @@ CFunction.add = function(x, y) {
 		var b = y._bits[i];
 		var axb = circuit.xor(a, b);
 		bits[i] = circuit.xor(axb, carry);
-		carry = circuit.orand(a, b, carry, axb);
+		carry = circuit.carry(a, b, carry);
 	}
 	return new CFunction(bits, circuit.or(x._divideError, y._divideError));
 }
