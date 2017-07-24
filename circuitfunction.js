@@ -422,6 +422,31 @@ CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcal
 	var res = data;
 	res.msg = "Using SAT fallback";
 
+	function getModelWithBan(bit, bannedModel) {
+		var sat = new SAT();
+		circuit.to_cnf(bit, sat);
+		if (bannedModel) {
+			var clause = [];
+			for (var i = 0; i < 32 * vars.length; i++) {
+				if ((bannedModel[i >> 5] & (1 << (i & 31))) == 0)
+					clause.push(i + 1);
+				else
+					clause.push(~(i + 1));
+			}
+			sat.addClause(clause);
+		}
+		var model_raw = sat.solve();
+		if (model_raw != null) {
+			var model = new Int32Array(64);
+			for (var i = 1; i <= 32 * 64; i++) {
+				if (model_raw[i] == 1)
+					model[(i - 1) >> 5] |= 1 << ((i - 1) & 31);
+			}
+			return model;
+		}
+		return void(0);
+	}
+
 	if (this._divideError == 0) {
 		var sat = new SAT();
 		circuit.to_cnf(~this._bits[0], sat);
@@ -451,8 +476,7 @@ CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcal
 		if (can_be_true) {
 			if (!can_be_false) {
 				var resobj = {
-					count: "#always",
-					proof: undefined
+					count: "#always"
 				};
 				if (root.type == 'bin' && ops[root.op] == '==') {
 					var pf = new ProofFinder();
@@ -464,14 +488,28 @@ CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcal
 				res.true = resobj;
 			}
 			else {
-				var trueobj = {
+				var trueobj1 = {
 					count: "#at least once",
 					examples: function (ix) {
-						if (ix == 0)
-							return tmodel;
+						return [tmodel][ix];
 					}
 				};
-				res.true = trueobj;
+				res.true = trueobj1;
+				callback();
+
+				var bits = this._bits;
+
+				setTimeout(function() {
+					var second = getModelWithBan(bits[0], tmodel);
+					var trueobj = {
+						count: second ? "#at least twice" : "1",
+						examples: function (ix) {
+							return [tmodel, second][ix];
+						}
+					};
+					res.true = trueobj;
+					callback();
+				}, 0);
 			}
 		}
 		if (can_be_false) {
@@ -493,14 +531,37 @@ CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcal
 				}
 			}
 			else {
-				var falseobj = {
+				var falseobj1 = {
 					count: "#at least once",
 					examples: function (ix) {
-						if (ix == 0)
-							return fmodel;
+						return [fmodel][ix];
 					}
 				};
-				res.false = falseobj;
+				res.false = falseobj1;
+				callback();
+				var bits = this._bits;
+
+				setTimeout(function() {
+					var second = getModelWithBan(~bits[0], fmodel);
+					var makeExamples = root.type == 'bin' && root.op == 20 && vars.length > 0;
+					var falseobj = {
+						count: second ? "#at least twice" : "1",
+						ext_examples: makeExamples,
+						examples: function (ix) {
+							var values = [fmodel, second][ix];
+							if (!makeExamples || !values) return values;
+							var len = vars.length;
+							var res = new Int32Array(len + 2);
+							for (var i = 0; i < len; i++)
+								res[i] = values[i];
+							res[len] = root.l.eval(res);
+							res[len + 1] = root.r.eval(res);
+							return res;
+						}
+					};
+					res.false = falseobj;
+					callback();
+				}, 0);
 			}
 		}
 	}
