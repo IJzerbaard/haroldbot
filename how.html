@@ -593,6 +593,7 @@ div.hidden {
         This visualization uses the <a href="http://visjs.org">vis.js</a> library, again with custom layout. Because the circuits tend to be deeper than wide (they're not meant for hardware, so depth isn't much of a concern), edges are often drawn <i>through</i> nodes in ways that make them seems connected in odd ways. Nodes can be selected or dragged to make it clear how they are connected.
     </p>
     <h4 id="proof-generation">Automatic Proof Generation</h4>
+    <p>Automatic proof generation in haroldbot is based on a simple bidirectional exploration of the search space. The search space consists of expressions that are equal to either the left hand side of the top level equality operator or equal to the right hand side. The neighbours of a node in the search space are all the expressions that are one rewrite rule away from it.</p>
     <p>Below is a visualization of the process, though only nodes that have been taken out of the priority queues are drawn, not all nodes that have ever been generated. It was actually meant to visualize the latter (that would more accurately reflect the process), but for interesting proofs so many nodes are generated that visualizing them is hopelessly slow.</p>
     <p>
         <input type="text" value="(a &amp; (a ^ a - 1)) | (~a &amp; ~(a ^ a - 1)) == -a" name="q" id="q3"/>
@@ -601,6 +602,10 @@ div.hidden {
         <div id="q3-noneq" class="hidden">The expression must have '==' as root operator.<br/><br/></div>
         <div id="exprcloud"></div>
     </p>
+    <p>Naturally, this is an exponential time (and space) algorithm. This is made worse by the fact that many rewrites increase the size of the expression. In haroldbot that is prevented a bit by preferentially expanding small expressions, which are more likely than big expressions to either lead to a dead-end quickly or lead to a path between the LHS-expression cloud and the RHS-expression cloud.</p>
+    <p>In order to rewrite and determine structural equivalences efficiently, expressions are hashed in two different ways. A local hash, which depends only on the the top level operator and its direct children, is used to select likely-applicable rewrite rules. A total hash, which depends on the entire expression, is used to detect duplicate expressions both within each expression cloud and to detect a match that connects both clouds.</p>
+    <p>Thanks to the local hash, at most 20 (usually 5 or fewer) rewrite rules are tried per node in an expression, instead of all nearly 300 rules. More rules operate on a fixed top level operator and so are generally not applied to an expression node that represents a different operator, except when the hashes collide.</p>
+    
 </div>
 </body>
 </html>

@@ -90,6 +90,10 @@ function hmul_i32(a, b) {
     return h - t1 - t2 | 0;
 }
 
+function getmilitime() {
+    return new Date().getTime();
+}
+
 function insertionSort(array, cmp) {
     for (var i = 1; i < array.length; i++) {
         var j = i;

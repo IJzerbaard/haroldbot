@@ -12,7 +12,7 @@ BigInt.prototype.shl = function(n) {
 	}
 	if (n != 0) {
 		var leftover = 0;
-		for (var i = 0; n != 0 && i < newdata.length; i++) {
+		for (var i = 0; i < newdata.length; i++) {
 			var carry = newdata[i] >>> (32 - n);
 			newdata[i] = (newdata[i] << n) | leftover;
 			leftover = carry;
@@ -26,13 +26,13 @@ BigInt.prototype.shl = function(n) {
 };
 
 BigInt.prototype.add = function(a) {
-	var newdata = this.data.slice(0);
+	var newdata = [];
 	var carry = 0;
-	for (var i = 0; i < Math.max(newdata.length, a.data.length); i++) {
-		var x = i < newdata.length ? newdata[i] : 0;
+	for (var i = 0; i < Math.max(this.data.length, a.data.length); i++) {
+		var x = i < this.data.length ? this.data[i] : 0;
 		var y = i < a.data.length ? a.data[i] : 0;
 		var z = x + y + carry | 0;
-		if ((z ^ 0x80000000) < (x ^ 0x80000000))
+		if ((z >>> 0) < (x >>> 0))
 			carry = 1;
 		else
 			carry = 0;

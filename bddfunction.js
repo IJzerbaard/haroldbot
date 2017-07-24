@@ -67,12 +67,13 @@ BDDFunction.mux = function(x, y, z) {
 }
 
 BDDFunction.add = function(x, y) {
+	var timelimit = getmilitime() + 1000;
 	var bits = new Int32Array(32);
 	var carry = 0;
 	for (var i = 0; i < bits.length; i++) {
-		bits[i] = bdd.xorxor(x._bits[i], y._bits[i], carry);
+		bits[i] = bdd.xorxor(x._bits[i], y._bits[i], carry, timelimit);
 		if (i < 31) {
-			carry = bdd.carry(carry, x._bits[i], y._bits[i]);
+			carry = bdd.carry(carry, x._bits[i], y._bits[i], timelimit);
 		}
 	}
 	return new BDDFunction(bits, bdd.or(x._divideError, y._divideError));

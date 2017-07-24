@@ -1043,37 +1043,37 @@ function ProofFinder(op) {
 		[
 			["&", [a(0)], [a(1)]],
 			[a(0)],
-			false, "and with something can only reset bits", ,
+			false, "and with something can only reset bits", , , "<u"
 		],
 		[
 			["&", [a(0)], [a(1)]],
 			["min_u", [a(0)], [a(1)]],
-			false, "and with something can only reset bits", ,
+			false, "and with something can only reset bits", , , "<u"
 		],
 		[
 			["max_u", [a(0)], [a(1)]],
 			["|", [a(0)], [a(1)]],
-			false, "or with something can only set bits", ,
+			false, "or with something can only set bits", , , "<u"
 		],
 		[
 			["^", [a(0)], [a(1)]],
 			["|", [a(0)], [a(1)]],
-			false, "if xor sets a bit then or sets it as well", ,
+			false, "if xor sets a bit then or sets it as well", , , "<u"
 		],
 		[
 			["min_u", [a(0)], [a(1)]],
 			["max_u", [a(0)], [a(1)]],
-			false, "the minimum is no more than the maximum", ,
+			false, "the minimum is no more than the maximum", , , "<u"
 		],
 		[
 			["min_u", [a(0)], [a(1)]],
 			[a(0)],
-			false, "the minimum is no more than its inputs", ,
+			false, "the minimum is no more than its inputs", , , "<u"
 		],
 		[
 			["?", [a(0)], [a(1)], [a(2)]],
 			["|", [a(1)], [a(2)]],
-			false, "mux can't set more bits than or", ,
+			false, "mux can't set more bits than or", , , "<u"
 		]
 	];
 
@@ -1090,6 +1090,10 @@ function ProofFinder(op) {
 		],
 	];
 
+	// <=u
+	if (op == 41) {
+		rules = rules.concat(rules_lteu);
+	}
 
 	function convOps(root) {
 		if (root.length == 1)
@@ -1124,7 +1128,7 @@ function ProofFinder(op) {
 	}
 
 	function rev_rule(rule) {
-		return [rule[1], rule[0], false, rule[4], rule[3], rule[5], rule[6]];
+		return [rule[1], rule[0], false, rule[4], rule[3], rule[5], rule[6], rule[7]];
 	}
 
 	var numrules = rules.length;

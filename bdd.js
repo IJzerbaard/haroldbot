@@ -74,8 +74,9 @@ var bdd = {
 			return hash1 ^ invert;
 		if (this._lo[hash2] == lo && this._hi[hash2] == hi && this._v[hash2] == v)
 			return hash2 ^ invert;
-		for (var i = hash1; (this._lo[i] | this._hi[i]) != 0 && i != upper; i = (i + 1) % 8388593) {
+		for (var i = hash1; i != upper; i = (i + 1) % 8388593) {
 			if (i == 0) continue;
+			if ((this._lo[i] | this._hi[i]) == 0) break;
 			if (this._lo[i] == lo && this._hi[i] == hi && this._v[i] == v)
 				return i ^ invert;
 		}
@@ -95,7 +96,7 @@ var bdd = {
 		}
 		for (var i = hash1; i != upper; i = (i + 1) % 8388593) {
 			if (i == 0) continue;
-			if (this._lo[i] == 0 && this._hi[i] == 0 && i != 0) {
+			if ((this._lo[i] | this._hi[i]) == 0) {
 				this._lo[i] = lo;
 				this._hi[i] = hi;
 				this._v[i] = v;
@@ -182,7 +183,7 @@ var bdd = {
 		return value ^ invert;
 	},
 
-	xorxor: function(f, g, h) {
+	xorxor: function(f, g, h, timelimit) {
 		function issink(x) {
 			return (x == 0 || x == -1) ? 1 : 0;
 		}
@@ -207,6 +208,9 @@ var bdd = {
 		if (this._memoop[hash] == 4 && this._memokey1[hash] == key1 && this._memokey2[hash] == key2 && this._memokey3[hash] == key3)
 			return this._memo[hash] ^ invert;
 
+		if (timelimit && getmilitime() >= timelimit)
+			throw "BDD timeout";
+
 		var fv = this._v[f];
 		var gv = this._v[g];
 		var hv = this._v[h];
@@ -230,7 +234,9 @@ var bdd = {
 			hh = this._hi[h];
 		}
 
-		var res = this.mk(minv, this.xorxor(fl, gl, hl), this.xorxor(fh, gh, hh));
+		var res = this.mk(minv,
+			this.xorxor(fl, gl, hl, timelimit),
+			this.xorxor(fh, gh, hh, timelimit));
 		this._memoop[hash] = 4;
 		this._memokey1[hash] = f;
 		this._memokey2[hash] = g;
@@ -239,7 +245,7 @@ var bdd = {
 		return res ^ invert;
 	},
 
-	carry: function(f, g, h) {
+	carry: function(f, g, h, timelimit) {
 		function isone(x) {
 			return (x == -1) ? 1 : 0;
 		}
@@ -265,6 +271,9 @@ var bdd = {
 		var hash = ((((key1 << 17) - key1) ^ ((key2 << 16) + key2) ^ ((key3 << 19) - key3)) & 0x7fffffff) % 1048573;
 		if (this._memoop[hash] == 5 && this._memokey1[hash] == key1 && this._memokey2[hash] == key2 && this._memokey3[hash] == key3)
 			return this._memo[hash];
+
+		if (timelimit && getmilitime() >= timelimit)
+			throw "BDD timeout";
 
 		var finv = f >> 31;
 		var ginv = g >> 31;
@@ -292,7 +301,9 @@ var bdd = {
 			hh = this._hi[h ^ hinv] ^ hinv;
 		}
 
-		var res = this.mk(minv, this.carry(fl, gl, hl), this.carry(fh, gh, hh));
+		var res = this.mk(minv,
+			this.carry(fl, gl, hl, timelimit),
+			this.carry(fh, gh, hh, timelimit));
 		this._memoop[hash] = 5;
 		this._memokey1[hash] = key1;
 		this._memokey2[hash] = key2;
@@ -391,7 +402,7 @@ var bdd = {
 				var l = comp(fl, replace);
 				var h = comp(fh, replace);
 				var res;
-				if (r == undefined)
+				if (r === void(0))
 					res = this.mk(fv, l, h);
 				else
 					res = this.mux(f, l, h);
@@ -419,14 +430,15 @@ var bdd = {
 
 			var invx = x >> 31;
 			var v = _v[x ^ invx];
+			var rv = remap[v];
 			var res;
-			if (D[x] == undefined) {
-				var lo = sat(_lo[x ^ invx] ^ invx, remap[v]);
-				var hi = sat(_hi[x ^ invx] ^ invx, remap[v]);
+			if (D[x] === void(0)) {
+				var lo = sat(_lo[x ^ invx] ^ invx, rv);
+				var hi = sat(_hi[x ^ invx] ^ invx, rv);
 				res = lo.add(hi);
 				D[x] = res;
 			} else res = D[x];
-			return res.shl(remap[v] - prevvar - 1);
+			return res.shl(rv - prevvar - 1);
 		}
 
 		return sat(f, -1);
@@ -448,7 +460,7 @@ var bdd = {
 					return havehad++ == index;
 				else {
 					var nextvar = cv + 1;
-					while (nextvar < 2048 && remap[nextvar] == undefined)
+					while (nextvar < 2048 && remap[nextvar] === void(0))
 						nextvar++;
 					if (findsat(nextvar, x, prevvar))
 						return true;
@@ -463,7 +475,7 @@ var bdd = {
 			var v = _v[x ^ invx];
 
 			var nextvar = cv + 1;
-			while (nextvar < 2048 && remap[nextvar] == undefined)
+			while (nextvar < 2048 && remap[nextvar] === void(0))
 				nextvar++;
 
 			if (v == cv) {
@@ -521,7 +533,7 @@ var bdd = {
 		var _hi = this._hi;
 
 		function pdump(f) {
-			if (D[f] == undefined) {
+			if (D[f] === void(0)) {
 				D[f] = true;
 				if (f == 0 || f == -1)
 					return "";

@@ -85,7 +85,7 @@ function performQuery(input) {
     bddf = expr.toBddFunc();
   }
   catch (err) {
-    if (err == "BDD full" || err == "multiplication seems hard")
+    if (err == "BDD full" || err == "multiplication seems hard" || err == "BDD timeout")
       circuitf = expr.toCircuitFunc();
     else {
       //throw err;
