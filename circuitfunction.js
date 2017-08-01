@@ -370,7 +370,7 @@ CFunction.popcnt = function(x) {
 			var b3 = bits[i].pop();
 			bits[i].unshift(circuit.xor(circuit.xor(b1, b2), b3));
 			if (!bits[i + 1]) bits[i + 1] = [];
-			bits[i + 1].unshift(circuit.or(circuit.and(b1, b2), circuit.and(b3, circuit.xor(b1, b2))));
+			bits[i + 1].unshift(circuit.carry(b1, b2, b3));
 		}
 		else {
 			i = 0;

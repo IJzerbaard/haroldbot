@@ -55,6 +55,7 @@ QUnit.test("Circuit SAT tests", function(assert) {
 	var y = CFunction.argument(1);
 	var c = CFunction.constant(3);
 	var f = CFunction.eq(CFunction.or(CFunction.and(x, CFunction.constant(0xFFFF)), CFunction.and(y, CFunction.constant(0xFFFF0000))), CFunction.constant(-1));
+	var g;
 	var res = f.sat();
 	assert.ok(res != null && (res[0] | res[1]) == -1, "x | y == -1 -> x=" + res[0] + " y=" + res[1]);
 	f = CFunction.not(CFunction.eq(CFunction.or(x, CFunction.constant(-1)), CFunction.constant(-1)));
@@ -93,12 +94,14 @@ QUnit.test("Circuit SAT tests", function(assert) {
 	f = new CFunction(bits, 0);
 	res = f.sat();
 	assert.equal(res, null, "carry == a&b | a&c | b&c");
+
 	
 	//f = CFunction.not(CFunction.eq(CFunction.shruc(CFunction.hmul(x, CFunction.constant(0xAAAAAAAAB), false), 1), CFunction.divu(x, CFunction.constant(3))));
 	//res = f.sat();
 	//assert.equal(res, null, "hmul(x, 0xAAAAAAAAB) >> 1 == x / 3");
 
-	//f = CFunction.not(CFunction.eq(CFunction.popcnt(x), CFunction.popcnt2(x)));
+
+	//f = CFunction.not(CFunction.eq(CFunction.popcnt2(x), CFunction.popcnt3(x)));
 	//res = f.sat();
-	//assert.ok(res == null, "popcnt =? popcnt2, " + (res || ["yes"])[0]);
+	//assert.ok(res == null, "popcnt =? popcnt3, " + (res || ["yes"])[0]);
 });

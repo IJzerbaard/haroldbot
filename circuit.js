@@ -1,7 +1,10 @@
 var circuit = {
 	reset: function () {
 		this.gates = new Array(1 + 32 * 64);
+		this.lowlimit = this.gates.length;
 		this.h = new Int32Array(50021 * 2);
+		this.xor_elim = 0;
+		this.gate_absorbtion = 0;
 	},
 
 	argument: function (index) {
@@ -77,6 +80,17 @@ var circuit = {
 		return index;
 	},
 
+	mkbig: function (op, bits) {
+		var gate = new Int32Array(1 + bits.length);
+		for (var i = 0; i < bits.length; i++)
+			gate[i + 1] = bits[i];
+		gate[0] = op;
+
+		var index = this.gates.length;
+		this.gates[index] = gate;
+		return index;
+	},
+
 	or: function (x, y) {
 		// propagate constants and x|x and x|~x
 		if (x == 0 || y == 0 || x == -1 || y == -1 || x == y || x == ~y)
@@ -147,13 +161,22 @@ var circuit = {
 			}
 			res[j++] = args[i];
 		}
+		res = res.slice(0, j);
 
-		var bits = [0];
-		for (var i = j; i >= 0; i--)
-			bits.push(res[i]);
-		while (bits.length > 1)
-			bits.unshift(this.or(bits.pop(), bits.pop()));
-		return bits.pop();
+		// prevent useless big-gates and small big-gates
+		// small gates should use the normal mechanism so they participate in gate-decuplication
+		switch (res.length) {
+		case 0:
+			return 0;
+		case 1:
+			return res[0];
+		case 2:
+			return this.or(res[0], res[1]);
+		case 3:
+			return this.or(this.or(res[0], res[1]), res[2]);
+		default:
+			return this.mkbig(10, res);
+		}
 	},
 
 	and_big: function () {
@@ -196,7 +219,7 @@ var circuit = {
 				// input variable, no clause
 			}
 			else if (gate[0] == 1) {
-				if (gate.length != 3) debugger;
+				//if (gate.length != 3) debugger;
 				// or
 				stack.push(gate[1]);
 				stack.push(gate[2]);
@@ -211,7 +234,7 @@ var circuit = {
 				sat.addClause(cl2);
 			}
 			else if (gate[0] == 2) {
-				if (gate.length != 3) debugger;
+				//if (gate.length != 3) debugger;
 				// xor
 				stack.push(gate[1]);
 				stack.push(gate[2]);
@@ -251,6 +274,18 @@ var circuit = {
 				sat.addClause(cl3);
 				cl3[1] = gate[2];
 				sat.addClause(cl3);
+			}
+			else if (gate[0] == 10) {
+				// or_big
+				var cl = new Int32Array(gate);
+				cl[0] = ~index;
+				sat.addClause(cl);
+				cl2[1] = index;
+				for (var i = 1; i < gate.length; i++) {
+					cl2[0] = ~gate[i];
+					sat.addClause(cl2);
+					stack.push(gate[i]);
+				}
 			}
 			else {
 				//debugger;
