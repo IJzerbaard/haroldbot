@@ -703,7 +703,7 @@ BDDFunction.prototype.Identify = function(vars) {
 			if (unsetMask == unset) {
 				var res = mostSet & ~unsetMask;
 				if ((res | c) != (v | c)) {
-					debugger;
+					//debugger;
 					alert("something broke");
 				}
 				return res;
@@ -943,7 +943,6 @@ BDDFunction.prototype.Identify = function(vars) {
 				x = lo;
 		}
 		// unreachable
-		debugger;
 	}
 
 	var r_constant = is_constant(this._bits);
@@ -992,7 +991,7 @@ BDDFunction.prototype.AnalyzeProperties = function(data, vars, callback) {
 					continue;
 				}
 				// unreachable
-				debugger;
+				//debugger;
 			}
 			// only use it if not trivial
 			if (val != 0 && val -1 && val != ~mustBeZero) {
@@ -1008,7 +1007,7 @@ BDDFunction.prototype.AnalyzeProperties = function(data, vars, callback) {
 			return false;
 		}
 		catch (ex) {
-			debugger;
+			//debugger;
 		}
 	}
 
@@ -1029,7 +1028,7 @@ BDDFunction.prototype.AnalyzeProperties = function(data, vars, callback) {
 					continue;
 				}
 				// unreachable
-				debugger;
+				//debugger;
 			}
 			// only use it if not trivial
 			if (val != -1 && val != 0 && val != mustBeOne) {
@@ -1045,7 +1044,7 @@ BDDFunction.prototype.AnalyzeProperties = function(data, vars, callback) {
 			return false;
 		}
 		catch (ex) {
-			debugger;
+			//debugger;
 		}
 	}
 

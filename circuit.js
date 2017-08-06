@@ -21,6 +21,13 @@ var circuit = {
 		return res;
 	},
 
+	argument256: function (index) {
+		var res = new Int32Array(256);
+		for (var i = 0; i < 256; i++)
+			res[i] = (index << 8) + (i + 1);
+		return res;
+	},
+
 	mk: function (op, a, b) {
 		a = a | 0; b = b | 0;
 		// sort for canonical order
@@ -52,12 +59,6 @@ var circuit = {
 	},
 
 	mk3: function (op, a, b, c) {
-		var at = a | 0, bt = b | 0, ct = c | 0;
-		// sort for canonical order
-		a = Math.min(at, bt, ct);
-		b = Math.max(at, bt, ct);
-		c = (at ^ bt ^ ct) ^ (a ^ b);
-		
 		// make new gate, use only very simple merging of equal gates
 		var key = (((op * 991 | 0) + a * 65537 | 0) + b * 131071 | 0) + c * 524287 | 0;
 		if (key == 0)
@@ -125,9 +126,28 @@ var circuit = {
 		if (a == -1) return this.or(b, c);
 		if (b == -1) return this.or(a, c);
 		if (c == -1) return this.or(a, b);
-		return this.mk3(3, a, b, c);
-		
-		return this.or(this.and(a, b), this.and(this.xor(a, b), c));
+		// sort for extra gate sharing
+		var l = Math.min(a, b, c);
+		var h = Math.max(a, b, c);
+		var m = (a ^ b ^ c) ^ (l ^ h);
+		return this.mk3(3, l, m, h,);
+	},
+
+	mux: function (x, y, s) {
+		// optimize constants
+		if (s == 0 || s == -1 || x == y)
+			return (s & y) | (~s & x);
+		if (x == 0 || x == -1 || y == 0 || y == -1) return this.or(this.and(s, y), this.and(~s, x));
+		// always make s positive
+		if (s < 0) {
+			s = ~s;
+			var t = x;
+			x = y;
+			y = t;
+		}
+		// always make x positive
+		var inv = x >> 31;
+		return this.mk3(4, x ^ inv, y ^ inv, s) ^ inv;
 	},
 
 	or_big: function () {
@@ -164,7 +184,7 @@ var circuit = {
 		res = res.slice(0, j);
 
 		// prevent useless big-gates and small big-gates
-		// small gates should use the normal mechanism so they participate in gate-decuplication
+		// small gates should use the normal mechanism so they participate in gate-deduplication
 		switch (res.length) {
 		case 0:
 			return 0;
@@ -272,6 +292,25 @@ var circuit = {
 				sat.addClause(cl3);
 				cl3[2] = gate[3];
 				sat.addClause(cl3);
+				cl3[1] = gate[2];
+				sat.addClause(cl3);
+			}
+			else if (gate[0] == 4) {
+				// mux
+				stack.push(gate[1]);
+				stack.push(gate[2]);
+				stack.push(gate[3]);
+				cl3[0] = ~index;
+				cl3[1] = gate[1];
+				cl3[2] = gate[3];
+				sat.addClause(cl3);
+				cl3[0] = index;
+				cl3[1] = ~gate[1];
+				sat.addClause(cl3);
+				cl3[1] = ~gate[2];
+				cl3[2] = ~gate[3];
+				sat.addClause(cl3);
+				cl3[0] = ~index;
 				cl3[1] = gate[2];
 				sat.addClause(cl3);
 			}

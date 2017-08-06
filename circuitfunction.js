@@ -51,7 +51,7 @@ CFunction.xor = function(x, y) {
 CFunction.mux = function(x, y, z) {
 	var bits = new Int32Array(32);
 	for (var i = 0; i < bits.length; i++) {
-		bits[i] = circuit.or(circuit.and(~x._bits[i], y._bits[i]), circuit.and(x._bits[i], z._bits[i]));
+		bits[i] = circuit.mux(y._bits[i], z._bits[i], x._bits[i]);
 	}
 	return new CFunction(bits, circuit.or_big(x._divideError, y._divideError, z._divideError));
 }
@@ -517,7 +517,7 @@ CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcal
 				res.false = {
 					count: "#always"
 				};
-				if (root.type == 'bin' && root.op == 20) {
+				if (root.type == 'bin' && root.op == 20 && vars.length > 0) {
 					res.false.ext_examples = true;
 					res.false.examples = function(ix) {
 						var len = vars.length;

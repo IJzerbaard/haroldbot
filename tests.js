@@ -95,6 +95,19 @@ QUnit.test("Circuit SAT tests", function(assert) {
 	res = f.sat();
 	assert.equal(res, null, "carry == a&b | a&c | b&c");
 
+	bits[0] = circuit.xor(circuit.mux(x._bits[0], x._bits[1], x._bits[2]),
+		circuit.or(circuit.and(x._bits[0], ~x._bits[2]),
+			       circuit.and(x._bits[1], x._bits[2])));
+	f = new CFunction(bits, 0);
+	res = f.sat();
+	assert.equal(res, null, "mux == a&~s | b&s");
+
+	bits[0] = circuit.xor(circuit.xor(x._bits[0], x._bits[1]),
+		circuit.mux(x._bits[0], ~x._bits[0], x._bits[1]));
+	f = new CFunction(bits, 0);
+	res = f.sat();
+	assert.equal(res, null, "x^y == y?~x:x");
+
 	
 	//f = CFunction.not(CFunction.eq(CFunction.shruc(CFunction.hmul(x, CFunction.constant(0xAAAAAAAAB), false), 1), CFunction.divu(x, CFunction.constant(3))));
 	//res = f.sat();
