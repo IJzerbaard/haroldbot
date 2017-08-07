@@ -659,6 +659,11 @@ function ProofFinder(op) {
 		],
 		// distributivity pairs
 		[
+			["-", ["+", [a(0)], [a(1)]]],
+			["-", ["-", [a(0)]], [a(1)]],
+			true, "negation distributes over addition", ,
+		],
+		[
 			["&", [a(0)], ["|", [a(1)], [a(2)]]],
 			["|", ["&", [a(0)], [a(1)]], ["&", [a(0)], [a(2)]]],
 			true, "and distributes over or", ,
