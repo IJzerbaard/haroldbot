@@ -491,7 +491,7 @@ function parse(query) {
 			return fun2("min", true);
 		} else if (l("max")) {
 			return fun2("max", true);
-		} else if (l("abs")) {
+		} else if (ll("abs", "d")) {
 			return fun1("abs");
 		} else if (l("ez80mlt")) {
 			return fun1("ez80mlt");
@@ -509,6 +509,8 @@ function parse(query) {
 			return fun3("fixmul", true);
 		} else if (l("fixscale")) {
 			return fun3("fixscale", false);
+		} else if (isfun()) {
+			return fun();
 		} else if (query.charAt(pos) >= '0' && query.charAt(pos) <= '9') {
 			if (query.charAt(pos) == '0' && query.charAt(pos + 1) == 'x') {
 				pos += 2;
@@ -589,8 +591,42 @@ function parse(query) {
 		return new Fun(name, [a, b, c]);
 	}
 
+	function isfun() {
+		var p = pos;
+		if (ident() && ws() && l("(")) {
+			pos = p;
+			return true;
+		}
+		pos = p;
+		return undefined;
+	}
+
+	function fun() {
+		var name = ident();
+		ws(); 
+		var lpar = l("(");
+		ws();
+		var args = [];
+		do {
+			var a = expr();
+			if (a)
+				args.push(a);
+			else
+				return error("expected expression");
+			ws();
+			if (!l(",")) {
+				if (l(")"))
+					break;
+				else
+					return error("expected ')'");
+			}
+			ws();
+		} while (true);
+		return new Fun(name, args);
+	}
+
 	function ident() {
-		if (query.charAt(pos) >= 'a' && query.charAt(pos) <= 'z' || query.charAt(pos) >= 'A' && query.charAt(pos) <= 'Z') {
+		if (query.charAt(pos) >= 'a' && query.charAt(pos) <= 'z' || query.charAt(pos) >= 'A' && query.charAt(pos) <= 'Z' || query.charAt(pos) == '_') {
 			var variable = query.substr(pos++, 1);
 			while (query.charAt(pos) >= 'a' && query.charAt(pos) <= 'z' || 
 				   query.charAt(pos) >= 'A' && query.charAt(pos) <= 'Z' ||

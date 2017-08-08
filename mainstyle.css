@@ -33,6 +33,9 @@ h2 { font-size: 1.2em; }
   color:#555;
   text-align:center;
 }
+#resultDiv {
+  overflow-x: auto;
+}
 #querybox {
   padding: 10px ;
   background-color: #fff;
@@ -46,6 +49,29 @@ h2 { font-size: 1.2em; }
   color: #000;
 }
 #submit {
+  width: 90px;
+  padding: 5px;
+  background-color: #2dc8f5;
+  color: #000;
+  border: 0px solid white;
+  border-radius:5px;
+  text-shadow: -1px 1px #fff;
+}
+#ssep, #sseq {
+  width: 340px;
+  padding: 5px;
+  height:50px;
+  color: #000;
+}
+#sse-eq-sign {
+  display: inline-block;
+  vertical-align: top;
+  color: #000;
+  margin-top: 30px;
+}
+#ssesubmit {
+  display: block;
+  margin: auto;
   width: 90px;
   padding: 5px;
   background-color: #2dc8f5;

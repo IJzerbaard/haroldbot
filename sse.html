@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>haroldbot</title>
+<title>haroldbot (SSE)</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 <link rel="shortcut icon" href="/favicon.ico" />
 <link rel="stylesheet" type="text/css" href="mainstyle.css" />
@@ -9,25 +9,26 @@
 <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
 <script type="text/javascript" src="jquery.color-2.1.2.min.js"></script>
 <script type="text/javascript" src="util.js"></script>
-<script type="text/javascript" src="abstractinterp.js"></script>
 <script type="text/javascript" src="expr.js"></script>
 <script type="text/javascript" src="parser.js"></script>
 <script type="text/javascript" src="bigint.js"></script>
-<script type="text/javascript" src="bdd.js"></script>
-<script type="text/javascript" src="bddfunction.js"></script>
 <script type="text/javascript" src="sat.js"></script>
 <script type="text/javascript" src="circuit.js"></script>
-<script type="text/javascript" src="circuitfunction.js"></script>
-<script type="text/javascript" src="prooffinder.js"></script>
+<script type="text/javascript" src="ssecfunction.js"></script>
 <script type="text/javascript">
 var $j = jQuery.noConflict();
 var id = 0;
+var vectorFormattingMode = {
+  base: "auto", 
+  sw: 8, 
+  rev: false,
+  upper: false
+};
 
-function performQuery(input) {
+function performQuery(pexpr, qexpr) {
   id = 0;
-  bdd.reset();
   circuit.reset();
-  var p = parse(input);
+  var p = parse(pexpr + " == " + qexpr);
   var expr = p[0];
   var varmap = p[1];
   var msg = p[2];
@@ -39,104 +40,73 @@ function performQuery(input) {
     return;
   }
 
-  var abstractinterpEnv = {
-    nr: []
-  };
-  expr.analyze(abstractinterpEnv);
-
-  parens = true;
-  $j('#query-printback').append($j("<p>Parsed as:<br/></p>").append(formatexpr(expr.removeDummy(), 0, varmap)));
-  var cf = expr.removeDummy().constantFold();
-  if (!cf.equals2(expr.removeDummy())) {
-    $j('#query-printback').append($j("<p>After constant folding:<br/></p>").append(formatexpr(cf, 0, varmap)));
-  }
-
-  // try limited search for proof first
   data = {
     varmap: varmap
   };
-  if (expr.type == 'bin' && expr.op == 20) {
-    var pf = new ProofFinder(expr.op);
-    var proof = null;
-    pf.Search(expr.l.removeDummy(), expr.r.removeDummy(), function (proofsteps) {
-      proof = proofsteps;
-    }, function (exprc, backwards) {
-      if (backwards) {
-        //$j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
-      }
-      else {
-        //$j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
-      }
-    }, 'synchronous', 400);
-    if (proof != null) {
-      data.true = {
-        count: '#always',
-        proof: proof
-      };
-      update();
-      return;
-    }
-  }
 
-  var bddf;
-  var circuitf;
-  try {
-    //throw "BDD full";
-    bddf = expr.toBddFunc();
+  if (expr.type != 'bin' || expr.op != 20) {
+    //????
+    debugger;
   }
-  catch (err) {
-    if (err == "BDD full" || err == "multiplication seems hard" || err == "BDD timeout")
-      circuitf = expr.toCircuitFunc();
-    else {
-      //throw err;
-      data.msg = err;
-      return;
-    }
-  }
-
-  if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 28 || expr.op >= 40 && expr.op <= 48)) {
-    // comparison
-    (bddf||circuitf).AnalyzeTruth(data, expr.removeDummy(), varmap, function () {
+  else {
+    var lhs = expr.l.toSSECircuitFunc();
+    var rhs = expr.r.toSSECircuitFunc();
+    var circuitf = SSECFunction.eq(lhs, rhs);
+    circuitf.AnalyzeTruth(data, expr.removeDummy(), varmap, function () {
       update();
-    }, function (exprc, backwards) {
-      if (backwards) {
-        //$j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
-      }
-      else {
-        //$j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
-      }
     });
     update();
   }
-  else {
-    if (bddf) {
-      data.simp = bddf.Identify(varmap);
-      if (data.simp == undefined) {
-        data.msg = "bdd structural pattern matcher didn't work (it's still quite broken)"
-      }
-      else {
-        var pf = new ProofFinder(20);
-        pf.Search(expr.removeDummy(), data.simp, function (flatproof) {
-          data.proof = flatproof;
-          update();
-        }, function (exprc, backwards) {
-          if (backwards) {
-            //$j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
-          }
-          else {
-            //$j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
-          }
-        });
-      }
-      
-      bddf.AnalyzeProperties(data, varmap, null);
-      update();
-    }
-    else {
-      data.msg = "SAT fallback can only handle expressions that result in true or false";
-      update();
-    }
+}
+
+function formatElem(value) {
+  switch (vectorFormattingMode.base) {
+    case "auto":
+      return formatConstant(value);
   }
+}
+
+function formatVec(assignment, idx) {
+  var part = assignment.slice(idx * 8, idx * 8 + 8);
+  var sw = vectorFormattingMode.sw;
+  var buf = part.buffer;
+  var arr = null;
+  switch (sw) {
+    case 8:
+      arr = new Uint8Array(buf);
+      break;
+    case 16:
+      arr = new Uint16Array(buf);
+      break;
+    case 32:
+      arr = new Uint32Array(buf);
+      break;
+    default:
+      debugger;
+      break;
+  }
+
+  if (vectorFormattingMode.rev) {
+    arr.reverse();
+  }
+
+  var brk = 7;
+  if (sw == 16)
+    brk = 3;
+  if (sw == 32)
+    brk = 1;
+  if (sw == 64)
+    brk = 0;
+
+  var upper = vectorFormattingMode.upper ? arr.length : (arr.length / 2);
+  var res = formatElem(arr[i]);
+  for (var i = 1; i < upper; i++) {
+    if ((i & brk) == 0)
+      res += ", " + formatElem(arr[i]);
+    else
+      res += ",&nbsp;" + formatElem(arr[i]);
+  }
+  return res;
 }
 
 function formatVariableAssignment(assignment, varmap_in, ext_examples) {
@@ -150,7 +120,7 @@ function formatVariableAssignment(assignment, varmap_in, ext_examples) {
     var row = $j('<tr></tr>');
     row.append($j('<td>' + varmap[i] + '</td>'));
     row.append("=");
-    row.append($j('<td>' + formatConstant(assignment[i]) + '</td>'));
+    row.append($j('<td>' + formatVec(assignment, i) + '</td>'));
     table.append(row);
   }
   return table;
@@ -178,7 +148,7 @@ function formatVariableAssignments(assignment, varmap_in, ext_examples) {
       break;
     var row = $j('<tr/>');
     for (var i = 0; i < varmap.length; i++) {
-      var col = $j('<td>' + formatConstant(asign[i]) + '</td>');
+      var col = $j('<td>' + formatVec(asign, i) + '</td>');
       row.append(col);
     }
     table.append(row);
@@ -196,7 +166,7 @@ function formatVariableAssignments(assignment, varmap_in, ext_examples) {
           break;
         var row = $j('<tr/>');
         for (var i = 0; i < varmap.length; i++) {
-          row.append($j('<td>' + formatConstant(asign[i]) + '</td>'));
+          row.append($j('<td>' + formatVec(asign, i) + '</td>'));
         }
         table.append(row);
       }
@@ -293,77 +263,6 @@ function formatexpr(expr, ix, varmap) {
     return res.append(cond).append(" ? ").append(t).append(" : ").append(f);
   }
   debugger;
-}
-function parseproofstep(proofstep, ix, varmap) {
-  varmap[0];
-  var container = $j('<div/>').addClass("proofj");
-  container.attr("id", "proofj" + (ix + 1));
-  var explanation = $j('<div/>').html(proofstep[0]).contents();
-  if (proofstep[2]) {
-    var ex = escape(proofstep[2].print(varmap));
-    explanation.filter('.replace').attr('href', 'index.html?q=' + ex);
-  }
-  container.append(explanation);
-  if (proofstep[1]) {
-    container.append(", ");
-    var pattern = formatexpr(["#",-1,proofstep[1].l], ix, varmap);
-    var patternr = formatexpr(["#",-1,proofstep[1].r], ix + 2, varmap);
-    if (proofstep[1].l.type == 'bin' && precedence(proofstep[1].l.op) <= precedence(proofstep[1].op))
-      pattern = $j("<span />").append("(").append(pattern).append(")");
-    if (proofstep[1].r.type == 'bin' && precedence(proofstep[1].r.op) <= precedence(proofstep[1].op))
-      patternr = $j("<span />").append("(").append(patternr).append(")");
-    var patternholder = $j('<span/>');
-    patternholder.css('font-family', 'Consolas,monospace');
-    patternholder.append(pattern).append(" " + ops[proofstep[1].op] + " ").append(patternr);
-    container.append(patternholder);
-    pattern.find('span').each(function(index, elem) {
-      var cl = "." + $j(elem).attr('class');
-      var color = randomColor();
-      $j(elem).hover(function() {
-        $j("#proofj" + ix + ", #proofj" + (ix + 1)).find(cl).stop().animate({backgroundColor:color}, 300);
-      }, function() {
-        $j(cl).find('span').andSelf().stop().css("background-color", "");
-      });
-    });
-    patternr.find('span').each(function(index, elem) {
-      var cl = "." + $j(elem).attr('class');
-      var color = randomColor();
-      $j(elem).hover(function() {
-        $j("#proofj" + (ix + 1) + ", #proofj" + (ix + 2)).find(cl).stop().animate({backgroundColor:color}, 300);
-      }, function () {
-        $j(cl).find('span').andSelf().stop().css("background-color", "");
-      });
-    });
-  }
-  return container;
-}
-function formatproof(parent, proofarray, varmap) {
-  varmap[0];
-  var assocsteps = $j('#explicitparens').is(':checked');
-  var proofcontainer = $j('<p/>');
-  proofcontainer.append($j('<p>proof:</p>'));
-  var havesteps = false;
-  for (var i = 0; i < proofarray.length; i++) {
-    if (i % 2 == 0) {
-      var container = $j('<div/>');
-      container.attr("id", "proofj" + i);
-      var exprholder = $j('<b/>');
-      exprholder.css('font-family', 'Consolas,monospace');
-      container.append(exprholder.append(formatexpr(proofarray[i], i, varmap)));
-      proofcontainer.append(container);
-    }
-    else {
-      if (!assocsteps && proofarray[i][0] && proofarray[i][0].indexOf('associativity') == 0)
-        i++;
-      else {
-        proofcontainer.append(parseproofstep(proofarray[i], i - 1, varmap));
-        havesteps = true;
-      }
-    }
-  }
-  $j('#displayoptions').show();
-  if (havesteps)
-    parent.append(proofcontainer);
 }
 
 var data = null;
@@ -479,79 +378,71 @@ function update() {
   }
 }
 
-function doquery(f) {
-  if (f === undefined || f == null || f.length == 0)
+function doquery(p, q) {
+  if (p === undefined || p == null || p.length == 0 ||
+      q === undefined || q == null || q.length == 0)
     return;
   $j('#displayoptions').hide();
-  $j('#q').val(decodeURIComponent(f.replace(/\+/g, " ")));
+  $j('#ssep').val(decodeURIComponent(p.replace(/\+/g, " ")));
+  $j('#sseq').val(decodeURIComponent(q.replace(/\+/g, " ")));
   $j('#resultDiv').empty();
   $j('#resultDiv').text('Waiting for result...');
-  performQuery(decodeURIComponent(f.replace(/\+/g, " ")));
+  performQuery(decodeURIComponent(p.replace(/\+/g, " ")), decodeURIComponent(q.replace(/\+/g, " ")));
 }
 $j(document).ready(function(){
-  if (ls.get('explicitparens'))
-    $j('#explicitparens').prop('checked', ls.get('explicitparens') == 2);
-  $j(':checkbox').change(function() {
-    ls.set('explicitparens', $j('#explicitparens').is(':checked') ? 2 : 1);
+  $j('#format_sw').on('change', function() {
+    vectorFormattingMode.sw = parseInt($j('#format_sw').find(':selected').val());
     update();
   });
-  doquery(urlParam('q'));
+  $j('#format_upper').on('change', function() {
+    vectorFormattingMode.upper = $j('#format_upper').find(':selected').val() == "1";
+    update();
+  });
+  doquery(urlParam('p'), urlParam('q'));
 });
 </script>
 </head>
 <body>
-<div id="header"><h1>haroldbot 2</h1>
-(due to infrastructure changes this is an entirely new version with new bugs)<br/><br/>
+<div id="header"><h1>haroldbot 2 (SSE mode)</h1>
 </div>
 <div id="querybar">
   <div id="querybox">
     <form method="get">
-      <input type="text" placeholder="query" name="q" id="q" autofocus/>
-      <input type="submit" value="ask" id="submit"/>
+      <div>
+        <textarea placeholder="lhs expression" name="p" id="ssep" autofocus></textarea>
+        <span id="sse-eq-sign">==</span>
+        <textarea placeholder="rhs expression" name="q" id="sseq" ></textarea>
+      </div>
+      <input type="submit" value="compare" id="ssesubmit"/>
     </form>
   </div>
 </div>
 <div id="page">
-  <div id="displayoptions" style="display:none">
-    <label><input type="checkbox" id="explicitparens" />show more parentheses</label>
-  </div>
   <div id="query-printback"></div>
+  <div id="formattingsettings">
+    <label for="format_sw">Lane width</label>
+    <select id="format_sw">
+      <option value="8">8</option>
+      <option value="16">16</option>
+      <option value="32">32</option>
+    </select></br>
+    <label for="format_upper">Upper 128bits</label>
+    <select id="format_upper">
+      <option value="0">don't show</option>
+      <option value="1">show</option>
+    </select>
+  </div>
   <div id="resultDiv"></div>
   <div id="examples">
     <h2>Examples</h2>
-    <p>Just do some math<br/>
-      &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=1000%20%2B%2015%20%26%20-16"><tt>1000 + 15 &amp; -16</tt></a></p>
-    <p>Find out whether two expressions are equivalent<br/>
-      &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=let+x+%3D+a+%2B+b+in+%28x+<+a%29+%3D%3D+%28x+<+max%28a%2C+b%29%29"><tt>let x = a + b in (x &lt; a) == (x &lt; max(a, b))</tt></a></p></p>
-    <p><i>Prove</i> that two expressions are equivalent<br/>
-      &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=a+%5E+%28%28a+%5E+b%29+%26+mask%29+%3D%3D+%28a+%26+~mask%29+%7C+%28b+%26+mask%29"><tt>a ^ ((a ^ b) &amp; mask) == (a &amp; ~mask) | (b &amp; mask)</tt></a></p></p>
-    <p>Find when two expressions are equal and when they are not<br/>
-      &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=x+%3D%3D+-x"><tt>x == -x</tt></a></p>
+
   </div>
   <div>
     <h2>Notes</h2>
-    <p>== binds less strongly than bitwise operators.</p>
-    <p>Finding proofs can be slow and often nothing is found at all.</p>
-    <p>The BDD structural matcher has not been fully ported yet.</p>
-    <p>SAT fallback now exists, using MiniSat compiled with Emscripten. This is brand new so expect bugs (not due to MiniSat, but for example I don't entirely trust my circuit builder and circuit-to-SAT converter). haroldbot should now give up early on (some) multiplications that would create a gigantic BDD.</p>
-    <p>In general, there <i>are</i> many bugs.</p>
-    <p>Since everything happens client-side now, I don't get automatic bug reports. Please <a href="https://github.com/IJzerbaard/haroldbot/issues">open an issue</a> or contact me (eg via email or twitter @HaroldAptroot).</p>
-  </div>
-  <div>
-    <h2>List of available functions</h2>
-    <ul>
-      <li><tt>min = min_u, min_s</tt></li>
-      <li><tt>max = max_u, max_s</tt></li>
-      <li><tt>popcnt</tt></li>
-      <li><tt>nlz</tt> number of leading zeroes</li>
-      <li><tt>ntz</tt> number of trailing zeroes</li>
-      <li><tt>reverse</tt> bit-reversal</li>
-      <li><tt>hmul = hmul_u, hmul_s</tt> high half of product</li>
-    </ul>
-  </div>
-  <div id="exprdebug">
-    <div id="exprdebug0"></div>
-    <div id="exprdebug1"></div>
+    <p>Anything that isn't an vector must be a literal constant, eg <tt>_mm_shuffle_epi32(x, y)</tt> won't work. This is not an inherent limitation, it's just anonying to make it work because I'd have to care about the type, at least the width.</p>
+    <p>Some functions may be missing. Floating point is too complicated. Loads and stores are not really possible with the current solver architecture, maybe some day. Functions that result in a scalar are possible but annoying, again due to types. I want to support <tt>_mm_movemask_epi8</tt> and extractions at some point. If anything else is missing, that's a bug.</p>
+    <p>Has not gone through a lot of testing, in particular the definitions of some functions may be wrong.</p>
+    <p>Since everything happens client-side, I don't get automatic bug reports. Please <a href="https://github.com/IJzerbaard/haroldbot/issues">open an issue</a> or contact me (eg via email or twitter @HaroldAptroot).</p>
   </div>
 </div>
 <div id="footer">

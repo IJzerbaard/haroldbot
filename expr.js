@@ -33,6 +33,11 @@ Node.prototype.toCircuitFunc = function() {
 	return null;
 };
 
+Node.prototype.toSSECircuitFunc = function() {
+	alert("This object should not exist");
+	return null;
+};
+
 Node.prototype.removeDummy = function() {
 	return this;
 };
@@ -56,6 +61,11 @@ Node.prototype.analyze = function(env) {
 };
 
 Node.prototype.eval = function(vars) {
+	alert("This object should not exist");
+	return null;
+};
+
+Node.prototype.sseeval = function(vars) {
 	alert("This object should not exist");
 	return null;
 };
@@ -91,6 +101,10 @@ Constant.prototype.toCircuitFunc = function() {
 	return CFunction.constant(this.value);
 };
 
+Constant.prototype.toSSECircuitFunc = function() {
+	return this.value;
+};
+
 Constant.prototype.copy = function() {
 	return new Constant(this.value);
 };
@@ -103,6 +117,10 @@ Constant.prototype.analyze = function(env) {
 };
 
 Constant.prototype.eval = function(vars) {
+	return this.value;
+};
+
+Constant.prototype.sseeval = function(vars) {
 	return this.value;
 };
 
@@ -138,6 +156,10 @@ Variable.prototype.toCircuitFunc = function() {
 	return CFunction.argument(this.index);
 };
 
+Variable.prototype.toSSECircuitFunc = function() {
+	return SSECFunction.argument(this.index);
+};
+
 Variable.prototype.copy = function() {
 	return new Variable(this.index);
 };
@@ -149,6 +171,10 @@ Variable.prototype.analyze = function(env) {
 };
 
 Variable.prototype.eval = function(vars) {
+	return vars[this.index];
+};
+
+Variable.prototype.sseeval = function(vars) {
 	return vars[this.index];
 };
 
@@ -824,6 +850,11 @@ Fun.prototype.toCircuitFunc = function() {
 	return null;
 };
 
+Fun.prototype.toSSECircuitFunc = function() {
+	var a = this.args.map(function(x) { return x.toSSECircuitFunc(); });
+	return SSECFunction[this.fun]( ... a);
+};
+
 Fun.prototype.removeDummy = function() {
 	this.args = this.args.map(function(x) { return x.removeDummy(); });
 	return this;
@@ -853,4 +884,12 @@ Fun.prototype.analyze = function(env) {
 Fun.prototype.eval = function(vars) {
 	debugger;
 	throw "not implemented";
+};
+
+Fun.prototype.sseeval = function(vars) {
+	if (this.fun.startsWith("_mm_") ||
+		this.fun.startsWith("_mm256_")) {
+		var a = this.args.map(function(x) { return x.sseeval(vars); });
+		return SSECFunction[this.fun]( ... a);
+	}
 };
