@@ -262,8 +262,8 @@ Unary.prototype.removeDummy = function() {
 	return this;
 };
 
-Unary.prototype.constantFold = function() {
-	var inner = this.value.constantFold();
+Unary.prototype.constantFold = function(nrec) {
+	var inner = nrec ? this.value : this.value.constantFold(false);
 	if (inner.type == 'const') {
 		switch (this.op) {
 			case "dummy": return this;
@@ -551,9 +551,9 @@ Binary.prototype.removeDummy = function() {
 	return this;
 };
 
-Binary.prototype.constantFold = function() {
-	var l = this.l.constantFold();
-	var r = this.r.constantFold();
+Binary.prototype.constantFold = function(nrec) {
+	var l = nrec ? this.l : this.l.constantFold(false);
+	var r = nrec ? this.r : this.r.constantFold(false);
 	if (l.type == 'const' && r.type == 'const') {
 		switch (this.op) {
 			default:
@@ -738,10 +738,10 @@ Ternary.prototype.removeDummy = function() {
 	return this;
 };
 
-Ternary.prototype.constantFold = function() {
-	var cond = this.cond.constantFold();
-	var t = this.t.constantFold();
-	var f = this.f.constantFold();
+Ternary.prototype.constantFold = function(nrec) {
+	var cond = nrec ? this.cond : this.cond.constantFold(false);
+	var t = nrec ? this.t : this.t.constantFold(false);
+	var f = nrec ? this.f : this.f.constantFold(false);
 	if (cond.type == 'const' &&
 		t.type == 'const' &&
 		f.type == 'const') {
@@ -856,12 +856,20 @@ Fun.prototype.toSSECircuitFunc = function() {
 };
 
 Fun.prototype.removeDummy = function() {
-	this.args = this.args.map(function(x) { return x.removeDummy(); });
+	var args = this.args.map(function(x) { return x.removeDummy(); });
+	for (var i = 0; i < args.length; i++) {
+		if (args[i].id != this.args[i].id)
+			return new Fun(this.fun, args);
+	}
 	return this;
 };
 
-Fun.prototype.constantFold = function() {
-	this.args = this.args.map(function(x) { return x.constantFold(); });
+Fun.prototype.constantFold = function(nrec) {
+	var args = this.args.map(function(x) { return nrec ? x : x.constantFold(false); });
+	for (var i = 0; i < args.length; i++) {
+		if (args[i].id != this.args[i].id)
+			return new Fun(this.fun, args);
+	}
 	return this;
 };
 
