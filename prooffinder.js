@@ -714,23 +714,23 @@ function ProofFinder(op) {
 			true, "multiplication distributes over subtraction", ,
 		],
 		[
-			["max_u", [a(0)], ["min_u", [a(1)], [a(2)]]],
-			["min_u", ["max_u", [a(0)], [a(1)]], ["max_u", [a(0)], [a(2)]]],
+			["$max_u", [a(0)], ["$min_u", [a(1)], [a(2)]]],
+			["$min_u", ["$max_u", [a(0)], [a(1)]], ["$max_u", [a(0)], [a(2)]]],
 			true, "maximum distributes over minimum", ,
 		],
 		[
-			["min_u", ["max_u", [a(0)], [a(1)]], ["max_u", [a(2)], [a(1)]]],
-			["max_u", ["min_u", [a(0)], [a(2)]], [a(1)]],
+			["$min_u", ["$max_u", [a(0)], [a(1)]], ["$max_u", [a(2)], [a(1)]]],
+			["$max_u", ["$min_u", [a(0)], [a(2)]], [a(1)]],
 			true, "maximum distributes over minimum", ,
 		],
 		[
-			["max_s", [a(0)], ["min_s", [a(1)], [a(2)]]],
-			["min_s", ["max_s", [a(0)], [a(1)]], ["max_s", [a(0)], [a(2)]]],
+			["$max_s", [a(0)], ["$min_s", [a(1)], [a(2)]]],
+			["$min_s", ["$max_s", [a(0)], [a(1)]], ["$max_s", [a(0)], [a(2)]]],
 			true, "maximum distributes over minimum", ,
 		],
 		[
-			["min_s", ["max_s", [a(0)], [a(1)]], ["max_s", [a(2)], [a(1)]]],
-			["max_s", ["min_s", [a(0)], [a(2)]], [a(1)]],
+			["$min_s", ["$max_s", [a(0)], [a(1)]], ["$max_s", [a(2)], [a(1)]]],
+			["$max_s", ["$min_s", [a(0)], [a(2)]], [a(1)]],
 			true, "maximum distributes over minimum", ,
 		],
 		[
@@ -991,6 +991,47 @@ function ProofFinder(op) {
 			[">=u", ["^", [a(0)], [0x80000000]], ["^", [a(1)], [0x80000000]]],
 			true, "unsigned/signed comparison conversion", ,
 		],
+		// relate signed and unsigned max and min
+		[
+			["^", ["$min_u", ["^", [a(0)], [0x80000000]], ["^", [a(1)], [0x80000000]]], [0x80000000]],
+			["$min_s", [a(0)], [a(1)]],
+			false, "convert unsigned/signed ordering", ,
+		],
+		[
+			["^", ["$max_u", ["^", [a(0)], [0x80000000]], ["^", [a(1)], [0x80000000]]], [0x80000000]],
+			["$max_s", [a(0)], [a(1)]],
+			false, "convert unsigned/signed ordering", ,
+		],
+		[
+			["^", ["$min_s", ["^", [a(0)], [0x80000000]], ["^", [a(1)], [0x80000000]]], [0x80000000]],
+			["$min_u", [a(0)], [a(1)]],
+			false, "convert unsigned/signed ordering", ,
+		],
+		[
+			["^", ["$max_s", ["^", [a(0)], [0x80000000]], ["^", [a(1)], [0x80000000]]], [0x80000000]],
+			["$max_u", [a(0)], [a(1)]],
+			false, "convert unsigned/signed ordering", ,
+		],
+		[
+			["~", ["$min_u", [a(0)], [a(1)]]],
+			["$max_u", ["~", [a(0)]], ["~", [a(1)]]],
+			true, "complemented minimum is maximum of complements", "maximum of complements is complemented minimum",
+		],
+		[
+			["~", ["$min_s", [a(0)], [a(1)]]],
+			["$max_s", ["~", [a(0)]], ["~", [a(1)]]],
+			true, "complemented minimum is maximum of complements", "maximum of complements is complemented minimum",
+		],
+		[
+			["~", ["$max_u", [a(0)], [a(1)]]],
+			["$min_u", ["~", [a(0)]], ["~", [a(1)]]],
+			true, "complemented maximum is minimum of complements", "minimum of complements is complemented maximum",
+		],
+		[
+			["~", ["$max_s", [a(0)], [a(1)]]],
+			["$min_s", ["~", [a(0)]], ["~", [a(1)]]],
+			true, "complemented maximum is minimum of complements", "minimum of complements is complemented maximum",
+		],
 		// add/sub
 		[
 			["+", ["-", [a(0)], [a(1)]], [a(1)]],
@@ -1052,11 +1093,11 @@ function ProofFinder(op) {
 		],
 		[
 			["&", [a(0)], [a(1)]],
-			["min_u", [a(0)], [a(1)]],
+			["$min_u", [a(0)], [a(1)]],
 			false, "and with something can only reset bits", , , "<u"
 		],
 		[
-			["max_u", [a(0)], [a(1)]],
+			["$max_u", [a(0)], [a(1)]],
 			["|", [a(0)], [a(1)]],
 			false, "or with something can only set bits", , , "<u"
 		],
@@ -1066,12 +1107,12 @@ function ProofFinder(op) {
 			false, "if xor sets a bit then or sets it as well", , , "<u"
 		],
 		[
-			["min_u", [a(0)], [a(1)]],
-			["max_u", [a(0)], [a(1)]],
+			["$min_u", [a(0)], [a(1)]],
+			["$max_u", [a(0)], [a(1)]],
 			false, "the minimum is no more than the maximum", , , "<u"
 		],
 		[
-			["min_u", [a(0)], [a(1)]],
+			["$min_u", [a(0)], [a(1)]],
 			[a(0)],
 			false, "the minimum is no more than its inputs", , , "<u"
 		],
@@ -1089,7 +1130,7 @@ function ProofFinder(op) {
 			false, "or with something can only set bits", ,
 		],
 		[
-			["max_u", [a(0)], [a(1)]],
+			["$max_u", [a(0)], [a(1)]],
 			[a(0)],
 			false, "the maximum is at least as big as its inputs", ,
 		],
@@ -1134,6 +1175,19 @@ function ProofFinder(op) {
 
 	function rev_rule(rule) {
 		return [rule[1], rule[0], false, rule[4], rule[3], rule[5], rule[6], rule[7]];
+	}
+
+	function commute_rule(rule) {
+		var c0 = rule[0];
+		if (c0.length == 3)
+			c0 = [c0[0], c0[2], c0[1]];
+		var c1 = rule[1];
+		if (c1.length == 3)
+			c1 = [c1[0], c1[2], c1[1]];
+		var s = rule.slice();
+		s[0] = c0;
+		s[1] = c1;
+		return s;
 	}
 
 	var numrules = rules.length;
@@ -1182,7 +1236,7 @@ function ProofFinder(op) {
 			}
 			else if (from[1].length == 3) {
 				// unary with binary as operand
-				this.Rules[(from[0] + 1 & 31) + ((from[1][0] + 5 & 32) << 5)].push(rule);
+				this.Rules[(from[0] + 1 & 31) + ((from[1][0] + 5 & 31) << 5)].push(rule);
 			}
 			else if (from[1].length == 4) {
 				// ternary as operand
@@ -1222,8 +1276,21 @@ function ProofFinder(op) {
 						break;
 				}
 			}
+			var had = new Int32Array(0x8000 >> 5);
 			for (var p = 0; p < 0x8000; p = (p | mask) + 1 & ~mask) {
-				this.Rules[p | bits].push(rule);
+				var idx = p | bits;
+				this.Rules[idx].push(rule);
+				had[idx >> 5] |= 1 << idx;
+			}
+			if (commutative[from[0]]) {
+				var mask2 = (mask & 0x1F) | ((mask & 0x3E0) << 5) | ((mask >> 5) & 0x3E0);
+				var bits2 = (bits & 0x1F) | ((bits & 0x3E0) << 5) | ((bits >> 5) & 0x3E0);
+				var commrule = commute_rule(rule);
+				for (var p = 0; p < 0x8000; p = (p | mask2) + 1 & ~mask2) {
+					var idx = p | bits2;
+					if ((had[idx >> 5] & (1 << idx)) == 0 && false)
+						this.Rules[idx].push(commrule);
+				}
 			}
 		}
 		else if (from.length == 4) {
@@ -1286,7 +1353,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			htable[h] = [];
 		var subtable = htable[h];
 		for (var i = 0; i < subtable.length; i += 2) {
-			if (key.equals(subtable[i])) {
+			if (key.equals2(subtable[i])) {
 				if (subtable[i + 1][4] > val[4]) {
 					subtable[i + 1] = val;
 					return true;
@@ -1305,7 +1372,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		if (subtable == undefined)
 			return null;
 		for (var i = 0; i < subtable.length; i += 2) {
-			if (key.equals(subtable[i]))
+			if (key.equals2(subtable[i]))
 				return subtable[i + 1];
 		}
 		return null;
@@ -1387,7 +1454,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				// any
 				var any_index = pattern[0].any;
 				if (wildcards[any_index] != undefined) {
-					if (expr.equals(wildcards[any_index])) {
+					if (expr.equals2(wildcards[any_index])) {
 						if (res_pattern) {
 							res_pattern[0] = new Variable(~any_index);
 							res_pattern[0].id = expr.id;
@@ -1500,7 +1567,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				vr.type == 'un' && vr.op == to[0] &&
 				vr.value.type == 'un' && vr.value.op == to[0]))
 				return null;
-			var res = new Unary(to[0], vr).constantFold();
+			var res = new Unary(to[0], vr).constantFold(true);
 			if (res_pattern) {
 				res_pattern[0] = new Unary(to[0], res_pattern[0]);
 				res_pattern[0].id = res.id;
@@ -1512,7 +1579,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			var r_res_pattern = res_pattern ? [null] : null;
 			var rr = rewrite(to[2], wildcards, rev, r_res_pattern);
 			if (rr == null) return null;
-			var res = new Binary(to[0], lr, rr).constantFold();
+			var res = new Binary(to[0], lr, rr).constantFold(true);
 			if (res_pattern) {
 				res_pattern[0] = new Binary(to[0], res_pattern[0], r_res_pattern[0]);
 				res_pattern[0].id = res.id;
@@ -1527,7 +1594,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			var f_res_pattern = res_pattern ? [null] : null;
 			var fr = rewrite(to[3], wildcards, rev, f_res_pattern);
 			if (fr == null) return null;
-			var res = new Ternary(cr, tr, fr).constantFold();
+			var res = new Ternary(cr, tr, fr).constantFold(true);
 			if (res_pattern) {
 				res_pattern[0] = new Ternary(res_pattern[0], t_res_pattern[0], f_res_pattern[0]);
 				res_pattern[0].id = res.id;
@@ -1679,15 +1746,17 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			});
 			// construct normalized trees
 			var trees = [];
-			var res = new Binary(op, args[0], args[1]);
+			var res = new Binary(op, args[0], args[1]).constantFold(true);
 			for (var i = 2; i < args.length; i++)
-				res = new Binary(op, res, args[i]);
-			trees.push(res);
+				res = new Binary(op, res, args[i]).constantFold(true);
+			if (!res.equals2(root))
+				trees.push(res);
 
-			res = new Binary(op, args[args.length - 2], args[args.length - 1]);
+			res = new Binary(op, args[args.length - 2], args[args.length - 1]).constantFold(true);
 			for (var i = args.length - 3; i >= 0; i--)
-				res = new Binary(op, args[i], res);
-			trees.push(res);
+				res = new Binary(op, args[i], res).constantFold(true);
+			if (!res.equals2(root))
+				trees.push(res);
 
 			for (var i = 0; i < trees.length; i++) {
 				if (getPattern)
@@ -1699,9 +1768,9 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 
 		if (root.type != 'const') {
 			if (getPattern)
-				results.push([, root.constantFold(), [,,,"constant folding", "constant folding"]]);
+				results.push([, root, [,,,"constant folding", "constant folding"]]);
 			else
-				results.push([parent, root.constantFold(), null, backwards, parent[4] + 1, null]);
+				results.push([parent, root, null, backwards, parent[4] + 1, null]);
 		}
 	}
 
@@ -1878,7 +1947,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			applyRules(f, forwardSet, [,,,,0], false, rules, true);
 			var possibleExplanations = [];
 			for (var k = 0; k < forwardSet.length; k++) {
-				if (forwardSet[k] && t.equals(forwardSet[k][1])) {
+				if (forwardSet[k] && t.equals2(forwardSet[k][1])) {
 					explanation = forwardSet[k];
 					switch (explanation[2][5]) {
 						case null:
@@ -1907,7 +1976,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				var backwardSet = [];
 				applyRules(t, backwardSet, [,,,,0], false, rules, true);
 				for (var k = 0; k < backwardSet.length; k++) {
-					if (backwardSet[k] && f.equals(backwardSet[k][1])) {
+					if (backwardSet[k] && f.equals2(backwardSet[k][1])) {
 						explanation = backwardSet[k];
 						switch (explanation[2][5]) {
 							case null:
