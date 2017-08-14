@@ -298,6 +298,9 @@ function parseproofstep(proofstep, ix, varmap) {
   }
   container.append(explanation);
   if (proofstep[1]) {
+    var oldparens = parens;
+    if (proofstep[0].indexOf("associativity") == 0)
+      parens = true;
     container.append(", ");
     var pattern, patternr;
     if (proofstep[1].op == 20) {
@@ -307,6 +310,7 @@ function parseproofstep(proofstep, ix, varmap) {
     else {
       pattern = formatexpr(["#",-1,proofstep[1]], ix, varmap);
     }
+    parens = oldparens;
     if (proofstep[1].l.type == 'bin' && precedence(proofstep[1].l.op) <= precedence(proofstep[1].op))
       pattern = $j("<span />").append("(").append(pattern).append(")");
     if (patternr && proofstep[1].r.type == 'bin' && precedence(proofstep[1].r.op) <= precedence(proofstep[1].op))
@@ -342,7 +346,7 @@ function parseproofstep(proofstep, ix, varmap) {
 }
 function formatproof(parent, proofarray, varmap) {
   varmap[0];
-  var assocsteps = $j('#explicitparens').is(':checked');
+  var assocsteps = true; //$j('#explicitparens').is(':checked');
   var proofcontainer = $j('<p/>');
   proofcontainer.append($j('<p>proof:</p>'));
   var havesteps = false;
