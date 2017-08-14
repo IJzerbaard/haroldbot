@@ -67,6 +67,11 @@ function ProofFinder(op) {
 			["&", [a(0)], ["&", [a(1)], [a(2)]]],
 			true, "associativity of and", ,
 		],
+		[
+			["&", [a(0)], [a(1)]],
+			["&", [a(1)], [a(0)]],
+			false, "commutativity of and", ,
+		],
 		// properties of or
 		[
 			["|", [a(0)], [0]],
@@ -109,6 +114,11 @@ function ProofFinder(op) {
 			true, "associativity of or", ,
 		],
 		[
+			["|", [a(0)], [a(1)]],
+			["|", [a(1)], [a(0)]],
+			false, "commutativity of or", ,
+		],
+		[
 			["|", ["^", [a(0)], [a(1)]], [a(1)]],
 			["|", [a(0)], [a(1)]],
 			false, "changed bits are masked", ,
@@ -137,11 +147,6 @@ function ProofFinder(op) {
 		[
 			["^", [a(0)], [a(0)]],
 			[0],
-			false, "xor with self", ,
-		],
-		[
-			["^", [a(0)], ["^", [a(1)], [a(0)]]],
-			[a(1)],
 			false, "xor with self", ,
 		],
 		[
@@ -188,6 +193,11 @@ function ProofFinder(op) {
 			["^", ["^", [a(0)], [a(1)]], [a(2)]],
 			["^", [a(0)], ["^", [a(1)], [a(2)]]],
 			true, "associativity of xor", ,
+		],
+		[
+			["^", [a(0)], [a(1)]],
+			["^", [a(1)], [a(0)]],
+			false, "commutativity of xor", ,
 		],
 		[
 			["^", ["~", [a(0)]], [a(1)]],
@@ -254,6 +264,11 @@ function ProofFinder(op) {
 			["+", ["+", [a(0)], [a(1)]], [a(2)]],
 			["+", [a(0)], ["+", [a(1)], [a(2)]]],
 			true, "associativity of addition", ,
+		],
+		[
+			["+", [a(0)], [a(1)]],
+			["+", [a(1)], [a(0)]],
+			false, "commutativity of addition", ,
 		],
 		// properties of subtraction
 		[
@@ -361,6 +376,11 @@ function ProofFinder(op) {
 		],
 		[
 			["$min_u", [a(0)], [a(1)]],
+			["$min_u", [a(1)], [a(0)]],
+			false, "commutativity of minimum", ,
+		],
+		[
+			["$min_u", [a(0)], [a(1)]],
 			["?", ["<u", [a(0)], [a(1)]], [a(0)], [a(1)]],
 			true, "definition of minimum", ,
 		],
@@ -384,6 +404,11 @@ function ProofFinder(op) {
 			["$min_s", [a(0)], ["$min_s", [a(1)], [a(2)]]],
 			["$min_s", ["$min_s", [a(0)], [a(1)]], [a(2)]],
 			true, "associativity of minimum", ,
+		],
+		[
+			["$min_s", [a(0)], [a(1)]],
+			["$min_s", [a(1)], [a(0)]],
+			false, "commutativity of minimum", ,
 		],
 		[
 			["$min_s", [a(0)], [a(1)]],
@@ -413,6 +438,11 @@ function ProofFinder(op) {
 		],
 		[
 			["$max_u", [a(0)], [a(1)]],
+			["$max_u", [a(1)], [a(0)]],
+			false, "commutativity of maximum", ,
+		],
+		[
+			["$max_u", [a(0)], [a(1)]],
 			["?", [">u", [a(0)], [a(1)]], [a(0)], [a(1)]],
 			true, "definition of maximum", ,
 		],
@@ -436,6 +466,11 @@ function ProofFinder(op) {
 			["$max_s", [a(0)], ["$max_s", [a(1)], [a(2)]]],
 			["$max_s", ["$max_s", [a(0)], [a(1)]], [a(2)]],
 			true, "associativity of maximum", ,
+		],
+		[
+			["$max_s", [a(0)], [a(1)]],
+			["$max_s", [a(1)], [a(0)]],
+			false, "commutativity of maximum", ,
 		],
 		[
 			["$max_s", [a(0)], [a(1)]],
@@ -463,6 +498,11 @@ function ProofFinder(op) {
 			["*", ["*", [a(0)], [a(1)]], [a(2)]],
 			["*", [a(0)], ["*", [a(1)], [a(2)]]],
 			true, "associativity of multiplication", ,
+		],
+		[
+			["*", [a(0)], [a(1)]],
+			["*", [a(1)], [a(0)]],
+			false, "commutativity of multiplication", ,
 		],
 		[
 			["*", [a(0)], [1]],
@@ -598,6 +638,11 @@ function ProofFinder(op) {
 			["==", ["$ntz", [a(0)]], [32]],
 			["==", [a(0)], [0]],
 			false, "only 0 has 32 trailing zeroes", ,
+		],
+		[
+			["==", [a(0)], [a(1)]],
+			["==", [a(1)], [a(0)]],
+			false, "commutativity of equality", ,
 		],
 		// properties of <s
 		[
@@ -913,6 +958,22 @@ function ProofFinder(op) {
 			["$reverse", ["<=s", [a(0)], [a(1)]]],
 			["<=s", [a(0)], [a(1)]],
 			false, "reversing a boolean has no effect", ,
+		],
+		// binomials
+		[
+			["*", ["+", [a(0)], [a(1)]], ["+", [a(2)], [a(3)]]],
+			["+", ["*", [a(0)], [a(2)]], ["+", ["*", [a(0)], [a(3)]], ["+", ["*", [a(1)], [a(2)]], ["&", [a(1)], [a(3)]]]]],
+			true, "work out product of binomials", "factor into binomials",
+		],
+		[
+			["&", ["^", [a(0)], [a(1)]], ["^", [a(2)], [a(3)]]],
+			["^", ["&", [a(0)], [a(2)]], ["^", ["&", [a(0)], [a(3)]], ["^", ["&", [a(1)], [a(2)]], ["&", [a(1)], [a(3)]]]]],
+			true, "work out product of binomials (GF(2))", "factor into binomials (GF(2))",
+		],
+		[
+			["&", ["^", [a(0)], [a(1)]], ["^", [a(2)], [a(3)]]],
+			["^", ["^", ["^", ["&", [a(0)], [a(2)]], ["&", [a(0)], [a(3)]]], ["&", [a(1)], [a(2)]]], ["&", [a(1)], [a(3)]]],
+			true, "work out product of binomials (GF(2))", "factor into binomials (GF(2))",
 		],
 		// top bit addition
 		[
@@ -1619,7 +1680,17 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		return null;
 	}
 
+	var opstr = [];
+	opstr[1] = "and";
+	opstr[2] = "or";
+	opstr[55] = "min";
+	opstr[56] = "min";
+	opstr[57] = "max";
+	opstr[58] = "max";
+
 	function applyRules(root, results, parent, backwards, allrules, getPattern) {
+		"use strict";
+
 		var patternNode = getPattern ? [null] : null;
 		switch (root.type) {
 			case 'const':
@@ -1737,32 +1808,82 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				else
 					args.push(root);
 			}
+			function rebuildWithout(root, args, op, x, out, idx) {
+				if (!idx) idx = { argindex: 0 };
+				if (root.type == 'bin' && root.op == op) {
+					var l = rebuildWithout(root.l, args, op, x, out, idx);
+					var r = rebuildWithout(root.r, args, op, x, out, idx);
+					if (l == null) return r;
+					if (r == null) return l;
+					return new Binary(op, l, r);
+				}
+				else {
+					var a = args[idx.argindex++];
+					var r = a == null ? a : a.copy();
+					if (a != null && a.id == x)
+						out[0] = r.id;
+					return r;
+				}
+			}
 
 			gatherArgs(root, args, op);
-			// put low weight last
-			insertionSort(args, function(a, b) {
-				if (a.weight > b.weight) return 1;
-				else return -1;
-			});
-			// construct normalized trees
-			var trees = [];
-			var res = new Binary(op, args[0], args[1]).constantFold(true);
-			for (var i = 2; i < args.length; i++)
-				res = new Binary(op, res, args[i]).constantFold(true);
-			if (!res.equals2(root))
-				trees.push(res);
 
-			res = new Binary(op, args[args.length - 2], args[args.length - 1]).constantFold(true);
-			for (var i = args.length - 3; i >= 0; i--)
-				res = new Binary(op, args[i], res).constantFold(true);
-			if (!res.equals2(root))
-				trees.push(res);
-
-			for (var i = 0; i < trees.length; i++) {
-				if (getPattern)
-					results.push([, res, [,,,"rearrange associative/commutative operation", "rearrange associative/commutative operation"]]);
-				else
-					results.push([parent, res, null, backwards, parent[4] + 1, null]);
+			switch (op) {
+			default:
+				break;
+			case 3: // try to cancel an xor
+				if (args.length < 3) break;
+				var found = false;
+				for (var i = 1; i < args.length && !found; i++) {
+					for (var j = 0; j < i; j++) {
+						if (args[j].equals2(args[i])) {
+							found = true;
+							var nargs = args.slice();
+							nargs[i] = null;
+							nargs[j] = null;
+							var res = rebuildWithout(root, nargs, op, -1, null);
+							if (getPattern) {
+								var p = new Binary(op, args[j], args[i]);
+								results.push([p, res, [,,,"cancel xor with self", "create xor with self"]]);
+							}
+							else
+								results.push([parent, res, null, backwards, parent[4] + 1, null]);
+							break;
+						}
+					}
+				}
+				break;
+			case 1:
+			case 2:
+			case 55:
+			case 56:
+			case 57:
+			case 58:
+				// remove duplicate from and/or/min/max
+				if (args.length < 2) break;
+				var found = false;
+				for (var i = 1; i < args.length && !found; i++) {
+					for (var j = 0; j < i; j++) {
+						if (args[j].equals2(args[i])) {
+							found = true;
+							var nargs = args.slice();
+							nargs[i] = null;
+							var newid = [];
+							var res = rebuildWithout(root, nargs, op, args[j].id, newid);
+							if (getPattern) {
+								var a = args[j].copy();
+								a.id = newid[0];
+								var p = new Binary(20, new Binary(op, args[j], args[i]), a);
+								var desc = "redundant " + opstr[op] + " with self";
+								results.push([p, res, [,,,desc, desc]]);
+							}
+							else
+								results.push([parent, res, null, backwards, parent[4] + 1, null]);
+							break;
+						}
+					}
+				}
+				break;
 			}
 		}
 

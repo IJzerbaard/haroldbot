@@ -289,7 +289,6 @@ function formatexpr(expr, ix, varmap) {
   debugger;
 }
 function parseproofstep(proofstep, ix, varmap) {
-  varmap[0];
   var container = $j('<div/>').addClass("proofj");
   container.attr("id", "proofj" + (ix + 1));
   var explanation = $j('<div/>').html(proofstep[0]).contents();
@@ -300,15 +299,23 @@ function parseproofstep(proofstep, ix, varmap) {
   container.append(explanation);
   if (proofstep[1]) {
     container.append(", ");
-    var pattern = formatexpr(["#",-1,proofstep[1].l], ix, varmap);
-    var patternr = formatexpr(["#",-1,proofstep[1].r], ix + 2, varmap);
+    var pattern, patternr;
+    if (proofstep[1].op == 20) {
+      pattern = formatexpr(["#",-1,proofstep[1].l], ix, varmap);
+      patternr = formatexpr(["#",-1,proofstep[1].r], ix + 2, varmap);
+    }
+    else {
+      pattern = formatexpr(["#",-1,proofstep[1]], ix, varmap);
+    }
     if (proofstep[1].l.type == 'bin' && precedence(proofstep[1].l.op) <= precedence(proofstep[1].op))
       pattern = $j("<span />").append("(").append(pattern).append(")");
-    if (proofstep[1].r.type == 'bin' && precedence(proofstep[1].r.op) <= precedence(proofstep[1].op))
+    if (patternr && proofstep[1].r.type == 'bin' && precedence(proofstep[1].r.op) <= precedence(proofstep[1].op))
       patternr = $j("<span />").append("(").append(patternr).append(")");
     var patternholder = $j('<span/>');
     patternholder.css('font-family', 'Consolas,monospace');
-    patternholder.append(pattern).append(" " + ops[proofstep[1].op] + " ").append(patternr);
+    patternholder.append(pattern);
+    if (patternr)
+      patternholder.append(" " + ops[proofstep[1].op] + " ").append(patternr);
     container.append(patternholder);
     pattern.find('span').each(function(index, elem) {
       var cl = "." + $j(elem).attr('class');
@@ -319,15 +326,17 @@ function parseproofstep(proofstep, ix, varmap) {
         $j(cl).find('span').andSelf().stop().css("background-color", "");
       });
     });
-    patternr.find('span').each(function(index, elem) {
-      var cl = "." + $j(elem).attr('class');
-      var color = randomColor();
-      $j(elem).hover(function() {
-        $j("#proofj" + (ix + 1) + ", #proofj" + (ix + 2)).find(cl).stop().animate({backgroundColor:color}, 300);
-      }, function () {
-        $j(cl).find('span').andSelf().stop().css("background-color", "");
+    if (patternr) {
+      patternr.find('span').each(function(index, elem) {
+        var cl = "." + $j(elem).attr('class');
+        var color = randomColor();
+        $j(elem).hover(function() {
+          $j("#proofj" + (ix + 1) + ", #proofj" + (ix + 2)).find(cl).stop().animate({backgroundColor:color}, 300);
+        }, function () {
+          $j(cl).find('span').andSelf().stop().css("background-color", "");
+        });
       });
-    });
+    }
   }
   return container;
 }
