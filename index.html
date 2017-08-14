@@ -296,7 +296,8 @@ function parseproofstep(proofstep, ix, varmap) {
     var ex = escape(proofstep[2].print(varmap));
     explanation.filter('.replace').attr('href', 'index.html?q=' + ex);
   }
-  container.append(explanation);
+  var explanationTextSpan = $j("<span />").append(explanation);
+  container.append(explanationTextSpan);
   if (proofstep[1]) {
     var oldparens = parens;
     if (proofstep[0].indexOf("associativity") == 0)
@@ -321,11 +322,36 @@ function parseproofstep(proofstep, ix, varmap) {
     if (patternr)
       patternholder.append(" " + ops[proofstep[1].op] + " ").append(patternr);
     container.append(patternholder);
+    // hoven anim for the whole step
+    {
+      var cl1, cl2;
+      if (patternr) {
+        cl1 = ".e" + ix + "_" + proofstep[1].l.id;
+        cl2 = ".e" + (ix + 2) + "_" + proofstep[1].r.id;
+      }
+      else {
+        cl1 = (".e" + ix + "_" + proofstep[1].l.id) + ", " +
+              (".e" + ix + "_" + proofstep[1].r.id);
+        cl2 = null;
+      }
+      var stepColorF = randomColor();
+      var stepColorT = randomColor();
+      explanationTextSpan.hover(function() {
+        $j("#proofj" + ix + ", #proofj" + (ix + 1)).find(cl1).stop().animate({backgroundColor: stepColorF}, 300);
+        if (cl2)
+          $j("#proofj" + (ix + 1) + ", #proofj" + (ix + 2)).find(cl2).stop().animate({backgroundColor: stepColorT}, 300);
+      }, function() {
+        $j(cl1).find('span').andSelf().stop().css("background-color", "");
+        if (cl2)
+          $j(cl2).find('span').andSelf().stop().css("background-color", "");
+      });
+    }
+    // hover anims for sub-expressions
     pattern.find('span').each(function(index, elem) {
       var cl = "." + $j(elem).attr('class');
       var color = randomColor();
       $j(elem).hover(function() {
-        $j("#proofj" + ix + ", #proofj" + (ix + 1)).find(cl).stop().animate({backgroundColor:color}, 300);
+        $j("#proofj" + ix + ", #proofj" + (ix + 1)).find(cl).stop().animate({backgroundColor: color}, 300);
       }, function() {
         $j(cl).find('span').andSelf().stop().css("background-color", "");
       });
@@ -335,7 +361,7 @@ function parseproofstep(proofstep, ix, varmap) {
         var cl = "." + $j(elem).attr('class');
         var color = randomColor();
         $j(elem).hover(function() {
-          $j("#proofj" + (ix + 1) + ", #proofj" + (ix + 2)).find(cl).stop().animate({backgroundColor:color}, 300);
+          $j("#proofj" + (ix + 1) + ", #proofj" + (ix + 2)).find(cl).stop().animate({backgroundColor: color}, 300);
         }, function () {
           $j(cl).find('span').andSelf().stop().css("background-color", "");
         });
