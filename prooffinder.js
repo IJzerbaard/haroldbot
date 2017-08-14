@@ -1883,6 +1883,37 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 						}
 					}
 				}
+				if (op == 1 || op == 2) {
+					// and/or
+					// find something and its complement
+					found = false;
+					for (var i = 0; i < args.length && !found; i++) {
+						for (var j = 0; j < args.length; j++) {
+							if (i == j) continue;
+							if (args[j].type == 'un' &&
+							    args[j].op == 0 &&
+							    args[j].value.equals2(args[i]))
+							{
+								found = true;
+								var nargs = args.slice();
+								nargs[i] = null;
+								nargs[j] = new Constant(1 - op);
+								var newid = [];
+								var res = rebuildWithout(root, nargs, op, nargs[j].id, newid);
+								if (getPattern) {
+									var a = nargs[j].copy();
+									a.id = newid[0];
+									var p = new Binary(20, new Binary(op, args[i], args[j]), a);
+									var desc = opstr[op] + " with complement of self";
+									results.push([p, res, [,,,desc, desc]]);
+								}
+								else
+									results.push([parent, res, null, backwards, parent[4] + 1, null]);
+								break;
+							}
+						}
+					}
+				}
 				break;
 			}
 		}
