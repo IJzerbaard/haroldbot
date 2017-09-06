@@ -5,6 +5,7 @@ function BigInt(x) {
 }
 
 BigInt.prototype.shl = function(n) {
+	"use strict";
 	var newdata = this.data.slice(0);
 	while (n >= 32) {
 		n -= 32;
@@ -26,17 +27,18 @@ BigInt.prototype.shl = function(n) {
 };
 
 BigInt.prototype.add = function(a) {
+	"use strict";
 	var newdata = [];
 	var carry = 0;
 	for (var i = 0; i < Math.max(this.data.length, a.data.length); i++) {
 		var x = i < this.data.length ? this.data[i] : 0;
 		var y = i < a.data.length ? a.data[i] : 0;
-		var z = x + y + carry | 0;
-		if ((z >>> 0) < (x >>> 0))
+		var z = (x >>> 0) + (y >>> 0) + carry;
+		if (z >= 4294967296)
 			carry = 1;
 		else
 			carry = 0;
-		newdata[i] = z;
+		newdata[i] = z | 0;
 	}
 	if (carry != 0)
 		newdata.push(1);
