@@ -201,7 +201,7 @@ function maxu (x, y, sw, l) {
         var j = i + 1;
         if (j % sw == 0) {
             for (var k = j - sw; k < j; k++)
-                bits[k] = circuit.mux(x._bits[k], y.bits[k], carry);
+                bits[k] = circuit.mux(x._bits[k], y._bits[k], carry);
             carry = 0;
         }
     }
@@ -214,12 +214,14 @@ function invsign(x, sw, l) {
     var bits = new Int32Array(x._bits);
     for (var i = sw - 1; i < l; i += sw)
         bits[i] = ~bits[i];
+    bits.fill(0, l);
     return new SSECFunction(bits);
 }
 function inv(x, l) {
     var bits = new Int32Array(256);
     for (var i = 0; i < l; i++)
         bits[i] = ~x._bits[i];
+    bits.fill(0, l);
     return new SSECFunction(bits);
 }
 var _sw = [8, 16, 32, 64];
@@ -283,7 +285,7 @@ _l.forEach(function(l) {
                 return invsign(maxu(invsign(x, sw, l), invsign(y, sw, l), sw, l), sw, l);
             };
             SSECFunction[_mins] = function (x, y) {
-                return inv(invsign(maxu(inv(invsign(x, sw, l), l), inv(invsign(y, sw, l), l), sw, l), sw, l));
+                return inv(invsign(maxu(inv(invsign(x, sw, l), l), inv(invsign(y, sw, l), l), sw, l), sw, l), l);
             };
         }
         if (sw <= 16) {
@@ -464,6 +466,46 @@ SSECFunction._mm_blend_epi16 = function (x, y, mask) {
             bits.set(x._bits.subarray(i, i + 16), i);
         else
             bits.set(y._bits.subarray(i, i + 16), i);
+    }
+    return new SSECFunction(bits);
+};
+
+function unsignedSaturate(x, len) {
+    var bits = new Int32Array(len);
+    var ovf = circuit.or_big(x.subarray(len));
+    for (var i = 0; i < len; i++)
+        bits[i] = circuit.or(x[i], ovf);
+    return bits;
+}
+
+SSECFunction._mm_packus_epi16 = function (a, b) {
+    var bits = new Int32Array(128);
+    for (var i = 0; i < 128; i += 16) {
+        bits.set(unsignedSaturate(a._bits.subarray(i, i + 16), 8), i >> 1);
+        bits.set(unsignedSaturate(b._bits.subarray(i, i + 16), 8), (i >> 1) + 64);
+    }
+    return new SSECFunction(bits);
+};
+
+function signedSaturate(x, len) {
+    function inv(x) {
+        return ~x;
+    }
+    var bits = new Int32Array(len);
+    var h = circuit.and(circuit.or_big(x.subarray(len, -1)), ~x.subarray(-1)[0]);
+    var l = circuit.and(circuit.or_big(x.subarray(len, -1).map(inv)), x.subarray(-1)[0]);
+    var len1 = len - 1;
+    for (var i = 0; i < len1; i++)
+        bits[i] = circuit.and(circuit.or(x[i], h), ~l);
+    bits[len1] = circuit.or(circuit.and(x[len1], ~h), l);
+    return bits;
+}
+
+SSECFunction._mm_packs_epi16 = function (a, b) {
+    var bits = new Int32Array(128);
+    for (var i = 0; i < 128; i += 16) {
+        bits.set(signedSaturate(a._bits.subarray(i, i + 16), 8), i >> 1);
+        bits.set(signedSaturate(b._bits.subarray(i, i + 16), 8), (i >> 1) + 64);
     }
     return new SSECFunction(bits);
 };
@@ -745,9 +787,19 @@ for (var l = 128; l <= 256; l += 128) {
     }
 }
 
-})();
+function fadd32 (a, b, mode) {
+    var signa = a[31], signb = b[31];
+    var rawExpA = a.subarray(23, 31);
+    var rawExpB = b.subarray(23, 31);
+    var sigA = a.slice(0, 24);
+    var sigB = b.slice(0, 24);
+    // leading 1 if not denormal
+    sigA[23] = circuit.or_big(rawExpA);
+    sigB[23] = circuit.or_big(rawExpB);
 
-SSECFunction.avxOf1 = function (f) {
+}
+
+function avxOf1 (f) {
     var res = function (x) {
         var low = f(x._bits.subarray(0, 128));
         var high = f(x._bits.subarray(128, 256));
@@ -757,9 +809,9 @@ SSECFunction.avxOf1 = function (f) {
         return new SSECFunction(bits);
     };
     return res;
-};
+}
 
-SSECFunction.avxOf2 = function (f) {
+function avxOf2 (f) {
     var res = function (x, y) {
         var low = f(x._bits.subarray(0, 128), y._bits.subarray(0, 128));
         var high = f(x._bits.subarray(128, 256), y._bits.subarray(128, 256));
@@ -769,9 +821,9 @@ SSECFunction.avxOf2 = function (f) {
         return new SSECFunction(bits);
     };
     return res;
-};
+}
 
-SSECFunction.avxOf2i = function (f) {
+function avxOf2i (f) {
     var res = function (x, y) {
         var low = f(x._bits.subarray(0, 128), y);
         var high = f(x._bits.subarray(128, 256), y);
@@ -781,26 +833,31 @@ SSECFunction.avxOf2i = function (f) {
         return new SSECFunction(bits);
     };
     return res;
-};
+}
 
-SSECFunction._mm256_and_si256 = SSECFunction.avxOf2(SSECFunction._mm_and_si128);
-SSECFunction._mm256_andnot_si256 = SSECFunction.avxOf2(SSECFunction._mm_andnot_si128);
-SSECFunction._mm256_xor_si256 = SSECFunction.avxOf2(SSECFunction._mm_xor_si128);
-SSECFunction._mm256_or_si256 = SSECFunction.avxOf2(SSECFunction._mm_or_si128);
-SSECFunction._mm256_shuffle_epi32 = SSECFunction.avxOf2i(SSECFunction._mm_shuffle_epi32);
-SSECFunction._mm256_shuffle_epi8 = SSECFunction.avxOf2(SSECFunction._mm_shuffle_epi8);
-SSECFunction._mm256_sad_epu8 = SSECFunction.avxOf1(SSECFunction._mm_sad_epu8);
-SSECFunction._mm256_hadd_epi16 = SSECFunction.avxOf2(SSECFunction._mm_hadd_epi16);
-SSECFunction._mm256_hadds_epi16 = SSECFunction.avxOf2(SSECFunction._mm_hadds_epi16);
-SSECFunction._mm256_hadd_epi32 = SSECFunction.avxOf2(SSECFunction._mm_hadd_epi32);
-SSECFunction._mm256_hsub_epi16 = SSECFunction.avxOf2(SSECFunction._mm_hsub_epi16);
-SSECFunction._mm256_hsubs_epi16 = SSECFunction.avxOf2(SSECFunction._mm_hsubs_epi16);
-SSECFunction._mm256_hsub_epi32 = SSECFunction.avxOf2(SSECFunction._mm_hsub_epi32);
-SSECFunction._mm256_madd_epi16 = SSECFunction.avxOf2(SSECFunction._mm_madd_epi16);
-SSECFunction._mm256_maddubs_epi16 = SSECFunction.avxOf2(SSECFunction._mm_maddubs_epi16);
-SSECFunction._mm256_slli_si128 = SSECFunction.avxOf2i(SSECFunction._mm_slli_si128);
-SSECFunction._mm256_srli_si128 = SSECFunction.avxOf2i(SSECFunction._mm_srli_si128);
+SSECFunction._mm256_and_si256 = avxOf2(SSECFunction._mm_and_si128);
+SSECFunction._mm256_andnot_si256 = avxOf2(SSECFunction._mm_andnot_si128);
+SSECFunction._mm256_xor_si256 = avxOf2(SSECFunction._mm_xor_si128);
+SSECFunction._mm256_or_si256 = avxOf2(SSECFunction._mm_or_si128);
+SSECFunction._mm256_shuffle_epi32 = avxOf2i(SSECFunction._mm_shuffle_epi32);
+SSECFunction._mm256_shuffle_epi8 = avxOf2(SSECFunction._mm_shuffle_epi8);
+SSECFunction._mm256_sad_epu8 = avxOf1(SSECFunction._mm_sad_epu8);
+SSECFunction._mm256_hadd_epi16 = avxOf2(SSECFunction._mm_hadd_epi16);
+SSECFunction._mm256_hadds_epi16 = avxOf2(SSECFunction._mm_hadds_epi16);
+SSECFunction._mm256_hadd_epi32 = avxOf2(SSECFunction._mm_hadd_epi32);
+SSECFunction._mm256_hsub_epi16 = avxOf2(SSECFunction._mm_hsub_epi16);
+SSECFunction._mm256_hsubs_epi16 = avxOf2(SSECFunction._mm_hsubs_epi16);
+SSECFunction._mm256_hsub_epi32 = avxOf2(SSECFunction._mm_hsub_epi32);
+SSECFunction._mm256_madd_epi16 = avxOf2(SSECFunction._mm_madd_epi16);
+SSECFunction._mm256_maddubs_epi16 = avxOf2(SSECFunction._mm_maddubs_epi16);
+SSECFunction._mm256_slli_si128 = avxOf2i(SSECFunction._mm_slli_si128);
+SSECFunction._mm256_srli_si128 = avxOf2i(SSECFunction._mm_srli_si128);
+SSECFunction._mm256_packs_epi16 = avxOf2(SSECFunction._mm_packs_epi16);
+SSECFunction._mm256_packs_epi32 = avxOf2(SSECFunction._mm_packs_epi32);
+SSECFunction._mm256_packus_epi16 = avxOf2(SSECFunction._mm_packus_epi16);
+SSECFunction._mm256_packus_epi32 = avxOf2(SSECFunction._mm_packus_epi32);
 
+})();
 
 SSECFunction.prototype.AnalyzeTruth = function(data, root, vars, cb) {
     function getModelWithBan(bit, bannedModel) {

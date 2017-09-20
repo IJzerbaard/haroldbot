@@ -328,6 +328,10 @@ Unary.prototype.eval = function(vars) {
 	}
 };
 
+Unary.prototype.toSSECircuitFunc = function(vars) {
+	return this.eval(vars);
+};
+
 
 function Binary(op, l, r) {
 	Node.call(this);

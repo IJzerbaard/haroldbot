@@ -99,7 +99,7 @@ function formatVec(assignment, idx) {
     brk = 0;
 
   var upper = vectorFormattingMode.upper ? arr.length : (arr.length / 2);
-  var res = formatElem(arr[i]);
+  var res = formatElem(arr[0]);
   for (var i = 1; i < upper; i++) {
     if ((i & brk) == 0)
       res += ", " + formatElem(arr[i]);

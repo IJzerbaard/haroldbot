@@ -267,10 +267,13 @@ BDDFunction.clz = function (x) {
 }
 
 BDDFunction.popcnt = function (x) {
+	var timelimit = getmilitime() + 1000;
 	var one = BDDFunction.constant(1);
 	var r = BDDFunction.shruc(x, 31);
 	for (var i = 30; i >= 0; i--) {
 		r = BDDFunction.add(r, BDDFunction.and(BDDFunction.shruc(x, i), one));
+		if (getmilitime() > timelimit)
+			throw "BDD timeout";
 	}
 	return r;
 }
