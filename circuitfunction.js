@@ -198,6 +198,15 @@ CFunction.mul = function(x, y) {
 	return r;
 }
 
+CFunction.clmul = function(x, y) {
+	var r = CFunction.constant(0);
+	for (var i = 0; i < 32; i++) {
+		r = CFunction.xor(r, CFunction.and(x, CFunction.nthbit(y, i)));
+		x = CFunction.shlc(x, 1);
+	}
+	return r;
+}
+
 CFunction.ez80mlt = function(x) {
 	var a = CFunction.and(x, CFunction.constant(0xFF));
 	var b = CFunction.and(CFunction.shruc(x, 8), CFunction.constant(0xFF));

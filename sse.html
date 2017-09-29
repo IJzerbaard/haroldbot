@@ -444,7 +444,7 @@ $j(document).ready(function(){
   <div id="resultDiv"></div>
   <div id="examples">
     <h2>Examples</h2>
-
+    <p><a href="sse.html?p=_mm_max_epi8%28x%2C+y%29&amp;q=let+m+%3D+_mm_set1_epi32%280x80808080%29+in+_mm_xor_si128%28_mm_max_epu8%28_mm_xor_si128%28x%2C+m%29%2C+_mm_xor_si128%28y%2C+m%29%29%2C+m%29"><tt>_mm_max_epi8(x, y) == let m = _mm_set1_epi32(0x80808080) in _mm_xor_si128(_mm_max_epu8(_mm_xor_si128(x, m), _mm_xor_si128(y, m)), m)</tt></a></p>
   </div>
   <div>
     <h2>Notes</h2>

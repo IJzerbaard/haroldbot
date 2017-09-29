@@ -529,6 +529,27 @@ function ProofFinder(op) {
 			["&", ["*", [a(0)], [a(2)]], [aex(1, except_non_mersenne)]],
 			false, "low bits of the result depend only on low bits of the inputs (condition: y is a power of two minus one)", ,
 		],
+		// properties of clmul
+		[
+			["$clmul", ["$clmul", [a(0)], [a(1)]], [a(2)]],
+			["$clmul", [a(0)], ["$clmul", [a(1)], [a(2)]]],
+			true, "associativity of carryless multiplication", ,
+		],
+		[
+			["$clmul", [a(0)], [a(1)]],
+			["$clmul", [a(1)], [a(0)]],
+			false, "commutativity of carryless multiplication", ,
+		],
+		[
+			["$clmul", [a(0)], [1]],
+			[a(0)],
+			false, "multiplicative identity", ,
+		],
+		[
+			["$clmul", [1], [a(0)]],
+			[a(0)],
+			false, "multiplicative identity", ,
+		],
 		// properties of reverse
 		[
 			["$reverse", ["$reverse", [a(0)]]],

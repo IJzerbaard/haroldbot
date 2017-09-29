@@ -1,8 +1,8 @@
 var unops = ["~", "-", "$popcnt", "$ntz", "$nlz", "$reverse", "$abs", "$ez80mlt"];
-//            1    2    3    4    5    6     7     8      9      10   11                   20    21    22    23   24    25   26    27    28      30     31     32    33    34    35            40     41     42    43    44     45     46    47            55        56        57        58        59         60
-var ops = [, "&", "|", "^", "+", "-", "<<", ">>", "<<<", ">>>", "/", "*", , , , , , , , , "==", "!=", "<=", "<", ">=", ">", "=>", "&&", "||", , ">>s", ">>u", "/s", "/u", "%s", "%u", , , , , "<=s", "<=u", "<s", "<u", ">=s", ">=u", ">s", ">u", ,,,,,,, "$min_u", "$min_s", "$max_u", "$max_s", "$hmul_u", "$hmul_s"];
-var associative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , false, false, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true, false, false];
-var commutative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , true, true, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true, true, true];
+//            1    2    3    4    5    6     7     8      9      10   11                   20    21    22    23   24    25   26    27    28      30     31     32    33    34    35            40     41     42    43    44     45     46    47            55        56        57        58        59         60         61
+var ops = [, "&", "|", "^", "+", "-", "<<", ">>", "<<<", ">>>", "/", "*", , , , , , , , , "==", "!=", "<=", "<", ">=", ">", "=>", "&&", "||", , ">>s", ">>u", "/s", "/u", "%s", "%u", , , , , "<=s", "<=u", "<s", "<u", ">=s", ">=u", ">s", ">u", ,,,,,,, "$min_u", "$min_s", "$max_u", "$max_s", "$hmul_u", "$hmul_s", "$clmul"];
+var associative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , false, false, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true, false, false, true];
+var commutative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , true, true, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true, true, true, true];
 
 function precedence(index) {
     var pre = [ 0, 16, 14, 15, 18, 18, 17, 17, 17, 17, 19, 19, 20, 20, 0, 0, 0, 0, 0, 0, 13, 13, 13, 13, 13, 13, 11, 12, 12, 0, 17, 17, 19, 19, 19, 19, 20, 20, 20, 20, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13];
@@ -81,6 +81,17 @@ function hmul_u32(a, b) {
     m += l >>> 16;
     h += m >>> 16;
     return h >>> 0;
+}
+
+function clmul_u32(a, b) {
+    var prod = 0;
+    while (a != 0) {
+        if ((a & 1) != 0)
+            prod ^= b;
+        a >>>= 1;
+        b <<= 1;
+    }
+    return prod;
 }
 
 function hmul_i32(a, b) {

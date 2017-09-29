@@ -246,6 +246,25 @@ BDDFunction.mul = function(x, y) {
 	return r;
 }
 
+BDDFunction.clmul = function(x, y) {
+	function countNonconstant(bits) {
+		var count = 0;
+		for (var i = 0; i < 32; i++) {
+			if (bits[i] != 0 && bits[i] != -1)
+				count++;
+		}
+		return count;
+	}
+	if (countNonconstant(x._bits) * countNonconstant(y._bits) > 256)
+		throw "multiplication seems hard";
+	var r = BDDFunction.constant(0);
+	for (var i = 0; i < 32; i++) {
+		r = BDDFunction.xor(r, BDDFunction.and(x, BDDFunction.nthbit(y, i)));
+		x = BDDFunction.shlc(x, 1);
+	}
+	return r;
+}
+
 BDDFunction.ez80mlt = function(x) {
 	var a = BDDFunction.and(x, BDDFunction.constant(0xFF));
 	var b = BDDFunction.and(BDDFunction.shruc(x, 8), BDDFunction.constant(0xFF));

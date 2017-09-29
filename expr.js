@@ -90,7 +90,7 @@ Constant.prototype.equals2 = function(node) {
 };
 
 Constant.prototype.print = function(varmap) {
-	return "" + this.value;
+	return formatConstant(this.value);
 };
 
 Constant.prototype.toBddFunc = function() {
@@ -396,76 +396,44 @@ Binary.prototype.toBddFunc = function() {
 	var l = this.l.toBddFunc();
 	var r = this.r.toBddFunc();
 	switch (this.op) {
-		case 1:
-			return BDDFunction.and(l, r);
-		case 2:
-			return BDDFunction.or(l, r);
-		case 3:
-			return BDDFunction.xor(l, r);
-		case 4:
-			return BDDFunction.add(l, r);
-		case 5:
-			return BDDFunction.sub(l, r);
-		case 6:
-			return BDDFunction.shl(l, r);
-		case 11:
-			return BDDFunction.mul(l, r);
-		case 20:
-			return BDDFunction.eq(l, r);
-		case 21:
-			return BDDFunction.not(BDDFunction.eq(l, r));
-		case 26:
-			return BDDFunction.or(BDDFunction.not(BDDFunction.hor(l)), BDDFunction.hor(r));
-		case 27:
-			return BDDFunction.and(BDDFunction.hor(l), BDDFunction.hor(r));
-		case 28:
-			return BDDFunction.or(BDDFunction.hor(l), BDDFunction.hor(r));
-		case 30:
-			return BDDFunction.shrs(l, r);
-		case 31:
-			return BDDFunction.shru(l, r);
+		case 1: return BDDFunction.and(l, r);
+		case 2: return BDDFunction.or(l, r);
+		case 3: return BDDFunction.xor(l, r);
+		case 4: return BDDFunction.add(l, r);
+		case 5: return BDDFunction.sub(l, r);
+		case 6: return BDDFunction.shl(l, r);
+		case 11: return BDDFunction.mul(l, r);
+		case 20: return BDDFunction.eq(l, r);
+		case 21: return BDDFunction.not(BDDFunction.eq(l, r));
+		case 26: return BDDFunction.or(BDDFunction.not(BDDFunction.hor(l)), BDDFunction.hor(r));
+		case 27: return BDDFunction.and(BDDFunction.hor(l), BDDFunction.hor(r));
+		case 28: return BDDFunction.or(BDDFunction.hor(l), BDDFunction.hor(r));
+		case 30: return BDDFunction.shrs(l, r);
+		case 31: return BDDFunction.shru(l, r);
 		case 22:
-		case 41:
-			return BDDFunction.le(l, r, false);
-		case 40:
-			return BDDFunction.le(l, r, true);
+		case 41: return BDDFunction.le(l, r, false);
+		case 40: return BDDFunction.le(l, r, true);
 		case 23:
-		case 43:
-			return BDDFunction.lt(l, r, false);
-		case 42:
-			return BDDFunction.lt(l, r, true);
+		case 43: return BDDFunction.lt(l, r, false);
+		case 42: return BDDFunction.lt(l, r, true);
 		case 24:
-		case 45:
-			return BDDFunction.ge(l, r, false);
-		case 44:
-			return BDDFunction.ge(l, r, true);
+		case 45: return BDDFunction.ge(l, r, false);
+		case 44: return BDDFunction.ge(l, r, true);
 		case 25:
-		case 47:
-			return BDDFunction.gt(l, r, false);
-		case 46:
-			return BDDFunction.gt(l, r, true);
-		case 55:
-			return BDDFunction.mux(BDDFunction.gt(l, r, false), l, r);
-		case 56:
-			return BDDFunction.mux(BDDFunction.gt(l, r, true), l, r);
-		case 57:
-			return BDDFunction.mux(BDDFunction.lt(l, r, false), l, r);
-		case 58:
-			return BDDFunction.mux(BDDFunction.lt(l, r, true), l, r);
-		case 32:
-			return BDDFunction.divs(l, r);
-		case 33:
-			return BDDFunction.divu(l, r);
-		case 34:
-			return BDDFunction.rems(l, r);
-		case 35:
-			return BDDFunction.remu(l, r);
-		case 59:
-			return BDDFunction.hmul(l, r, false);
-		case 60:
-			return BDDFunction.hmul(l, r, true);
+		case 47: return BDDFunction.gt(l, r, false);
+		case 46: return BDDFunction.gt(l, r, true);
+		case 55: return BDDFunction.mux(BDDFunction.gt(l, r, false), l, r);
+		case 56: return BDDFunction.mux(BDDFunction.gt(l, r, true), l, r);
+		case 57: return BDDFunction.mux(BDDFunction.lt(l, r, false), l, r);
+		case 58: return BDDFunction.mux(BDDFunction.lt(l, r, true), l, r);
+		case 32: return BDDFunction.divs(l, r);
+		case 33: return BDDFunction.divu(l, r);
+		case 34: return BDDFunction.rems(l, r);
+		case 35: return BDDFunction.remu(l, r);
+		case 59: return BDDFunction.hmul(l, r, false);
+		case 60: return BDDFunction.hmul(l, r, true);
+		case 61: return BDDFunction.clmul(l, r);
 	}
-	debugger;
 	alert("Severe bug in Binary.toBddFunc");
 };
 
@@ -473,76 +441,44 @@ Binary.prototype.toCircuitFunc = function() {
 	var l = this.l.toCircuitFunc();
 	var r = this.r.toCircuitFunc();
 	switch (this.op) {
-		case 1:
-			return CFunction.and(l, r);
-		case 2:
-			return CFunction.or(l, r);
-		case 3:
-			return CFunction.xor(l, r);
-		case 4:
-			return CFunction.add(l, r);
-		case 5:
-			return CFunction.sub(l, r);
-		case 6:
-			return CFunction.shl(l, r);
-		case 11:
-			return CFunction.mul(l, r);
-		case 20:
-			return CFunction.eq(l, r);
-		case 21:
-			return CFunction.not(CFunction.eq(l, r));
-		case 26:
-			return CFunction.or(CFunction.not(CFunction.hor(l)), CFunction.hor(r));
-		case 27:
-			return CFunction.and(CFunction.hor(l), CFunction.hor(r));
-		case 28:
-			return CFunction.or(CFunction.hor(l), CFunction.hor(r));
-		case 30:
-			return CFunction.shrs(l, r);
-		case 31:
-			return CFunction.shru(l, r);
+		case 1: return CFunction.and(l, r);
+		case 2: return CFunction.or(l, r);
+		case 3: return CFunction.xor(l, r);
+		case 4: return CFunction.add(l, r);
+		case 5: return CFunction.sub(l, r);
+		case 6: return CFunction.shl(l, r);
+		case 11: return CFunction.mul(l, r);
+		case 20: return CFunction.eq(l, r);
+		case 21: return CFunction.not(CFunction.eq(l, r));
+		case 26: return CFunction.or(CFunction.not(CFunction.hor(l)), CFunction.hor(r));
+		case 27: return CFunction.and(CFunction.hor(l), CFunction.hor(r));
+		case 28: return CFunction.or(CFunction.hor(l), CFunction.hor(r));
+		case 30: return CFunction.shrs(l, r);
+		case 31: return CFunction.shru(l, r);
 		case 22:
-		case 41:
-			return CFunction.le(l, r, false);
-		case 40:
-			return CFunction.le(l, r, true);
+		case 41: return CFunction.le(l, r, false);
+		case 40: return CFunction.le(l, r, true);
 		case 23:
-		case 43:
-			return CFunction.lt(l, r, false);
-		case 42:
-			return CFunction.lt(l, r, true);
+		case 43: return CFunction.lt(l, r, false);
+		case 42: return CFunction.lt(l, r, true);
 		case 24:
-		case 45:
-			return CFunction.ge(l, r, false);
-		case 44:
-			return CFunction.ge(l, r, true);
+		case 45: return CFunction.ge(l, r, false);
+		case 44: return CFunction.ge(l, r, true);
 		case 25:
-		case 47:
-			return CFunction.gt(l, r, false);
-		case 46:
-			return CFunction.gt(l, r, true);
-		case 55:
-			return CFunction.mux(CFunction.gt(l, r, false), l, r);
-		case 56:
-			return CFunction.mux(CFunction.gt(l, r, true), l, r);
-		case 57:
-			return CFunction.mux(CFunction.lt(l, r, false), l, r);
-		case 58:
-			return CFunction.mux(CFunction.lt(l, r, true), l, r);
-		case 32:
-			return CFunction.divs(l, r);
-		case 33:
-			return CFunction.divu(l, r);
-		case 34:
-			return CFunction.rems(l, r);
-		case 35:
-			return CFunction.remu(l, r);
-		case 59:
-			return CFunction.hmul(l, r, false);
-		case 60:
-			return CFunction.hmul(l, r, true);
+		case 47: return CFunction.gt(l, r, false);
+		case 46: return CFunction.gt(l, r, true);
+		case 55: return CFunction.mux(CFunction.gt(l, r, false), l, r);
+		case 56: return CFunction.mux(CFunction.gt(l, r, true), l, r);
+		case 57: return CFunction.mux(CFunction.lt(l, r, false), l, r);
+		case 58: return CFunction.mux(CFunction.lt(l, r, true), l, r);
+		case 32: return CFunction.divs(l, r);
+		case 33: return CFunction.divu(l, r);
+		case 34: return CFunction.rems(l, r);
+		case 35: return CFunction.remu(l, r);
+		case 59: return CFunction.hmul(l, r, false);
+		case 60: return CFunction.hmul(l, r, true);
+		case 61: return CFunction.clmul(l, r);
 	}
-	debugger;
 	alert("Severe bug in Binary.toCircuitFunc");
 };
 
@@ -559,51 +495,7 @@ Binary.prototype.constantFold = function(nrec) {
 	var l = nrec ? this.l : this.l.constantFold(false);
 	var r = nrec ? this.r : this.r.constantFold(false);
 	if (l.type == 'const' && r.type == 'const') {
-		switch (this.op) {
-			default:
-				break;
-			case 1: // &
-				return new Constant(l.value & r.value);
-			case 2: // |
-				return new Constant(l.value | r.value);
-			case 3: // ^
-				return new Constant(l.value ^ r.value);
-			case 4: // +
-				return new Constant(l.value + r.value | 0);
-			case 5: // -
-				return new Constant(l.value - r.value | 0);
-			case 6: // <<
-				return new Constant(l.value << (r.value & 31));
-			case 7: // >> (unsigned)
-			case 31:
-				return new Constant(l.value >>> (r.value & 31));
-			case 30:
-				return new Constant(l.value >> (r.value & 31));
-			case 8: // <<<
-				return new Constant((l.value >>> (-r.value & 31)) | (l.value << (r.value & 31)));
-			case 9: // >>>
-				return new Constant((l.value << (-r.value & 31)) | (l.value >>> (r.value & 31)));
-			case 11:// *
-				return new Constant(Math.imul(l.value, r.value));
-			case 20:
-				return new Constant(l.value == r.value ? -1 : 0);
-			case 21:
-				return new Constant(l.value != r.value ? -1 : 0);
-			case 27:
-				return new Constant((l.value & r.value) != 0 ? -1 : 0);
-			case 28:
-				return new Constant((l.value | r.value) != 0 ? -1 : 0);
-			case 55: 	// min_u
-				return new Constant(Math.min(l.value >>> 0, r.value >>> 0));
-			case 56: 	// min_s
-				return new Constant(Math.min(l.value | 0, r.value | 0));
-			case 57: 	// max_u
-				return new Constant(Math.max(l.value >>> 0, r.value >>> 0));
-			case 58: 	// max_s
-				return new Constant(Math.max(l.value | 0, r.value | 0));
-			case 59: 	// hmul
-				return new Constant(hmul_u32(l.value, r.value));
-		}
+		return new Constant(this.eval(null));
 	}
 	if (l.id != this.l.id ||
 		r.id != this.r.id)
@@ -650,7 +542,7 @@ Binary.prototype.eval = function(vars) {
 	var r = this.r.eval(vars) | 0;
 	var m = 0x80000000;
 	switch (this.op) {
-		default: debugger; throw "not implemented";
+		default: throw "not implemented";
 		case 1: return l & r;
 		case 2: return l | r;
 		case 3: return l ^ r;
@@ -691,6 +583,7 @@ Binary.prototype.eval = function(vars) {
 		case 58: return Math.max(l, r) | 0;
 		case 59: return hmul_u32(l, r) | 0;
 		case 60: return hmul_i32(l, r);
+		case 61: return clmul_u32(l, r);
 	}
 };
 
@@ -856,7 +749,8 @@ Fun.prototype.toCircuitFunc = function() {
 
 Fun.prototype.toSSECircuitFunc = function() {
 	var a = this.args.map(function(x) { return x.toSSECircuitFunc(); });
-	return SSECFunction[this.fun]( ... a);
+	if (this.fun.startsWith("_mm") && SSECFunction[this.fun])
+		return SSECFunction[this.fun]( ... a);
 };
 
 Fun.prototype.removeDummy = function() {
@@ -903,5 +797,109 @@ Fun.prototype.sseeval = function(vars) {
 		this.fun.startsWith("_mm256_")) {
 		var a = this.args.map(function(x) { return x.sseeval(vars); });
 		return SSECFunction[this.fun]( ... a);
+	}
+};
+
+Node.AnalyzeProperties = function(data, vars, expr, callback) {
+	if (!data.properties)
+		data.properties = {};
+
+	switch (vars.length) {
+		default: return;
+		case 1:
+			// test invertible
+			function invert(expr, inv) {
+				switch (expr.type) {
+					default: return null;
+					case "var": return inv;
+					case "un":
+						// ~, -, reverse
+						if (expr.op == 0 || expr.op == 1 || expr.op == 5)
+							return invert(expr.value, new Unary(expr.op, inv));
+						return null;
+					case "bin":
+						var lcf = null, rcf = null;
+						// ^, +, - of an invertible expr with a constant
+						if (expr.op == 3 || expr.op == 4 || expr.op == 5) {
+							var undoop = [0, 0, 0, 3, 5, 4];
+							lcf = expr.l.constantFold();
+							if (lcf.type == "const") {
+								if (expr.op != 5)
+									return invert(expr.r, lcf.value == 0 ? inv : new Binary(undoop[expr.op], inv, lcf));
+								else
+									return invert(expr.r, new Binary(5, lcf, inv));
+							}
+							rcf = expr.r.constantFold();
+							if (rcf.type == "const")
+								return invert(expr.l, rcf.value == 0 ? inv : new Binary(undoop[expr.op], inv, rcf));
+						}
+						// mul by odd
+						if (expr.op == 11) {
+							lcf = lcf || expr.l.constantFold();
+							var theConst = lcf;
+							var theRest = expr.r;
+							if (theConst.type != "const") {
+								rcf = rcf || expr.r.constantFold();
+								theConst = rcf;
+								theRest = expr.l;
+							}
+							if (theConst.type == "const") {
+								if ((theConst.value & 1) == 0) return null;
+								var d = theConst.value;
+								var x = Math.imul(d, d) + d - 1 | 0;
+								x = Math.imul(x, 2 - Math.imul(d, x) | 0);
+								x = Math.imul(x, 2 - Math.imul(d, x) | 0);
+								x = Math.imul(x, 2 - Math.imul(d, x) | 0);
+								// sanity check
+								if (Math.imul(x, d) != 1)
+									throw "incorrect multiplicative inverse";
+								return invert(theRest, new Binary(11, inv, new Constant(x)));
+							}
+							return null;
+						}
+						// clmul by odd
+						if (expr.op == 61) {
+							lcf = lcf || expr.l.constantFold();
+							var theConst = lcf;
+							var theRest = expr.r;
+							if (theConst.type != "const") {
+								rcf = rcf || expr.r.constantFold();
+								theConst = rcf;
+								theRest = expr.l;
+							}
+							if (theConst.type == "const") {
+								if ((theConst.value & 1) == 0) return null;
+								var d = theConst.value;
+								var x = 1;
+								x = clmul_u32(x, clmul_u32(d, x));
+								x = clmul_u32(x, clmul_u32(d, x));
+								x = clmul_u32(x, clmul_u32(d, x));
+								x = clmul_u32(x, clmul_u32(d, x));
+								x = clmul_u32(x, clmul_u32(d, x));
+								// sanity check
+								if (clmul_u32(x, d) != 1)
+									throw "incorrect multiplicative inverse";
+								return invert(theRest, new Binary(61, inv, new Constant(x)));
+							}
+							return null;
+						}
+						return null;
+				}
+			}
+
+			var inv = invert(expr, new Variable(1));
+			if (inv) {
+				inv = inv.constantFold();
+				if (inv.type != "var") {
+					var newvar = data.varmap[0] == "r" ? "x" : "r";
+					data.varmap[1] = newvar;
+					data.properties.inverse = inv;
+					data.properties.inverseproof = "let " + newvar + " = " + expr.print(data.varmap) + " in (" + inv.print(data.varmap) + ") == " + data.varmap[0];
+				}
+				else delete data.properties.inverse;
+				if (callback)
+					callback(data);
+			}
+			break;
 	}
 };
