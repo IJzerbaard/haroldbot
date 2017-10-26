@@ -37,6 +37,110 @@ SSECFunction._mm_set1_epi32 = function(value) {
     return new SSECFunction(bits);
 };
 
+SSECFunction._mm_set_epi32 = function(v3, v2, v1, v0) {
+    var bits = new Int32Array(256);
+    var v = [v0, v1, v2, v3];
+    for (var j = 0; j < v.length; j++) {
+        for (var i = 0; i < 32; i++) {
+            var bit = (v[j] << (i ^ 31)) >> 31;
+            bits[i + 32 * j] = bit;
+        }
+    }
+    return new SSECFunction(bits);
+};
+
+SSECFunction._mm_setr_epi32 = function(v3, v2, v1, v0) {
+    return SSECFunction._mm_set_epi32(v0, v1, v2, v3);
+};
+
+SSECFunction._mm256_set_epi32 = function(v7, v6, v5, v4, v3, v2, v1, v0) {
+    var bits = new Int32Array(256);
+    var v = [v0, v1, v2, v3, v4, v5, v6, v7];
+    for (var j = 0; j < v.length; j++) {
+        for (var i = 0; i < 32; i++) {
+            var bit = (v[j] << (i ^ 31)) >> 31;
+            bits[i + 32 * j] = bit;
+        }
+    }
+    return new SSECFunction(bits);
+};
+
+SSECFunction._mm256_setr_epi32 = function(v7, v6, v5, v4, v3, v2, v1, v0) {
+    return SSECFunction._mm256_set_epi32(v0, v1, v2, v3, v4, v5, v6, v7);
+};
+
+SSECFunction._mm256_set1_epi8 = function(value) {
+    var bits = new Int32Array(256);
+    for (var i = 0; i < 8; i++) {
+        var bit = (value << (i ^ 31)) >> 31;
+        for (var j = i; j < 256; j += 8)
+            bits[j] = bit;
+    }
+    return new SSECFunction(bits);
+};
+
+SSECFunction._mm_set1_epi8 = function(value) {
+    var bits = new Int32Array(256);
+    for (var i = 0; i < 8; i++) {
+        var bit = (value << (i ^ 31)) >> 31;
+        for (var j = i; j < 128; j += 8)
+            bits[j] = bit;
+    }
+    return new SSECFunction(bits);
+};
+
+SSECFunction._mm256_set1_epi16 = function(value) {
+    var bits = new Int32Array(256);
+    for (var i = 0; i < 16; i++) {
+        var bit = (value << (i ^ 31)) >> 31;
+        for (var j = i; j < 256; j += 8)
+            bits[j] = bit;
+    }
+    return new SSECFunction(bits);
+};
+
+SSECFunction._mm_set1_epi16 = function(value) {
+    var bits = new Int32Array(256);
+    for (var i = 0; i < 8; i++) {
+        var bit = (value << (i ^ 31)) >> 31;
+        for (var j = i; j < 128; j += 16)
+            bits[j] = bit;
+    }
+    return new SSECFunction(bits);
+};
+
+SSECFunction._mm_set_epi16 = function(v7, v6, v5, v4, v3, v2, v1, v0) {
+    var bits = new Int32Array(256);
+    var v = [v0, v1, v2, v3, v4, v5, v6, v7];
+    for (var j = 0; j < v.length; j++) {
+        for (var i = 0; i < 16; i++) {
+            var bit = (v[j] << (i ^ 31)) >> 31;
+            bits[i + 16 * j] = bit;
+        }
+    }
+    return new SSECFunction(bits);
+};
+
+SSECFunction._mm_setr_epi16 = function(v7, v6, v5, v4, v3, v2, v1, v0) {
+    return SSECFunction._mm_set_epi16(v0, v1, v2, v3, v4, v5, v6, v7);
+};
+
+SSECFunction._mm256_set_epi16 = function(v15, v14, v13, v12, v11, v10, v9, v8, v7, v6, v5, v4, v3, v2, v1, v0) {
+    var bits = new Int32Array(256);
+    var v = [v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15];
+    for (var j = 0; j < v.length; j++) {
+        for (var i = 0; i < 16; i++) {
+            var bit = (v[j] << (i ^ 31)) >> 31;
+            bits[i + 16 * j] = bit;
+        }
+    }
+    return new SSECFunction(bits);
+};
+
+SSECFunction._mm256_setr_epi16 = function(v15, v14, v13, v12, v11, v10, v9, v8, v7, v6, v5, v4, v3, v2, v1, v0) {
+    return SSECFunction._mm256_set_epi16(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15);
+};
+
 SSECFunction.not = function(x, l) {
     var bits = new Int32Array(256);
     for (var i = 0; i < l; i++) {

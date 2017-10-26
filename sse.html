@@ -87,7 +87,10 @@ function formatVec(assignment, idx) {
   }
 
   if (vectorFormattingMode.rev) {
-    arr.reverse();
+    if (vectorFormattingMode.upper)
+      arr.reverse();
+    else
+      arr.subarray(0, arr.length / 2).reverse();
   }
 
   var brk = 7;
@@ -134,6 +137,8 @@ function formatVariableAssignments(assignment, varmap_in, ext_examples) {
   }
   var wrapper = $j('<div/>');
   var table = $j('<table class="varassignment"></table>');
+  table.css('border-collapse', 'separate');
+  table.css('border-spacing', '10px 0px');
   var headers = $j('<tr/>');
   if (varmap.length > 1) {
     for (var i = 0; i < varmap.length; i++)
@@ -437,14 +442,14 @@ $j(document).ready(function(){
     </select></br>
     <label for="disprev">Lane order</label>
     <select id="disprev">
-      <option value="0">lowest address first</option>
       <option value="1">highest address first</option>
+      <option value="0">lowest address first</option>
     </select>
   </div>
   <div id="resultDiv"></div>
   <div id="examples">
     <h2>Examples</h2>
-    <p><a href="sse.html?p=_mm_max_epi8%28x%2C+y%29&amp;q=let+m+%3D+_mm_set1_epi32%280x80808080%29+in+_mm_xor_si128%28_mm_max_epu8%28_mm_xor_si128%28x%2C+m%29%2C+_mm_xor_si128%28y%2C+m%29%29%2C+m%29"><tt>_mm_max_epi8(x, y) == let m = _mm_set1_epi32(0x80808080) in _mm_xor_si128(_mm_max_epu8(_mm_xor_si128(x, m), _mm_xor_si128(y, m)), m)</tt></a></p>
+    <p><a href="sse.html?p=_mm_max_epi8%28x%2C+y%29&amp;q=let+m+%3D+_mm_set1_epi8%280x80%29+in+_mm_xor_si128%28_mm_max_epu8%28_mm_xor_si128%28x%2C+m%29%2C+_mm_xor_si128%28y%2C+m%29%29%2C+m%29"><tt>_mm_max_epi8(x, y) == let m = _mm_set1_epi8(0x80) in _mm_xor_si128(_mm_max_epu8(_mm_xor_si128(x, m), _mm_xor_si128(y, m)), m)</tt></a> (emulate <tt>pmaxsb</tt> with <tt>pmaxub</tt>)</p>
   </div>
   <div>
     <h2>Notes</h2>
