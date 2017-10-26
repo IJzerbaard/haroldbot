@@ -453,7 +453,7 @@ $j(document).ready(function(){
   </div>
   <div>
     <h2>Notes</h2>
-    <p>Anything that isn't an vector must be a literal constant, for example <tt>_mm_shuffle_epi32(x, y)</tt> won't work. This is not an inherent limitation, it's just anonying to work with variables of different sizes.</p>
+    <p>Anything that isn't an vector must be a literal constant, for example <tt>_mm_shuffle_epi32(x, y)</tt> won't work. This is not an inherent limitation, it's just annoying to work with variables of different sizes.</p>
     <p>Not all intrinsics are implemented, some of them because they don't fit the solver architecture (loads and stores), others because they're too complex (floats), some because they involve variable quantities that are the wrong size (<tt>_mm_movemask_epi8</tt> and related), others because I just have not implemented them yet.</p>
     <p>Has not gone through a lot of testing, in particular the definitions of some functions may be wrong.</p>
     <p>The display settings are annoying, I'm still trying to figure out how to do that better.</p>

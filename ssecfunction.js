@@ -422,7 +422,7 @@ SSECFunction._mm_shuffle_epi32 = function (x, shuf) {
     var bits = new Int32Array(256);
     for (var i = 0; i < 4; i++) {
         var start = ((shuf >> (2 * i)) & 3) * 32;
-        bits.set(x.subarray(start, start + 32), i * 32);
+        bits.set(x._bits.subarray(start, start + 32), i * 32);
     }
     return new SSECFunction(bits);
 };
