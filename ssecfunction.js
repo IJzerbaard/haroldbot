@@ -617,15 +617,16 @@ SSECFunction._mm_packs_epi16 = function (a, b) {
 
 function mullo (x, y) {
     var r = new Int32Array(x.length);
-    var shifted = y;
+    var shifted = y.slice(0);
     for (var i = 0; i < x.length; i++) {
         var masked = new Int32Array(shifted.length);
         for (var j = 0; j < masked.length; j++)
             masked[j] = circuit.and(shifted[j], x[i]);
         var carry = 0;
         for (var j = 0; j < r.length; j++) {
+            var oldr = r[j];
             r[j] = circuit.xor(carry, circuit.xor(r[j], masked[j]));
-            carry = circuit.carry(carry, r[j], masked[j]);
+            carry = circuit.carry(carry, oldr, masked[j]);
         }
         shifted.copyWithin(1, 0);
         shifted[0] = 0;
@@ -671,8 +672,8 @@ function mapsw (f, sw, l) {
 }
 
 // mullo
-for (var l = 128; l <= 256; l += 128) {
-    for (var sw = 16; sw <= 32; sw += 16) {
+[128, 256].forEach(function (l) {
+    [16, 32].forEach( function (sw) {
         var name = "_mm" + (l == 256 ? l : "") + "_mullo_epi" + sw;
         SSECFunction[name] = function (x, y) {
             var bits = new Int32Array(256);
@@ -680,8 +681,8 @@ for (var l = 128; l <= 256; l += 128) {
                 bits.set(mullo(x._bits.subarray(i, i + sw), y._bits.subarray(i, i + sw)), i);
             return new SSECFunction(bits);
         };
-    }
-}
+    });
+});
 
 SSECFunction._mm_mul_epu32 = function (x, y) {
     var bits = new Int32Array(256);
@@ -853,8 +854,10 @@ function sra(x, y) {
     return bits;
 }
 
-for (var l = 128; l <= 256; l += 128) {
-    for (var sw = 16; sw <= 64; sw *= 2) {
+for (var lt = 128; lt <= 256; lt += 128) {
+    for (var swt = 16; swt <= 64; swt *= 2) {
+        var l = lt;
+        var sw = swt;
         var _slli = "_mm" + (l == 256 ? l : "") + "_slli_epi" + sw;
         var _sll = "_mm" + (l == 256 ? l : "") + "_sll_epi" + sw;
         var _srli = "_mm" + (l == 256 ? l : "") + "_srli_epi" + sw;
