@@ -854,10 +854,8 @@ function sra(x, y) {
     return bits;
 }
 
-for (var lt = 128; lt <= 256; lt += 128) {
-    for (var swt = 16; swt <= 64; swt *= 2) {
-        var l = lt;
-        var sw = swt;
+[128, 256].forEach(function (l) {
+    [16, 32, 64].forEach(function (sw) {
         var _slli = "_mm" + (l == 256 ? l : "") + "_slli_epi" + sw;
         var _sll = "_mm" + (l == 256 ? l : "") + "_sll_epi" + sw;
         var _srli = "_mm" + (l == 256 ? l : "") + "_srli_epi" + sw;
@@ -891,8 +889,8 @@ for (var lt = 128; lt <= 256; lt += 128) {
                 return new SSECFunction(bits);
             };
         }
-    }
-}
+    });
+});
 
 function fadd32 (a, b, mode) {
     var signa = a[31], signb = b[31];
