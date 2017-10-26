@@ -40,10 +40,15 @@ function performQuery(input) {
 
   parens = true;
   $j('#query-printback').append($j("<p>Parsed as:<br/></p>").append(formatexpr(expr.removeDummy(), 0, varmap)));
-  var cf = expr.removeDummy().constantFold();
-  if (!cf.equals2(expr.removeDummy())) {
+  var nf = Node.normalize(expr.removeDummy());
+  if (!nf.equals2(expr.removeDummy())) {
+    $j('#query-printback').append($j("<p>After normalization:<br/></p>").append(formatexpr(nf, 0, varmap)));
+  }
+  var cf = nf.constantFold();
+  if (!cf.equals2(nf)) {
     $j('#query-printback').append($j("<p>After constant folding:<br/></p>").append(formatexpr(cf, 0, varmap)));
   }
+  expr = cf;
 
   data = {
     varmap: varmap.slice(0)
@@ -264,7 +269,7 @@ function formatexpr(expr, ix, varmap) {
       return res.append(ops[expr.op].substr(1) + '(').append(l).append(', ').append(r).append(')');
     }
 
-    if (expr.l.type == 'bin' && (parens || precedence(expr.op) > precedence(expr.l.op)) || expr.l.type == 'ter') {
+    if ((expr.l.type == 'bin' || expr.l.type == 'assoc') && (parens || precedence(expr.op) > precedence(expr.l.op)) || expr.l.type == 'ter') {
       res.append('(');
       res.append(l);
       res.append(')');
@@ -274,7 +279,7 @@ function formatexpr(expr, ix, varmap) {
     
     res.append(" " + escapeHtml(ops[expr.op]) + " ");
     
-    if (expr.r.type == 'bin' && (parens || precedence(expr.op) > precedence(expr.r.op)) || expr.r.type == 'ter') {
+    if ((expr.r.type == 'bin' || expr.r.type == 'assoc') && (parens || precedence(expr.op) > precedence(expr.r.op)) || expr.r.type == 'ter') {
       res.append('(');
       res.append(r);
       res.append(')');
@@ -290,6 +295,22 @@ function formatexpr(expr, ix, varmap) {
     var f = formatexpr(expr.f, ix, varmap);
 
     return res.append(cond).append(" ? ").append(t).append(" : ").append(f);
+  }
+  if (expr.type == 'assoc') {
+    var m = expr.originalOperands.map(function (x) {
+      var inner = formatexpr(x, ix, varmap);
+      if (!ops[expr.op].startsWith('$') &&
+        (x.type == 'ter' || ((x.type == 'bin' || x.type == 'assoc') && (parens || precedence(expr.op) > precedence(x.op)))))
+        return $j("<span />").append("(").append(inner).append(")");
+      else
+        return inner;
+    });
+
+    return m.reduce(function (res, p, i) {
+      if (i == 0)
+        return res.append(p);
+      return res.append(" " + escapeHtml(ops[expr.op]) + " ").append(p);
+    }, res);
   }
   debugger;
 }

@@ -1,4 +1,4 @@
-function ProofFinder(op) {
+function ProofFinder(op, assocmode) {
 	var except_not = 1;
 	var except_neg = 2;
 	var except_zero = 3;
@@ -6,6 +6,7 @@ function ProofFinder(op) {
 	var except_non_mersenne = 5;
 
 	this.dead = op != 20;
+	this.assocmode = assocmode;
 
 	function a(x) {
 		return {

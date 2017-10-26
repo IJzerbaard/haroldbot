@@ -55,11 +55,6 @@ Node.prototype.copy = function() {
 	return null;
 };
 
-Node.prototype.analyze = function(env) {
-	alert("This object should not exist");
-	return null;
-};
-
 Node.prototype.eval = function(vars) {
 	alert("This object should not exist");
 	return null;
@@ -107,13 +102,6 @@ Constant.prototype.toSSECircuitFunc = function() {
 
 Constant.prototype.copy = function() {
 	return new Constant(this.value);
-};
-
-Constant.prototype.analyze = function(env) {
-	var v = this.value;
-	var r = { z: ~v, o: v };
-	env.nr[this.id] = r;
-	return r;
 };
 
 Constant.prototype.eval = function(vars) {
@@ -164,12 +152,6 @@ Variable.prototype.copy = function() {
 	return new Variable(this.index);
 };
 
-Variable.prototype.analyze = function(env) {
-	var r = { z: -1, o: -1 };
-	env.nr[this.id] = r;
-	return r;
-};
-
 Variable.prototype.eval = function(vars) {
 	return vars[this.index];
 };
@@ -181,7 +163,7 @@ Variable.prototype.sseeval = function(vars) {
 
 function Unary(op, val) {
 	Node.call(this);
-	if (op < 0 || val == null || val == undefined) debugger;
+	//if (op < 0 || val == null || val == undefined) debugger;
 	this.hash = (val.hash << 17) - val.hash + op + 1 | 0;
 	this.hash2 = (op + 1 & 31) | ((val.hash2 & 31) << 5);
 	this.op = op;
@@ -211,7 +193,7 @@ Unary.prototype.print = function(varmap) {
 	if (this.op > 1)
 		return unops[this.op].substr(1) + "(" + this.value.print(varmap) + ")";
 	var o = unops[this.op];
-	if ((this.value.type == 'bin' && this.value.op < 55) || this.value.type == 'ter')
+	if (((this.value.type == 'bin' || this.value.type == 'assoc') && this.value.op < 55) || this.value.type == 'ter')
 		return o + "(" + this.value.print(varmap) + ")";
 	else
 		return o + this.value.print(varmap);
@@ -231,7 +213,7 @@ Unary.prototype.toBddFunc = function() {
 		case 6:	return BDDFunction.abs(inner);
 		case 7: return BDDFunction.ez80mlt(inner);
 	}
-	debugger;
+	//debugger;
 	alert("Severe bug in Unary.toBddFunc");
 };
 
@@ -249,7 +231,7 @@ Unary.prototype.toCircuitFunc = function() {
 		case 6:	return CFunction.abs(inner);
 		case 7: return CFunction.ez80mlt(inner);
 	}
-	debugger;
+	//debugger;
 	alert("Severe bug in Unary.toCircuitFunc");
 };
 
@@ -267,7 +249,7 @@ Unary.prototype.constantFold = function(nrec) {
 	if (inner.type == 'const') {
 		switch (this.op) {
 			case "dummy": return this;
-			default: debugger;
+			default: throw "invalid unary"; // debugger;
 			case 0:	return new Constant(~inner.value);
 			case 1:	return new Constant(-inner.value | 0);
 			case 2:	return new Constant(popcnt(inner.value));
@@ -294,27 +276,10 @@ Unary.prototype.copy = function() {
 	return new Unary(this.op, this.value.copy());
 };
 
-Unary.prototype.analyze = function(env) {
-	var v = this.value.analyze(env);
-	var r = null;
-	switch (this.op) {
-		case 0:	r = Bitfield.invert(v); break;
-		case 1:	r = Bitfield.negate(v); break;
-		case 2:	r = Bitfield.popcnt(v); break;
-		case 3:	r = Bitfield.ntz(v); break;
-		case 4:	r = Bitfield.nlz(v); break;
-		case 5:	r = Bitfield.rbit(v); break;
-		case 7: r = { z: -1, o: 0xFFFF }; break;
-		default:	r = { z: -1, o: -1 }; break;
-	}
-	env.nr[this.id] = r;
-	return r;
-};
-
 Unary.prototype.eval = function(vars) {
 	var inner = this.value.eval(vars);
 	switch (this.op) {
-		default: debugger;
+		default: throw "invalid unary"; // debugger;
 		case 0: return ~inner;
 		case 1: return -inner | 0;
 		case 2: return popcnt(inner);
@@ -335,7 +300,7 @@ Unary.prototype.toSSECircuitFunc = function(vars) {
 
 function Binary(op, l, r) {
 	Node.call(this);
-	if (op < 0 || l == null || r == null) debugger;
+	//if (op < 0 || l == null || r == null) debugger;
 	var lhash = l.hash;
 	var rhash = r.hash;
 	// if commutative operation, use commutative hash
@@ -380,12 +345,12 @@ Binary.prototype.print = function(varmap) {
 	if (this.op >= 55)
 		return ops[this.op].substr(1) + "(" + this.l.print(varmap) + ", " + this.r.print(varmap) + ")";
 	var res = "";
-	if (this.l.type == 'bin' || this.l.type == 'ter')
+	if (this.l.type == 'bin' || this.l.type == 'ter' || this.l.type == 'assoc')
 		res += "(" + this.l.print(varmap) + ")";
 	else
 		res += this.l.print(varmap);
 	res += " " + ops[this.op] + " ";
-	if (this.r.type == 'bin' || this.r.type == 'ter')
+	if (this.r.type == 'bin' || this.r.type == 'ter' || this.r.type == 'assoc')
 		res += "(" + this.r.print(varmap) + ")";
 	else
 		res += this.r.print(varmap);
@@ -393,9 +358,11 @@ Binary.prototype.print = function(varmap) {
 };
 
 Binary.prototype.toBddFunc = function() {
-	var l = this.l.toBddFunc();
-	var r = this.r.toBddFunc();
-	switch (this.op) {
+	return binaryToBddFunc(this.op, this.l.toBddFunc(), this.r.toBddFunc());
+};
+
+function binaryToBddFunc(op, l, r) {
+	switch (op) {
 		case 1: return BDDFunction.and(l, r);
 		case 2: return BDDFunction.or(l, r);
 		case 3: return BDDFunction.xor(l, r);
@@ -433,14 +400,16 @@ Binary.prototype.toBddFunc = function() {
 		case 59: return BDDFunction.hmul(l, r, false);
 		case 60: return BDDFunction.hmul(l, r, true);
 		case 61: return BDDFunction.clmul(l, r);
+		default: alert("Unimplemented operation in binaryToBddFunc");
 	}
-	alert("Severe bug in Binary.toBddFunc");
-};
+}
 
 Binary.prototype.toCircuitFunc = function() {
-	var l = this.l.toCircuitFunc();
-	var r = this.r.toCircuitFunc();
-	switch (this.op) {
+	return binaryToCircuitFunc(this.op, this.l.toCircuitFunc(), this.r.toCircuitFunc());
+};
+
+function binaryToCircuitFunc(op, l, r) {
+	switch (op) {
 		case 1: return CFunction.and(l, r);
 		case 2: return CFunction.or(l, r);
 		case 3: return CFunction.xor(l, r);
@@ -479,8 +448,8 @@ Binary.prototype.toCircuitFunc = function() {
 		case 60: return CFunction.hmul(l, r, true);
 		case 61: return CFunction.clmul(l, r);
 	}
-	alert("Severe bug in Binary.toCircuitFunc");
-};
+	alert("Unimplemented operation in binaryToCircuitFunc");
+}
 
 Binary.prototype.removeDummy = function() {
 	var l = this.l.removeDummy();
@@ -511,38 +480,10 @@ Binary.prototype.copy = function() {
 	return new Binary(this.op, this.l.copy(), this.r.copy());
 };
 
-Binary.prototype.analyze = function(env) {
-	var l = this.l.analyze(env);
-	var r = this.r.analyze(env);
-	var res = { z: -1, o: -1 };
-	switch (this.op) {
-		case 1:	res = Bitfield.and(l, r); break;
-		case 2:	res = Bitfield.or(l, r); break;
-		case 3:	res = Bitfield.xor(l, r); break;
-		case 4:	res = Bitfield.add(l, r); break;
-		case 5:	res = Bitfield.sub(l, r); break;
-		case 6:	res = Bitfield.shl(l, r); break;
-		case 7:
-		case 31:	res = Bitfield.shru(l, r); break;
-		case 30:	res = Bitfield.shrs(l, r); break;
-		case 8:	res = Bitfield.rol(l, r); break;
-		case 9:	res = Bitfield.ror(l, r); break;
-		case 11:	res = Bitfield.mul(l, r); break;
-		case 20:	res = Bitfield.eq(l, r); break;
-		case 21:	res = Bitfield.neq(l, r); break;
-		default:
-			break;
-	}
-	env.nr[this.id] = res;
-	return res;
-};
-
-Binary.prototype.eval = function(vars) {
-	var l = this.l.eval(vars) | 0;
-	var r = this.r.eval(vars) | 0;
+function evalBinary(op, l, r) {
 	var m = 0x80000000;
-	switch (this.op) {
-		default: throw "not implemented";
+	switch (op) {
+		default: throw "Unimplemented operation in evalBinary";
 		case 1: return l & r;
 		case 2: return l | r;
 		case 3: return l ^ r;
@@ -585,12 +526,171 @@ Binary.prototype.eval = function(vars) {
 		case 60: return hmul_i32(l, r);
 		case 61: return clmul_u32(l, r);
 	}
+}
+
+Binary.prototype.eval = function(vars) {
+	var l = this.l.eval(vars) | 0;
+	var r = this.r.eval(vars) | 0;
+	return evalBinary(this.op, l, r);
+};
+
+function Assoc(op, operands) {
+	Node.call(this);
+	// inline nested assocs with the same op
+	operands = operands.reduce(function (list, x) {
+		if (x.type == 'assoc' && x.op == op)
+			return list.concat(x.originalOperands);
+		else return list.concat([x]);
+	}, []);
+	this.originalOperands = operands;
+	var orderedoperands = operands;
+	if (commutative[op]) {
+		orderedoperands = operands.slice(0);
+		orderedoperands.sort(function (a, b) { return a.hash - b.hash; });
+	}
+	this.hash = orderedoperands.reduce(function (a, b) { return  31 * a + b.hash | 0; }, op * 1009);
+	this.hash2 = 0;
+	this.op = op;
+	this.operands = orderedoperands;
+	this.type = 'assoc';
+
+	var opweight = 1.0;
+	if (op >= 4)
+		opweight = 1.1;
+	if (op == 10 || op == 11 || op == 32 || op == 33 || op == 34 || op == 35)
+		opweight = 4.0;
+	this.weight = operands.reduce(function (a, b) { return a + b.weight; }, opweight * (this.operands.length - 1));
+}
+
+Assoc.prototype = Object.create(Node.prototype);
+Assoc.prototype.constructor = Assoc;
+
+Assoc.prototype.equals = function(node) {
+	if (node.hash != this.hash || node.type != 'assoc' || node.op != this.op || node.operands.length != this.operands.length)
+		return false;
+	for (var i = 0; i < this.operands.length; i++)
+		if (!this.operands[i].equals(node.operands[i]))
+			return false;
+	return true;
+};
+
+Assoc.prototype.equals2 = function(node) {
+	if (node.hash != this.hash || node.type != 'assoc' || node.op != this.op || node.originalOperands.length != this.originalOperands.length)
+		return false;
+	for (var i = 0; i < this.originalOperands.length; i++)
+		if (!this.originalOperands[i].equals2(node.originalOperands[i]))
+			return false;
+	return true;
+};
+
+Assoc.prototype.removeDummy = function() {
+	var newoperands = [];
+	for (var i = 0; i < this.originalOperands.length; i++)
+		newoperands[i] = this.originalOperands[i].removeDummy();
+	for (var i = 0; i < this.originalOperands.length; i++)
+		if (newoperands[i].id != this.originalOperands[i].id)
+			return new Assoc(this.op, newoperands);
+	return this;
+};
+
+Assoc.prototype.constantFold = function(nrec) {
+	if (commutative[this.op]) {
+		var operands = null;
+		// if non-recursive, use operands directly
+		if (nrec) operands = this.operands;
+		// otherwise, fold them first
+		else operands = this.operands.map(function (x) { return x.constantFold(false); });
+		// take all the constants,
+		var constants = operands.filter(function (x) { return x.type == 'const'; });
+		if (constants.length < 2) return this;
+		// fold them together
+		var op = this.op;
+		var c = constants.map(function (x) { return x.value; })
+		                 .reduce(function (l, r) { return evalBinary(op, l, r); });
+		// replace all the constants by the folded value
+		var nc = operands.filter(function (x) { return x.type != 'const'; });
+		nc.push(new Constant(c));
+		if (nc.length == 1) return nc[0];
+		return new Assoc(this.op, nc);
+	}
+	else {
+		// if not commutative, only fold from left to right
+		var newoperands = this.operands.slice(0);
+		var r = false;
+		for (var i = 1; i < newoperands.length; i++) {
+			if (newoperands[i - 1].type == 'const' && newoperands[i].type == 'const') {
+				var c = new Constant(evalBinary(this.op, newoperands[i - 1].value, newoperands[i].value));
+				newoperands[i - 1] = null;
+				newoperands[i] = c;
+				r = true;
+			}
+		}
+		if (r) {
+			newoperands = newoperands.filter(function (x) { return x != null; });
+			if (newoperands.length == 1) return newoperands[0];
+			return new Assoc(this.op, newoperands);
+		}
+	}
+	return this;
+};
+
+Assoc.prototype.containsDoubleUnary = function() {
+	return this.operands.reduce(function (sum, x) { return sum + x.containsDoubleUnary(); }, 0);
+};
+
+Assoc.prototype.copy = function() {
+	return new Assoc(this.op, this.originalOperands.map(function (x) { return x.copy(); }));
+};
+
+Assoc.prototype.print = function(varmap) {
+	if (this.op >= 55)
+		return ops[this.op].substr(1) + "(" + this.originalOperands.join(", ") + ")";
+	var m = this.originalOperands.map(function (x) {
+		var inner = x.print(varmap);
+		if (x.type == 'bin' || x.type == 'ter' || x.type == 'assoc')
+			return "(" + inner + ")";
+		else
+			return inner;
+	});
+	return m.join(" " + ops[this.op] + " ");
+};
+
+Assoc.prototype.eval = function (vars) {
+	var op = this.op;
+	return this.originalOperands.reduce(function (l, r) {
+		var lv;
+		if (l instanceof Node)
+			lv = l.eval(vars);
+		else
+			lv = l;
+		return evalBinary(op, lv, r.eval(vars));
+	});
+};
+
+Assoc.prototype.toBddFunc = function() {
+	var op = this.op;
+	return this.originalOperands.reduce(function (l, r) {
+		if (l instanceof BDDFunction)
+			return binaryToBddFunc(op, l, r.toBddFunc());
+		else
+			return binaryToBddFunc(op, l.toBddFunc(), r.toBddFunc());
+	});
+};
+
+Assoc.prototype.toCircuitFunc = function() {
+	var op = this.op;
+	return this.originalOperands.reduce(function (l, r) {
+		if (l instanceof CFunction)
+			return binaryToCircuitFunc(op, l, r.toCircuitFunc());
+		else
+			return binaryToCircuitFunc(op, l.toCircuitFunc(), r.toCircuitFunc());
+	});
 };
 
 
 function Ternary(cond, t, f) {
 	Node.call(this);
-	if (cond == null || t == null || f == null) debugger;
+	//if (cond == null || t == null || f == null) debugger;
 	this.hash = (t.hash * 31) ^ (f.hash * 1009) ^ (cond.hash * 65521) ^ 0xdeadbeef;
 	this.hash2 = (cond.hash2 & 15) | ((t.hash2 & 15) << 4) | ((f.hash2 & 15) << 8) | 0x7000;
 	this.cond = cond;
@@ -613,7 +713,7 @@ Ternary.prototype.equals2 = function(node) {
 };
 
 Ternary.prototype.print = function(varmap) {
-	return "(" + this.cond.print(varmap) + " ? " + this.t.print(varmap) + " : " + this.f.print(varmap) + ")";
+	return "(" + this.cond.print(varmap) + ") ? (" + this.t.print(varmap) + ") : (" + this.f.print(varmap) + ")";
 };
 
 Ternary.prototype.toBddFunc = function() {
@@ -666,15 +766,6 @@ Ternary.prototype.copy = function() {
 	return new Ternary(this.cond.copy(), this.t.copy(), this.f.copy());
 };
 
-Ternary.prototype.analyze = function(env) {
-	var cond = this.cond.analyze(env);
-	var t = this.t.analyze(env);
-	var f = this.f.analyze(env);
-	var res = Bitfield.mux(cond, t, f);
-	env.nr[this.id] = res;
-	return res;
-};
-
 
 function Fun(name, args) {
 	Node.call(this);
@@ -716,9 +807,7 @@ Fun.prototype.equals2 = function(node) {
 };
 
 Fun.prototype.print = function(varmap) {
-	return this.args.reduce(function(a, b, i) {
-		return a + (i != 0 ? ", " : "") + b.print(varmap);
-	}, this.fun + "(") + ")";
+	return this.fun + "(" + this.args.join(", ") + ")";
 };
 
 Fun.prototype.toBddFunc = function() {
@@ -781,12 +870,6 @@ Fun.prototype.copy = function() {
 	return new Fun(this.fun, this.args);
 };
 
-Fun.prototype.analyze = function(env) {
-	var res = { z: -1, o: -1 };
-	env.nr[this.id] = res;
-	return res;
-};
-
 Fun.prototype.eval = function(vars) {
 	debugger;
 	throw "not implemented";
@@ -797,6 +880,40 @@ Fun.prototype.sseeval = function(vars) {
 		this.fun.startsWith("_mm256_")) {
 		var a = this.args.map(function(x) { return x.sseeval(vars); });
 		return SSECFunction[this.fun]( ... a);
+	}
+};
+
+Node.normalize = function (expr) {
+	switch (expr.type) {
+		default: return expr;
+		case 'un':
+			var inner = Node.normalize(expr.value);
+			return inner.id == expr.value.id ? expr : new Unary(expr.op, inner);
+		case 'bin':
+			var l = Node.normalize(expr.l);
+			var r = Node.normalize(expr.r);
+			if (associative[expr.op]) return new Assoc(expr.op, [l, r]);
+			if (l.id != expr.l.id || r.id != expr.r.id) return new Binary(expr.op, l, r);
+			return expr;
+		case 'assoc':
+			var args = expr.originalOperands.map(Node.normalize);
+			for (var i = 0; i < args.length; i++)
+				if (args[i].id != expr.originalOperands[i].id)
+					return new Assoc(expr.op, args);
+			return expr;
+		case 'ter':
+			var c = Node.normalize(expr.cond);
+			var t = Node.normalize(expr.t);
+			var f = Node.normalize(expr.f);
+			if (c.id != expr.cond.id || t.id != expr.t.id || f.id != expr.f.id)
+				return new Ternary(c, t, f);
+			return expr;
+		case 'fun':
+			var args = expr.args.map(Node.normalize);
+			for (var i = 0; i < args.length; i++)
+				if (args[i].id != expr.args[i].id)
+					return new Fun(expr.fun, args);
+			return expr;
 	}
 };
 

@@ -10,7 +10,6 @@
 <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
 <script type="text/javascript" src="jquery.color-2.1.2.min.js"></script>
 <script type="text/javascript" src="util.js"></script>
-<script type="text/javascript" src="abstractinterp.js"></script>
 <script type="text/javascript" src="expr.js"></script>
 <script type="text/javascript" src="parser.js"></script>
 <script type="text/javascript" src="bigint.js"></script>
@@ -462,6 +461,12 @@ $j(document).ready(function(){
         update_circuit();
     });
     $j('#start_proof_search').click(findproof);
+
+    var p = new ProofFinder(20);
+    var maxnonzero = p.RulecountHist.length - 1;
+    while (p.RulecountHist[maxnonzero] == 0)
+        maxnonzero--;
+    $j('#maxrewrite').text(maxnonzero);
 });
 </script>
 <style type="text/css">
@@ -492,17 +497,21 @@ div.hidden {
             <li><a href="#proof-generation">Automatic Proof Generation</a></li>
         </ul>
     </p>
+    <p><a href="/index.html">Back to the main site</a></p>
     <h4 id="intro">Introduction</h4>
     <p>Haroldbot is a tool that checks the equivalence of arithmetic expressions with 32-bit bitvector semantics, running entirely on the client. This task is mostly accomplished by encoding the expression as an array of 32 binary decision diagrams, one for each bit. Since for a given variable ordering a BDD of a boolean function is canonical, this representation offers and easy equivalence test, at the cost of having to build the BDD first.</p>
-    <p>Some types of expressions, most notably expressions that involve the product of two non-constants, cannot be encoded as a small BDD. For those expressions, haroldbot can fall back to using a SAT solver, by encoding the whole expression as a boolean circuit first and then using the Tseytin transformation to convert the problem to CNF.</p>
-    <p>BDDs, SAT, and even using them this way (bit-blasting everything and solving a boolean formula) are already covered in many other places, so I won't go too in-depth on them.</p>
+    <p>Some types of expressions, most notably expressions that involve the product of two variables, cannot be encoded as a small BDD. For those expressions, haroldbot can fall back to using a SAT solver, by encoding the whole expression as a boolean circuit first and then using the Tseytin transformation to convert the problem to CNF.</p>
     <p>Haroldbot can also (sometimes) find step-by-step proofs for true statements, this is done by applying expression rewrite rules from both ends of proof until a match is found that "connects" the two.</p>
     <h4 id="BDDs">Binary Decision Diagrams</h4>
     <p>BDDs, specifically reduced ordered binary decision diagrams (ROBDD) with a fixed order and with "complement edges", form the backbone of haroldbot and have been part of it the longest, with the SAT fallback and proof finder being added during later stages of development.</p>
     <p>A BDD is a directed acyclic graph consisting of internal nodes with exactly two children that represent testing a boolean variable and taking either the "low" or the "high" edge, and two leaf nodes that represent the constant results 0 and 1. The "reduced" part of ROBDD means that a node that refers to the same child the same way twice (representing a "choice" between two equal things) is skipped and that any equivalent nodes are deduplicated.</p>
     <p>Skipping useless nodes with two equal children is very easy, since the node-creating function can simply return the child instead of a new node, but keeping nodes deduplicated is more interesting. In abstract terms, the typical solution is to maintain a dictionary <tt>Node -> Node</tt>, where looking up a node gives you the canonical node (or nothing, in which case a new node must be created). In haroldbot this is implemented in the node storage itself, by treating the storage arrays as a hash table with open addressing.</p>
     <p>Nodes are then referred to by their index in the table, or by the complement of the index to represent a complement edge. The indexes are non-negative, so complement edges are always negative, making them easy to distinguish. To ensure canonicity, only the low edge of a node may be a complement edge. If a node with a complement edge as its high edge is requested, the low edge, high edge, and the index of this node when it is returned are all complemented. The "bottom" sink is represented by 0, there is no "top" sink, instead a complement edge to the "bottom" sink is used.</p>
-    <p>In many parts of haroldbot functions are represented as arrays of 32 BDDs. Below is an example (visualized one bit at the time), low and high edges are indicated by dashed and solid edges respectively, normal edges and complement edges are indicated by blue and red respectively. An extra root node is visualized, it is not part of the BDD but is necessary here to indicate whether the actual root node of the BDD is entered through a complement edge or through a normal edge. To prevent the visualization from blowing up it is limited to 1000 nodes, so big BDDs are only visualized partially.</p>
+    <p>This representation has a side effect of making some computations with nodes trivial. Any boolean function applied on sinks can be written with the equivalent bitwise operations and it will have the same effect. More interestingly, even in some special cases that do <i>not</i> just involve constants, computations can be done directly on node indices without going through the slower BDD-arithmetic algorithms. So the function that computes the XOR between two BDDs starts with the lines
+        <pre>if (f == 0 || g == 0 || f == -1 || g == -1 || f == g || f == ~g)
+    return f ^ g;</pre>which takes care of all base cases of the recursive function that computes the XOR of <tt>f</tt> and <tt>g</tt>.</p>
+    <p>The full process of computing the XOR (for example) of two BDDs is described well in The Art of Computer Programming Volume 4A, in chapter 7.1.4 <i>Binary decision diagrams</i>.</p>
+    <p>In many parts of haroldbot functions are represented as arrays of 32 BDDs. Below is an example, visualized one bit at the time. Low and high edges are indicated by dashed and solid edges respectively, normal edges and complement edges are indicated by blue and red respectively. An extra root node is visualized, it is not part of the BDD but is necessary here to indicate whether the actual root node of the BDD is entered through a complement edge or through a normal edge. To prevent the visualization from blowing up it is limited to 1000 nodes, so big BDDs are only visualized partially.</p>
     <p>
         <input type="text" value="a + b" name="q" id="q"/>
         <select id="bitindex">
@@ -602,10 +611,10 @@ div.hidden {
         <div id="q3-noneq" class="hidden">The expression must have '==' as root operator.<br/><br/></div>
         <div id="exprcloud"></div>
     </p>
-    <p>Naturally, this is an exponential time (and space) algorithm. This is made worse by the fact that many rewrites increase the size of the expression. In haroldbot that is prevented a bit by preferentially expanding small expressions, which are more likely than big expressions to either lead to a dead-end quickly or lead to a path between the LHS-expression cloud and the RHS-expression cloud.</p>
-    <p>In order to rewrite and determine structural equivalences efficiently, expressions are hashed in two different ways. A local hash, which depends only on the the top level operator and its direct children, is used to select likely-applicable rewrite rules. A total hash, which depends on the entire expression, is used to detect duplicate expressions both within each expression cloud and to detect a match that connects both clouds.</p>
-    <p>Thanks to the local hash, at most 20 (usually 5 or fewer) rewrite rules are tried per node in an expression, instead of all nearly 300 rules. More rules operate on a fixed top level operator and so are generally not applied to an expression node that represents a different operator, except when the hashes collide.</p>
-    
+    <p>Naturally, this is an exponential time (and space) algorithm. This is made worse by the fact that many rewrites increase the size of the expression. In haroldbot that is prevented a bit by preferentially expanding small expressions. Small expressions tend to make the proof nicer (though sometimes longer) and are more likely to go in the "right direction".</p>
+    <p>In order to rewrite and determine structural equivalences efficiently, expressions are hashed in two different ways. A local hash, which depends only on the the top level operator and its direct children, is used to select likely-applicable rewrite rules. A total hash, which depends on the entire expression, is used to detect duplicate expressions within each expression cloud and to detect a match that connects both clouds with a path (which represents a proof).</p>
+    <p>Thanks to the local hash, at most <a id="maxrewrite"></a> rewrite rules are tried per node in an expression, instead of all three hundred rules. Usually fewer, typically around 5. Most rules operate on a fixed top level operator and so are generally not applied to an expression node that represents a different operator, except when the hashes collide.</p>
+    <p>After the expression-steps of a proof have been found, the explanations are then generated separately. This allows more steps to have a "forward" explanation, which is often nicer than a "backwards" explanation. As part of this process, the node-ids of the expression in the explanation itself are rewritten to the ids found in the actual expression. The front-end wraps each node of an expression in a <tt>span</tt>-tag and uses the id to calculate a <tt>class</tt/>-attribute which is used to highlight corresponding expressions on hover.</p>
 </div>
 </body>
 </html>
