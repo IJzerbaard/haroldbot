@@ -40,10 +40,11 @@ function performQuery(input) {
 
   parens = true;
   $j('#query-printback').append($j("<p>Parsed as:<br/></p>").append(formatexpr(expr.removeDummy(), 0, varmap)));
-  var nf = Node.normalize(expr.removeDummy());
-  if (!nf.equals2(expr.removeDummy())) {
-    $j('#query-printback').append($j("<p>After normalization:<br/></p>").append(formatexpr(nf, 0, varmap)));
-  }
+  //var nf = Node.normalize(expr.removeDummy());
+  //if (!nf.equals2(expr.removeDummy())) {
+  //  $j('#query-printback').append($j("<p>After normalization:<br/></p>").append(formatexpr(nf, 0, varmap)));
+  //}
+  var nf = expr.removeDummy();
   var cf = nf.constantFold();
   if (!cf.equals2(nf)) {
     $j('#query-printback').append($j("<p>After constant folding:<br/></p>").append(formatexpr(cf, 0, varmap)));
@@ -573,7 +574,7 @@ $j(document).ready(function(){
 </head>
 <body>
 <div id="header"><h1>haroldbot 2</h1>
-(due to infrastructure changes this is an entirely new version with new bugs)<br/><br/>
+<br/><br/>
 </div>
 <div id="querybar">
   <div id="querybox">
@@ -607,7 +608,8 @@ $j(document).ready(function(){
     <p>The BDD structural matcher has not been fully ported yet.</p>
     <p>SAT fallback now exists, using MiniSat compiled with Emscripten. This is brand new so expect bugs (not due to MiniSat, but for example I don't entirely trust my circuit builder and circuit-to-SAT converter). haroldbot should now give up early on (some) multiplications that would create a gigantic BDD.</p>
     <p>In general, there <i>are</i> many bugs.</p>
-    <p>Since everything happens client-side now, I don't get automatic bug reports. Please <a href="https://github.com/IJzerbaard/haroldbot/issues">open an issue</a> or contact me (eg via email or twitter @HaroldAptroot).</p>
+    <p>Since everything happens client-side, I don't get automatic bug reports. Please <a href="https://github.com/IJzerbaard/haroldbot/issues">open an issue</a> or contact me (eg via email or twitter @HaroldAptroot).</p>
+    <p>Overview of <a href="how.html">how haroldbot works</a>.</p>
   </div>
   <div>
     <h2>List of available functions</h2>

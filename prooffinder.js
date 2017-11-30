@@ -270,7 +270,7 @@ function ProofFinder(op, assocmode) {
 			["+", [a(0)], [a(1)]],
 			["+", [a(1)], [a(0)]],
 			false, "commutativity of addition", ,
-		],
+		]
 		// properties of subtraction
 		[
 			["-", [a(0)], [0]],
@@ -1018,6 +1018,27 @@ function ProofFinder(op, assocmode) {
 			[">>u", ["$hmul_u", [a(0)], [0xcccccccd|0]], [2]],
 			["/u", [a(0)], [5]],
 			false, "divide by hmul", ,
+		],
+		// (a & b) op (a | b)
+		[
+			["+", ["&", [a(0)], [a(1)]], ["|", [a(0)], [a(1)]]],
+			["+", [a(0)], [a(1)]],
+			false, "bit-level commutativity of addition", ,
+		],
+		[
+			["^", ["&", [a(0)], [a(1)]], ["|", [a(0)], [a(1)]]],
+			["^", [a(0)], [a(1)]],
+			false, "bit-level commutativity of xor", ,
+		],
+		[
+			["|", ["&", [a(0)], [a(1)]], ["|", [a(0)], [a(1)]]],
+			["|", [a(0)], [a(1)]],
+			false, "bit-level commutativity of or", ,
+		],
+		[
+			["&", ["&", [a(0)], [a(1)]], ["|", [a(0)], [a(1)]]],
+			["&", [a(0)], [a(1)]],
+			false, "bit-level commutativity of and", ,
 		],
 
 
