@@ -270,7 +270,8 @@ function ProofFinder(op, assocmode) {
 			["+", [a(0)], [a(1)]],
 			["+", [a(1)], [a(0)]],
 			false, "commutativity of addition", ,
-		]
+		],
+		
 		// properties of subtraction
 		[
 			["-", [a(0)], [0]],
@@ -1137,6 +1138,11 @@ function ProofFinder(op, assocmode) {
 			true, "complemented maximum is minimum of complements", "minimum of complements is complemented maximum",
 		],
 		// add/sub
+		[
+			["+", [a(0)], ["-", [a(1)]]],
+			["-", [a(0)], [a(1)]],
+			false, "adding a negative", ,
+		],
 		[
 			["+", ["-", [a(0)], [a(1)]], [a(1)]],
 			[a(0)],
@@ -2132,6 +2138,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				c = c[0];
 			}
 		}
+
+		// find explanations
 		for (var j = 0; j < steps.length - 1; j++) {
 			var f = steps[j];
 			var t = steps[j + 1];
