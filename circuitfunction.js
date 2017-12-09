@@ -90,7 +90,7 @@ CFunction.sub = function(x, y) {
 }
 
 CFunction.hor = function(x) {
-	var or = circuit.or_big(x._bits);
+	var or = circuit.or_big(x._bits.slice());
 	var bits = new Int32Array(32);
 	for (var i = 0; i < bits.length; i++)
 		bits[i] = or;
@@ -397,7 +397,7 @@ CFunction.popcnt = function(x) {
 	r[2] = bits[2][0];
 	r[3] = bits[3][0];
 	r[4] = bits[4][0];
-	r[5] = circuit.and_big(x._bits);
+	r[5] = circuit.and_big(x._bits.slice());
 	return new CFunction(r, x._divideError);
 };
 
