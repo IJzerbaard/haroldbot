@@ -116,7 +116,7 @@ function performQuery(input) {
     if (bddf) {
       data.simp = bddf.Identify(varmap);
       if (data.simp == undefined) {
-        data.msg = "bdd structural pattern matcher didn't work (it's still quite broken)"
+        data.msg = "no simplication found";
       }
       else {
         Node.AnalyzeProperties(data, varmap, data.simp, update);
@@ -270,7 +270,7 @@ function formatexpr(expr, ix, varmap) {
       return res.append(ops[expr.op].substr(1) + '(').append(l).append(', ').append(r).append(')');
     }
 
-    if ((expr.l.type == 'bin' || expr.l.type == 'assoc') && (parens || precedence(expr.op) > precedence(expr.l.op)) || expr.l.type == 'ter') {
+    if ((expr.l.type == 'bin' || expr.l.type == 'assoc') && (parens && !isbinfunc(expr.l.op) || precedence(expr.op) > precedence(expr.l.op)) || expr.l.type == 'ter') {
       res.append('(');
       res.append(l);
       res.append(')');
@@ -280,7 +280,7 @@ function formatexpr(expr, ix, varmap) {
     
     res.append(" " + escapeHtml(ops[expr.op]) + " ");
     
-    if ((expr.r.type == 'bin' || expr.r.type == 'assoc') && (parens || precedence(expr.op) > precedence(expr.r.op)) || expr.r.type == 'ter') {
+    if ((expr.r.type == 'bin' || expr.r.type == 'assoc') && (parens && !isbinfunc(expr.r.op) || precedence(expr.op) > precedence(expr.r.op)) || expr.r.type == 'ter') {
       res.append('(');
       res.append(r);
       res.append(')');
@@ -301,7 +301,7 @@ function formatexpr(expr, ix, varmap) {
     var m = expr.originalOperands.map(function (x) {
       var inner = formatexpr(x, ix, varmap);
       if (!ops[expr.op].startsWith('$') &&
-        (x.type == 'ter' || ((x.type == 'bin' || x.type == 'assoc') && (parens || precedence(expr.op) > precedence(x.op)))))
+        (x.type == 'ter' || ((x.type == 'bin' || x.type == 'assoc') && (parens && !isbinfunc(x.op) || precedence(expr.op) > precedence(x.op)))))
         return $j("<span />").append("(").append(inner).append(")");
       else
         return inner;
