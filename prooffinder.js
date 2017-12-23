@@ -714,11 +714,31 @@ function ProofFinder(op, assocmode) {
 			["$abs", [a(0)]],
 			false, "abs is idempotent", ,
 		],
-		// additivity
+		// carryless square move
 		[
 			["^", ["$clmul", [a(0)], [a(0)]], ["$clmul", [a(1)], [a(1)]]],
 			["$clmul", ["^", [a(0)], [a(1)]], ["^", [a(0)], [a(1)]]],
-			true, "XOR-additivity of carryless square", ,
+			true, "move XOR into carryless square", "move XOR out of carryless square" ,
+		],
+		[
+			["&", ["$clmul", [a(0)], [a(0)]], ["$clmul", [a(1)], [a(1)]]],
+			["$clmul", ["&", [a(0)], [a(1)]], ["&", [a(0)], [a(1)]]],
+			true, "move AND into carryless square", "move AND out of carryless square" ,
+		],
+		[
+			["|", ["$clmul", [a(0)], [a(0)]], ["$clmul", [a(1)], [a(1)]]],
+			["$clmul", ["|", [a(0)], [a(1)]], ["|", [a(0)], [a(1)]]],
+			true, "move OR into carryless square", "move OR out of carryless square" ,
+		],
+		[
+			["^", ["$clmul", [a(0)], [a(0)]], ["$clmul", [a(1)], [a(1)]]],
+			["$clmul", ["^", [a(0)], [a(1)]], ["^", [a(0)], [a(1)]]],
+			true, "move XOR into carryless square", "move XOR out of carryless square" ,
+		],
+		[
+			["$reverse", ["$clmul", [a(0)], [a(0)]]],
+			["$clmul", ["$reverse", [a(0)]], ["$reverse", [a(0)]]],
+			true, "move reverse into carryless square", "move reverse out of carryless square" ,
 		],
 		// double shift
 		[
