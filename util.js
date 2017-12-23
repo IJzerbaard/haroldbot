@@ -10,6 +10,11 @@ function precedence(index) {
         return 20;
     return pre[index];
 }
+
+function isbinfunc(index) {
+    return index >= 55;
+}
+
 function toHexUnsigned(x) {
     x = (x|0) + 0xFFFFFFFF + 1;
     var s = x.toString(16);
