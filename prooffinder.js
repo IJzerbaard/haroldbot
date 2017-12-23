@@ -714,6 +714,12 @@ function ProofFinder(op, assocmode) {
 			["$abs", [a(0)]],
 			false, "abs is idempotent", ,
 		],
+		// additivity
+		[
+			["^", ["$clmul", [a(0)], [a(0)]], ["$clmul", [a(1)], [a(1)]]],
+			["$clmul", ["^", [a(0)], [a(1)]], ["^", [a(0)], [a(1)]]],
+			true, "XOR-additivity of carryless square", ,
+		],
 		// double shift
 		[
 			["<<", [">>u", [a(0)], [a(1)]], [a(1)]],
