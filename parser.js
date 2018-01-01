@@ -493,6 +493,8 @@ function parse(query) {
 			return fun2("max", true);
 		} else if (l("clmul")) {
 			return fun2("clmul", false);
+		} else if (l("clpow")) {
+			return fun2("clpow", false);
 		} else if (ll("abs", "d")) {
 			return fun1("abs");
 		} else if (l("ez80mlt")) {

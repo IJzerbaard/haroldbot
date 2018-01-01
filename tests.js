@@ -1,3 +1,29 @@
+QUnit.test("clmul tests", function(assert) {
+	var seed = 0xdeadbeef;
+	for (var i = 0; i < 1000; i++) {
+		var a = seed >>> 16;
+		seed = Math.imul(seed, 1009) + 13 | 0;
+		var b = seed >>> 16;
+		seed = Math.imul(seed, 1009) + 13 | 0;
+		assert.equal(clmul_u32(a, b), clmul_u32_old(a, b), "clmul matches");
+	}
+});
+
+QUnit.test("clfactor tests", function(assert) {
+	circuit.reset();
+	var seed = 0xdeadbeef;
+	for (var i = 0; i < 10; i++) {
+		var h = seed >>> 16;
+		seed = Math.imul(seed, 1009) + 13 | 0;
+		var l = (seed >>> 16) | 1;
+		seed = Math.imul(seed, 1009) + 13 | 0;
+		var x = ((h << 16) | l) >>> 0;
+		var f = clfactor(x);
+		var m = f.reduce(clmul_u32);
+		assert.equal(x | 0, m | 0, "clfactor is a proper factor: " + f.map(toHexUnsigned).join(", "));
+	}
+});
+
 QUnit.test("bdd test", function(assert) {
 	bdd.reset();
 	var a = bdd.mk(0, 0, -1);

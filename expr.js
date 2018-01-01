@@ -200,10 +200,15 @@ Unary.prototype.print = function(varmap) {
 };
 
 Unary.prototype.toBddFunc = function() {
-	var inner = this.value.toBddFunc();
-	if (this.op == "dummy")
+	var bddf = unaryToBddf(this.op, this.inner.toBddFunc());
+	this.bddf = bddf;
+	return bddf;
+};
+
+function unaryToBddFunction(op, inner) {
+	if (op == "dummy")
 		return inner;
-	switch (this.op) {
+	switch (op) {
 		case 0:	return BDDFunction.not(inner);
 		case 1:	return BDDFunction.sub(BDDFunction.constant(0), inner);
 		case 2:	return BDDFunction.popcnt(inner);
@@ -213,9 +218,8 @@ Unary.prototype.toBddFunc = function() {
 		case 6:	return BDDFunction.abs(inner);
 		case 7: return BDDFunction.ez80mlt(inner);
 	}
-	//debugger;
 	alert("Severe bug in Unary.toBddFunc");
-};
+}
 
 Unary.prototype.toCircuitFunc = function() {
 	var inner = this.value.toCircuitFunc();
@@ -358,7 +362,9 @@ Binary.prototype.print = function(varmap) {
 };
 
 Binary.prototype.toBddFunc = function() {
-	return binaryToBddFunc(this.op, this.l.toBddFunc(), this.r.toBddFunc());
+	var bddf = binaryToBddFunc(this.op, this.l.toBddFunc(), this.r.toBddFunc());
+	this.bddf = bddf;
+	return bddf;
 };
 
 function binaryToBddFunc(op, l, r) {
@@ -400,6 +406,7 @@ function binaryToBddFunc(op, l, r) {
 		case 59: return BDDFunction.hmul(l, r, false);
 		case 60: return BDDFunction.hmul(l, r, true);
 		case 61: return BDDFunction.clmul(l, r);
+		case 62: return BDDFunction.clpow(l, r);
 		default: alert("Unimplemented operation in binaryToBddFunc");
 	}
 }
@@ -447,6 +454,7 @@ function binaryToCircuitFunc(op, l, r) {
 		case 59: return CFunction.hmul(l, r, false);
 		case 60: return CFunction.hmul(l, r, true);
 		case 61: return CFunction.clmul(l, r);
+		case 62: return CFunction.clpow(l, r);
 	}
 	alert("Unimplemented operation in binaryToCircuitFunc");
 }
@@ -525,6 +533,7 @@ function evalBinary(op, l, r) {
 		case 59: return hmul_u32(l, r) | 0;
 		case 60: return hmul_i32(l, r);
 		case 61: return clmul_u32(l, r);
+		case 62: return clpow_u32(l, r);
 	}
 }
 
@@ -883,6 +892,26 @@ Fun.prototype.sseeval = function(vars) {
 	}
 };
 
+
+function Let(pairs, expr) {
+	Node.call(this);
+	// the hashes don't matter because Let is only used in output
+	this.type = 'let';
+	this.pairs = pairs;
+	this.expr = expr;
+}
+
+Let.prototype.print = function (varmap) {
+	var str = "let ";
+	varmap = varmap.slice();
+	for (var i = 0; i < this.pairs.length; i++) {
+		var p = this.pairs[i];		
+		str += p.name + " = " + p.expr.print(varmap);
+		varmap.push(p.name);
+	}
+	return str + " in " + expr.print(varmap);
+};
+
 Node.normalize = function (expr) {
 	switch (expr.type) {
 		default: return expr;
@@ -926,6 +955,69 @@ Node.AnalyzeProperties = function(data, vars, expr, callback) {
 		case 1:
 			// test invertible
 			function invert(expr, inv) {
+				// util functions
+				function bddIsClmulC(bits) {
+					var mask = 0;
+					var variable = -1;
+					for (var i = 0; i < bits.length; i++) {
+						var f = bits[i];
+						// no constants allowed
+						if (f == 0 || f == -1) return null;
+						// check whether bit is XOR of previous bits
+						var m = 0;
+						do {
+							var inv = f >> 31;
+							var v = bdd._v[f ^ inv];
+							var lo = bdd._lo[f ^ inv] ^ inv;
+							var hi = bdd._hi[f ^ inv] ^ inv;
+							// if the checked bit is not from the current bit index or earlier, it's not a clmul
+							if (((v >> 6) ^ 31) > i)
+								return null;
+							m |= 1 << (i - ((v >> 6) ^ 31));
+
+							// if the variable changed, it's not clmul
+							if (variable != (v & 63) && variable >= 0) return null;
+							variable = v & 63;
+
+							/* hi == ~lo, xor with v[i]
+							   otherwise: not an xor
+							*/
+							if (hi == ~lo)
+								f = lo;
+							else return null;
+						} while (f != 0 && f != -1);
+						// if a bit in the mask used to be set and is now not set,
+						// that is inconsistent with a clmul
+						if ((mask & ~m) != 0) return null;
+						mask = m;
+					}
+					// clmul by even is not invertible anyway
+					if ((mask & 1) == 0) return null;
+					// reconstruct bdd and check whether it matches
+					var v = BDDFunction.argument(variable);
+					var x = BDDFunction.constant(0);
+					for (var i = 0; i < 32; i++) {
+						if (((mask >> i) & 1) != 0)
+							x = BDDFunction.xor(x, BDDFunction.shlc(v, i));
+					}
+					for (var i = 0; i < x._bits.length; i++) {
+						if (x._bits[i] != bits[i]) return null;
+					}
+					// everything matches, so this is a clmul(variable, mask)
+					return [variable, mask];
+				}
+
+				if (expr.bddf) {
+					// bdd is available, try to invert based on that
+					// anything that may throw cannot be inverted
+					if (expr.bddf._divideError != 0) return null;
+					var bddclmulc = bddIsClmulC(expr.bddf._bits);
+					if (bddclmulc) {
+						var f = clfactor(bddclmulc[1]);
+						var m = toHexUnsigned(f.reduce(clmul_u32));
+						debugger;
+					}
+				}
 				switch (expr.type) {
 					default: return null;
 					case "var": return inv;
@@ -962,14 +1054,7 @@ Node.AnalyzeProperties = function(data, vars, expr, callback) {
 							}
 							if (theConst.type == "const") {
 								if ((theConst.value & 1) == 0) return null;
-								var d = theConst.value;
-								var x = Math.imul(d, d) + d - 1 | 0;
-								x = Math.imul(x, 2 - Math.imul(d, x) | 0);
-								x = Math.imul(x, 2 - Math.imul(d, x) | 0);
-								x = Math.imul(x, 2 - Math.imul(d, x) | 0);
-								// sanity check
-								if (Math.imul(x, d) != 1)
-									throw "incorrect multiplicative inverse";
+								var x = mulinv(theConst.value);
 								return invert(theRest, new Binary(11, inv, new Constant(x)));
 							}
 							return null;
@@ -986,16 +1071,7 @@ Node.AnalyzeProperties = function(data, vars, expr, callback) {
 							}
 							if (theConst.type == "const") {
 								if ((theConst.value & 1) == 0) return null;
-								var d = theConst.value;
-								var x = 1;
-								x = clmul_u32(x, clmul_u32(d, x));
-								x = clmul_u32(x, clmul_u32(d, x));
-								x = clmul_u32(x, clmul_u32(d, x));
-								x = clmul_u32(x, clmul_u32(d, x));
-								x = clmul_u32(x, clmul_u32(d, x));
-								// sanity check
-								if (clmul_u32(x, d) != 1)
-									throw "incorrect multiplicative inverse";
+								var x = clinv(theConst.value);
 								return invert(theRest, new Binary(61, inv, new Constant(x)));
 							}
 							return null;

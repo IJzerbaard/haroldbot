@@ -98,6 +98,9 @@ function performQuery(input) {
     }
   }
 
+  // re-run this, may find more stuff since (some) bdd functions may be available
+  Node.AnalyzeProperties(data, varmap, expr, update);
+
   if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 28 || expr.op >= 40 && expr.op <= 48)) {
     // comparison
     (bddf||circuitf).AnalyzeTruth(data, expr.removeDummy(), varmap, function () {

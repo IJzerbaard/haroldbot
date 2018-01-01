@@ -189,6 +189,13 @@ CFunction.shrs = function(x, y) {
 	return x;
 }
 
+CFunction.spread = function(x) {
+	var bits = new Int32Array(32);
+	for (var i = 0; i < 32; i += 2)
+		bits[i] = x._bits[i >> 1];
+	return new CFunction(bits, x._divideError);
+}
+
 CFunction.mul = function(x, y) {
 	var r = CFunction.constant(0);
 	for (var i = 0; i < 32; i++) {
@@ -203,6 +210,18 @@ CFunction.clmul = function(x, y) {
 	for (var i = 0; i < 32; i++) {
 		r = CFunction.xor(r, CFunction.and(x, CFunction.nthbit(y, i)));
 		x = CFunction.shlc(x, 1);
+	}
+	return r;
+}
+
+CFunction.clpow = function(x, y) {
+	var r = CFunction.constant(1);
+	var one = CFunction.constant(1);
+	for (var i = 0; i < 32; i++) {
+		var ith = CFunction.nthbit(y, i);
+		var p = CFunction.mux(ith, one, x);
+		r = CFunction.clmul(r, p);
+		x = CFunction.spread(x);
 	}
 	return r;
 }
@@ -410,15 +429,17 @@ CFunction.popcnt2 = function(x) {
 	return r;
 };
 
-CFunction.prototype.sat = function() {
+CFunction.prototype.sat = function(varcount) {
+	if (!varcount)
+		varcount = 4;
 	if (this._bits[0] == 0)
 		return null;
 	var sat = new SAT();
 	circuit.to_cnf(this._bits[0], sat);
 	var res = sat.solve();
 	if (res) {		
-		var values = new Int32Array(4);
-		for (var i = 0; i < 4 * 32; i++) {
+		var values = new Int32Array(varcount);
+		for (var i = 0; i < varcount * 32; i++) {
 			if (res[i + 1] == 1)
 				values[i >> 5] |= 1 << (i & 31);
 		}

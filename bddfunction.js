@@ -265,11 +265,30 @@ BDDFunction.clmul = function(x, y) {
 	return r;
 }
 
+BDDFunction.clpow = function(x, y) {
+	var r = BDDFunction.constant(1);
+	var one = BDDFunction.constant(1);
+	for (var i = 0; i < 32; i++) {
+		var ith = BDDFunction.nthbit(y, i);
+		var p = BDDFunction.or(BDDFunction.and(x, ith), BDDFunction.and(one, BDDFunction.not(ith)));
+		r = BDDFunction.clmul(r, p);
+		x = BDDFunction.spread(x);
+	}
+	return r;
+};
+
 BDDFunction.ez80mlt = function(x) {
 	var a = BDDFunction.and(x, BDDFunction.constant(0xFF));
 	var b = BDDFunction.and(BDDFunction.shruc(x, 8), BDDFunction.constant(0xFF));
 	return BDDFunction.mul(a, b);
-}
+};
+
+BDDFunction.spread = function(x) {
+	var bits = new Int32Array(32);
+	for (var i = 0; i < bits.length; i += 2)
+		bits[i] = x._bits[i >> 1];
+	return new BDDFunction(bits, x._divideError);
+};
 
 BDDFunction.ctz = function (x) {
 	x = BDDFunction.and(BDDFunction.not(x), BDDFunction.add(x, BDDFunction.constant(-1)));
