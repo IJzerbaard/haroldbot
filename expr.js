@@ -200,7 +200,7 @@ Unary.prototype.print = function(varmap) {
 };
 
 Unary.prototype.toBddFunc = function() {
-	var bddf = unaryToBddf(this.op, this.inner.toBddFunc());
+	var bddf = unaryToBddFunction(this.op, this.value.toBddFunc());
 	this.bddf = bddf;
 	return bddf;
 };
@@ -761,7 +761,7 @@ Ternary.prototype.constantFold = function(nrec) {
 };
 
 Ternary.prototype.eval = function(vars) {
-	var c = this.c.eval(vars) | 0;
+	var c = this.cond.eval(vars) | 0;
 	var t = this.t.eval(vars) | 0;
 	var f = this.f.eval(vars) | 0;
 	return (c & t) | (~c & f);
@@ -953,7 +953,6 @@ Node.AnalyzeProperties = function(data, vars, expr, callback) {
 	switch (vars.length) {
 		default: return;
 		case 1:
-			// test invertible
 			function invert(expr, inv) {
 				// util functions
 				function bddIsClmulC(bits) {

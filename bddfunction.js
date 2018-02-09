@@ -1089,6 +1089,20 @@ BDDFunction.prototype.AnalyzeProperties = function(data, vars, callback) {
 		}
 	}
 
+	function isBijection(bits) {
+		try {
+			var v0 = BDDFunction.argument(0);
+			var v1 = BDDFunction.argument(1);
+			var eq01 = BDDFunction.eq(v0, v1);
+			var xorself = bits.map(function (x) {
+				return bdd.xor(x, bdd.incv(x));
+			});
+			var iseq = BDDFunction.eq(new BDDFunction(xorself, 0), BDDFunction.constant(0));
+			return bdd.and(iseq._bits[0], ~eq01._bits[0]);
+		}
+		catch (err) { return null; }
+	}
+
 	if (!data.properties)
 		data.properties = {};
 	var res = data.properties;
@@ -1154,6 +1168,13 @@ BDDFunction.prototype.AnalyzeProperties = function(data, vars, callback) {
 
 	if (callback)
 		callback(res);
+
+	if (vars.length == 1 && !res.inverse) {
+		var bij = isBijection(this._bits);
+		if (bij != null) {
+			res.invertible = bij === 0;
+		}
+	}
 
 	return res;
 };

@@ -416,6 +416,30 @@ var bdd = {
 		return comp(f, replace);
 	},
 
+	incv: function(f) {
+		if (f == 0 || f == -1)
+			return f;
+
+		var invert = f >> 31;
+		f ^= f >> 31;
+
+		var hash = f % 1048573;
+		if (this._memoop[hash] == 6 && this._memokey1[hash] == f)
+			return this._memo[hash] ^ invert;
+
+		var fv = this._v[f];
+		var flo = this._lo[f];
+		var fhi = this._hi[f];
+
+		var value = this.mk(fv + 1, this.incv(flo), this.incv(fhi));
+
+		this._memoop[hash] = 6;
+		this._memokey1[hash] = f;
+		this._memo[hash] = value;
+
+		return value ^ invert;
+	},
+
 	satCount: function(f, maxvar, remap) {
 		var D = [];
 		var _v = this._v;

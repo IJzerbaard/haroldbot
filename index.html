@@ -548,6 +548,13 @@ function update(optdata) {
       $j('#displayoptions').show();
       haveAny = true;
     }
+    else if (prop.hasOwnProperty('invertible')) {
+      var propinv = $j('<div>invertible: </div>');
+      propinv.append(prop.invertible + "");
+      propscont.append(propinv);
+      $j('#displayoptions').show();
+      haveAny = true;
+    }
 
     // only make this box if there's anything in it
     if (haveAny)
