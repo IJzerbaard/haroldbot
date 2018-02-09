@@ -440,6 +440,41 @@ var bdd = {
 		return value ^ invert;
 	},
 
+	andIsZero: function(f, g) {
+		if (f == -1 || g == -1 || f == 0 || g == 0 || f == ~g || f == g)
+			return (f & g) == 0;
+
+		var key1 = Math.min(f, g);
+		var key2 = Math.max(f, g);
+		var hash = ((((key1 << 17) - key1) ^ ((key2 << 16) + key2)) & 0x7fffffff) % 1048573;
+		if (this._memoop[hash] == 7 && this._memokey1[hash] == key1 && this._memokey2[hash] == key2)
+			return this._memo[hash];
+
+		var invf = f >> 31;
+		var invg = g >> 31;
+		var fv = this._v[f ^ invf];
+		var gv = this._v[g ^ invg];
+		var flo = this._lo[f ^ invf] ^ invf;
+		var glo = this._lo[g ^ invg] ^ invg;
+		var fhi = this._hi[f ^ invf] ^ invf;
+		var ghi = this._hi[g ^ invg] ^ invg;
+
+		var value = false;
+		if (fv == gv)
+			value = this.andIsZero(flo, glo) && this.andIsZero(fhi, ghi);
+		else if (fv < gv)
+			value = this.andIsZero(flo, g) && this.andIsZero(fhi, g);
+		else
+			value = this.andIsZero(f, glo) && this.andIsZero(f, ghi);
+
+		this._memoop[hash] = 7;
+		this._memokey1[hash] = key1;
+		this._memokey2[hash] = key2;
+		this._memo[hash] = value;
+
+		return value;
+	},
+
 	satCount: function(f, maxvar, remap) {
 		var D = [];
 		var _v = this._v;
