@@ -146,7 +146,7 @@ var bdd = {
 		return value;
 	},
 
-	xor: function(f, g) {
+	xor: function(f, g, timelimit) {
 		if (f == 0 || g == 0 || f == -1 || g == -1 || f == g || f == ~g)
 			return f ^ g;
 
@@ -159,6 +159,9 @@ var bdd = {
 		var hash = ((((key1 << 17) - key1) ^ ((key2 << 16) + key2) ^ 0xdeadbeef) & 0x7fffffff) % 1048573;
 		if (this._memoop[hash] == 2 && this._memokey1[hash] == key1 && this._memokey2[hash] == key2)
 			return this._memo[hash] ^ invert;
+
+		if (timelimit && getmilitime() >= timelimit)
+			throw "BDD timeout";
 
 		var fv = this._v[f];
 		var gv = this._v[g];

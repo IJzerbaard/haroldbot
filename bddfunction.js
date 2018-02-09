@@ -1094,8 +1094,9 @@ BDDFunction.prototype.AnalyzeProperties = function(data, vars, callback) {
 			var v0 = BDDFunction.argument(0);
 			var v1 = BDDFunction.argument(1);
 			var eq01 = BDDFunction.eq(v0, v1);
+			var t = getmilitime() + 200;
 			var xorself = bits.map(function (x) {
-				return bdd.xor(x, bdd.incv(x));
+				return bdd.xor(x, bdd.incv(x), t);
 			});
 			var iseq = BDDFunction.eq(new BDDFunction(xorself, 0), BDDFunction.constant(0));
 			return bdd.andIsZero(iseq._bits[0], ~eq01._bits[0]);
@@ -1169,7 +1170,7 @@ BDDFunction.prototype.AnalyzeProperties = function(data, vars, callback) {
 	if (callback)
 		callback(res);
 
-	if (vars.length == 1 && !res.inverse) {
+	if (vars.length == 1 && !res.inverse && (mustBeOne | mustBeZero) == 0) {
 		var bij = isBijection(this._bits);
 		if (bij != null) {
 			res.invertible = bij;

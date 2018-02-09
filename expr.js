@@ -1012,8 +1012,8 @@ Node.AnalyzeProperties = function(data, vars, expr, callback) {
 					if (expr.bddf._divideError != 0) return null;
 					var bddclmulc = bddIsClmulC(expr.bddf._bits);
 					if (bddclmulc) {
-						var f = clfactor(bddclmulc[1]);
-						var m = toHexUnsigned(f.reduce(clmul_u32));
+						//var f = clfactor(bddclmulc[1]);
+						//var m = toHexUnsigned(f.reduce(clmul_u32));
 						debugger;
 					}
 				}
