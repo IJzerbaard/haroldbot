@@ -48,7 +48,11 @@ function performQuery(input) {
   var nf = expr.removeDummy();
   var cf = nf.constantFold();
   if (!cf.equals2(nf)) {
-    $j('#query-printback').append($j("<p>After constant folding:<br/></p>").append(formatexpr(cf, 0, varmap)));
+    var foldprintback = $j("<p>After constant folding:<br/></p>");
+    if (quantified)
+      foldprintback.append("forall " + quantified.join(", ") + ": ");
+    foldprintback.append(formatexpr(cf, 0, varmap));
+    $j('#query-printback').append(foldprintback);
   }
   expr = cf;
 
@@ -100,6 +104,7 @@ function performQuery(input) {
     else {
       //throw err;
       data.msg = err;
+      update();
       return;
     }
   }
