@@ -29,7 +29,8 @@ function performQuery(input) {
   var p = parse(input);
   var expr = p[0];
   var varmap = p[1];
-  var msg = p[2];
+  var quantified = p[2];
+  var msg = p[3];
 
   if (p[0] == undefined) {
     data = {};
@@ -39,11 +40,11 @@ function performQuery(input) {
   }
 
   parens = true;
-  $j('#query-printback').append($j("<p>Parsed as:<br/></p>").append(formatexpr(expr.removeDummy(), 0, varmap)));
-  //var nf = Node.normalize(expr.removeDummy());
-  //if (!nf.equals2(expr.removeDummy())) {
-  //  $j('#query-printback').append($j("<p>After normalization:<br/></p>").append(formatexpr(nf, 0, varmap)));
-  //}
+  var printback = $j("<p>Parsed as:<br/></p>");
+  if (quantified)
+    printback.append("forall " + quantified.join(", ") + ": ");
+  printback.append(formatexpr(expr.removeDummy(), 0, varmap));
+  $j('#query-printback').append(printback);
   var nf = expr.removeDummy();
   var cf = nf.constantFold();
   if (!cf.equals2(nf)) {
@@ -52,14 +53,17 @@ function performQuery(input) {
   expr = cf;
 
   data = {
-    varmap: varmap.slice(0)
+    varmap: varmap.slice(0),
+    quantified: quantified || []
   };
 
-  // try to find some interesting things about an expression
-  Node.AnalyzeProperties(data, varmap, expr, update);
+  if (!quantified) {
+    // try to find some interesting things about an expression
+    Node.AnalyzeProperties(data, varmap, expr, update);
+  }
 
   // try limited search for proof (to avoid having to do anything else for trivially equivalent expressions)
-  if (expr.type == 'bin' && expr.op == 20) {
+  if (expr.type == 'bin' && expr.op == 20 && !quantified) {
     var pf = new ProofFinder(expr.op);
     var proof = null;
     pf.Search(expr.l.removeDummy(), expr.r.removeDummy(), function (proofsteps) {
@@ -87,9 +91,11 @@ function performQuery(input) {
   try {
     //throw "BDD full";
     bddf = expr.toBddFunc();
+    if (quantified)
+      bddf = BDDFunction.quantU(bddf, quantified, varmap);
   }
   catch (err) {
-    if (err == "BDD full" || err == "multiplication seems hard" || err == "BDD timeout")
+    if ((err == "BDD full" || err == "multiplication seems hard" || err == "BDD timeout") && !quantified)
       circuitf = expr.toCircuitFunc();
     else {
       //throw err;
@@ -98,8 +104,10 @@ function performQuery(input) {
     }
   }
 
-  // re-run this, may find more stuff since (some) bdd functions may be available
-  Node.AnalyzeProperties(data, varmap, expr, update);
+  if (!quantified) {
+    // re-run this, may find more stuff since (some) bdd functions may be available
+    Node.AnalyzeProperties(data, varmap, expr, update);
+  }
 
   if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 28 || expr.op >= 40 && expr.op <= 48)) {
     // comparison
@@ -116,6 +124,10 @@ function performQuery(input) {
     update();
   }
   else {
+    if (quantified) {
+      data.msg = "quantifiers can only be used for boolean expressions";
+      return;
+    }
     if (bddf) {
       data.simp = bddf.Identify(varmap);
       if (data.simp == undefined) {
@@ -147,7 +159,7 @@ function performQuery(input) {
   }
 }
 
-function formatVariableAssignment(assignment, varmap_in, ext_examples) {
+function formatVariableAssignment(assignment, varmap_in, ext_examples, quantified) {
   var varmap = varmap_in.slice();
   if (ext_examples) {
     varmap.push('lhs');
@@ -155,6 +167,7 @@ function formatVariableAssignment(assignment, varmap_in, ext_examples) {
   }
   var table = $j('<table class="varassignment"></table>');
   for (var i = 0; i < varmap.length; i++) {
+    if (i < varmap_in.length && quantified.indexOf(varmap[i]) >= 0) continue;
     var row = $j('<tr></tr>');
     row.append($j('<td>' + varmap[i] + '</td>'));
     row.append("=");
@@ -164,7 +177,7 @@ function formatVariableAssignment(assignment, varmap_in, ext_examples) {
   return table;
 }
 
-function formatVariableAssignments(assignment, varmap_in, ext_examples) {
+function formatVariableAssignments(assignment, varmap_in, ext_examples, quantified) {
   var varmap = varmap_in.slice();
   if (ext_examples) {
     varmap.push('lhs');
@@ -173,9 +186,11 @@ function formatVariableAssignments(assignment, varmap_in, ext_examples) {
   var wrapper = $j('<div/>');
   var table = $j('<table class="varassignment"></table>');
   var headers = $j('<tr/>');
-  if (varmap.length > 1) {
-    for (var i = 0; i < varmap.length; i++)
+  if ((varmap.length - quantified.length) > 1) {
+    for (var i = 0; i < varmap.length; i++) {
+      if (i < varmap_in.length && quantified.indexOf(varmap[i]) >= 0) continue;
       headers.append($j('<th>' + varmap[i] + '</th>'));
+    }
     table.append(headers);
   }
   var first = 0;
@@ -186,6 +201,7 @@ function formatVariableAssignments(assignment, varmap_in, ext_examples) {
       break;
     var row = $j('<tr/>');
     for (var i = 0; i < varmap.length; i++) {
+      if (i < varmap_in.length && quantified.indexOf(varmap[i]) >= 0) continue;
       var col = $j('<td>' + formatConstant(asign[i]) + '</td>');
       row.append(col);
     }
@@ -204,6 +220,7 @@ function formatVariableAssignments(assignment, varmap_in, ext_examples) {
           break;
         var row = $j('<tr/>');
         for (var i = 0; i < varmap.length; i++) {
+          if (i < varmap_in.length && quantified.indexOf(varmap[i]) >= 0) continue;
           row.append($j('<td>' + formatConstant(asign[i]) + '</td>'));
         }
         table.append(row);
@@ -457,13 +474,13 @@ function update(optdata) {
     if (stuff.count.startsWith('#')) {
       container.append('<p>' + stuff.count.substring(1) + '</p>');
       if (stuff.examples)
-        container.append($j('<p>for example:</p>').append(formatVariableAssignments(stuff.examples, varmap, stuff.ext_examples)));
+        container.append($j('<p>for example:</p>').append(formatVariableAssignments(stuff.examples, varmap, stuff.ext_examples, data.quantified)));
       if (stuff.proof)
         formatproof(container, stuff.proof, varmap);
     }
     else if (stuff.count == '1') {
       if (stuff.examples) {
-        var varassign = formatVariableAssignment(stuff.examples(0), varmap, stuff.ext_examples);
+        var varassign = formatVariableAssignment(stuff.examples(0), varmap, stuff.ext_examples, data.quantified);
         container.append($j('<p>once, namely:</p>').append(varassign));
       }
       else
@@ -472,7 +489,7 @@ function update(optdata) {
     else if (stuff.count) {
       container.append('<p>in ' + stuff.count + ' cases</p>');
       if (stuff.examples)
-        container.append($j('<p>for example:</p>').append(formatVariableAssignments(stuff.examples, varmap, stuff.ext_examples)));
+        container.append($j('<p>for example:</p>').append(formatVariableAssignments(stuff.examples, varmap, stuff.ext_examples, data.quantified)));
     }
     else {
       debugger;
@@ -515,9 +532,9 @@ function update(optdata) {
     function makeCollapsible(base, text, value, count, examples, varmap) {
       var extra = null;
       if (count == "1")
-        extra = $j('<div/>').append('once:').append(formatVariableAssignment(examples(0), varmap, false));
+        extra = $j('<div/>').append('once:').append(formatVariableAssignment(examples(0), varmap, false, data.quantified));
       else
-        extra = $j('<div/>').append(count + ' cases').append(formatVariableAssignments(examples, varmap, false));
+        extra = $j('<div/>').append(count + ' cases').append(formatVariableAssignments(examples, varmap, false, data.quantified));
       extra.css('overflow', 'hidden');
       var showbutton = $j('<a/>', {
         text: '▸',
@@ -610,6 +627,8 @@ $j(document).ready(function(){
       &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=a+%5E+%28%28a+%5E+b%29+%26+mask%29+%3D%3D+%28a+%26+~mask%29+%7C+%28b+%26+mask%29"><tt>a ^ ((a ^ b) &amp; mask) == (a &amp; ~mask) | (b &amp; mask)</tt></a></p></p>
     <p>Find when two expressions are equal and when they are not<br/>
       &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=x+%3D%3D+-x"><tt>x == -x</tt></a></p>
+    <p>Quantify some variables away to find values that always work<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="index.html?q=forall+x%3A+-x+%3D%3D+%28x+%5E+m%29+-+m"><tt>forall x: -x == (x ^ m) - m</tt></a></p>
   </div>
   <div>
     <h2>Notes</h2>

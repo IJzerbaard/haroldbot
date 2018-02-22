@@ -555,6 +555,24 @@ BDDFunction.fixlerp = function (a, b, x, y) {
 	
 }
 
+BDDFunction.quantU = function (f, q, varmap) {
+	var bits = f._bits.slice();
+	var de = f._divideError;
+	for (var j = 0; j < q.length; j++) {
+		var ql = varmap.indexOf(q[j]);
+		var qh = ql;
+		if (ql < 0)
+			continue;
+		while (j + 1 < q.length && varmap.indexOf(q[j + 1]) == qh + 1) {
+			j++; qh++;
+		}
+		for (var i = 0; i < 32; i++)
+			bits[i] = bdd.quantU(bits[i], ql, qh);
+		de = bdd.quantU(de, ql, qh);
+	}
+	return new BDDFunction(bits, de);
+};
+
 BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcallback) {
 	var res = data;
 
@@ -562,7 +580,8 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugc
 	var index = 0;
 	for (var i = 0; i < 32; i++) {
 		for (var j = 0; j < vars.length; j++)
-			remap[(i << 6) + j] = index++;
+			if (data.quantified.indexOf(vars[j]) < 0)
+				remap[(i << 6) + j] = index++;
 	}
 
 	if (this._divideError == 0) {
@@ -570,7 +589,7 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugc
 			res.false = {
 				count: "#always"
 			};
-			if (root.type == 'bin' && root.op == 20 && vars.length > 0) {
+			if (root.type == 'bin' && root.op == 20 && vars.length > 0 && data.quantified.length == 0) {
 				res.false.ext_examples = true;
 				res.false.examples = function(ix) {
 					var len = vars.length;
@@ -587,7 +606,7 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugc
 				count: "#always",
 				proof: undefined
 			};
-			if (root.type == 'bin') {
+			if (root.type == 'bin' && data.quantified.length == 0) {
 				var pf = new ProofFinder(root.op);
 				pf.Search(root.l, root.r, function (flatproof) {
 					resobj.proof = flatproof;
@@ -603,7 +622,7 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugc
 					return bdd.indexedSat(bit0, ix, index, remap);
 				}
 			};
-			var makeExamples = root.type == 'bin' && root.op == 20 && vars.length > 0;
+			var makeExamples = root.type == 'bin' && root.op == 20 && vars.length > 0 && data.quantified.length == 0;
 			res.false = {
 				count: bdd.satCount(~bit0, index, remap).toString(),
 				ext_examples: makeExamples,

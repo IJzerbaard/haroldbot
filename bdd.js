@@ -375,6 +375,34 @@ var bdd = {
 		return value;
 	},
 
+	quantU: function(f, ql, qh) {
+		if (f == 0 || f == -1) return f;
+
+		var hash = ((f & 0x1fffffff) + ql * 1009 + qh) % 1048573;
+		if (this._memoop[hash] == 6 && this._memokey1[hash] == f && this._memokey2[hash] == ql && this._memokey3[hash] == qh)
+			return this._memo[hash];
+
+		var inv = f >> 31;
+		var fv = this._v[f ^ inv];
+		var lo = this._lo[f ^ inv] ^ inv;
+		var hi = this._hi[f ^ inv] ^ inv;
+
+		var rl = this.quantU(lo, ql, qh);
+		var rh = this.quantU(hi, ql, qh);
+		var r;
+		if ((fv & 63) >= ql && (fv & 63) <= qh)
+			r = this.and(rl, rh);
+		else
+			r = this.mk(fv, rl, rh);
+
+		this._memoop[hash] = 6;
+		this._memokey1[hash] = f;
+		this._memokey2[hash] = ql;
+		this._memokey3[hash] = qh;
+		this._memo[hash] = r;
+		return r;
+	},
+
 	compose: function(f, replace) {
 
 		var compmemo = new Int32Array(1048573);
@@ -557,7 +585,11 @@ var bdd = {
 			}
 		}
 
-		if (findsat(0, f, -1))
+		var lowest = 0;
+		while (remap[lowest] === void(0) && lowest < 2048)
+			lowest++;
+
+		if (findsat(lowest, f, -1))
 			return res;
 		else
 			return undefined;

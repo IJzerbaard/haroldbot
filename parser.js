@@ -4,263 +4,34 @@ function parse(query) {
 	//    [string, id {, operands}]
 
 	var pos = 0;
-	var res = [null, null];
+	var res = [null, null, null];
 	var varmap = [];
 	res[1] = varmap;
 	
 	var scope = {};
 
-	function tokenize() {
-		var tokens = [];
-		var p = 0;
-		var b = 0;
-		var state = 0;
-		while (p <= query.length) {
-			var c = p == query.length ? '$' : query.charAt(p);
-			p++;
-			switch (state) {
-				case 0:
-					// normal state, beginning of tokens
-					b = p - 1;
-					if (c == ' ')
-						break;
-					else if (c >= '0' && c <= '9')
-						state = 1;
-					else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
-						state = 2;
-					else if (c == '(' || c == ')' || c == '+' ||
-					         c == '*' || c == '^' || c == '-' ||
-					         c == '~' || c == '?' || c == ':')
-						tokens.push([c, c, b]);
-					else if (c == '!')
-						state = 3;
-					else if (c == '&')
-						state = 4;
-					else if (c == '|')
-						state = 5;
-					else if (c == '>')
-						state = 6;
-					else if (c == '<')
-						state = 7;
-					else if (c == '=')
-						state = 8;
-					else if (c == '/' || c == '%')
-						state = 11;
-					else if (c == '$')
-						return tokens;
-					else {
-						tokens.push({ val: null, type: 'invalid', pos: b });
-						//debugger;
-					}
-					break;
-				case 1:
-					// parsing a number
-					if (c == 'x')
-						state = 20;
-					else if (c >= '0' && c <= '9')
-						state = 1;
-					else {
-						// end of number apparently
-						p--;
-						tokens.push({ val: query.substr(b, p - b), type: 'num', pos: b });
-						state = 0;
-					}
-					break;
-				case 2:
-					// parsing an id
-					if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))
-						state = 2;
-					else {
-						p--;
-						var tok = query.substr(b, p - b);
-						// cheats (non-statemachine lexing)
-						var type = 'id';
-						if (tok == 'let' || tok == 'in')
-							type = tok;
-						tokens.push({ val: tok, type: type, pos: b});
-						state = 0;
-					}
-					break;
-				case 3:
-					// maybe =
-					if (c != '=')
-						p--;
-					var tok = query.substr(b, p - b);
-					tokens.push({ val: tok, type: tok, pos: b});
-					state = 0;
-					break;
-				case 4:
-					// maybe &
-					if (c != '&')
-						p--;
-					var tok = query.substr(b, p - b);
-					tokens.push({ val: tok, type: tok, pos: b});
-					state = 0;
-					break;
-				case 5:
-					// maybe |
-					if (c != '|')
-						p--;
-					var tok = query.substr(b, p - b);
-					tokens.push({ val: tok, type: tok, pos: b});
-					state = 0;
-					break;
-				case 6:
-					// after '>'
-					// might be =, >, s or u
-					// if >, goto 9
-					// if =, goto 11
-					if (c == '=')
-						state = 11;
-					else if (c == '>')
-						state = 9;
-					else {
-						if (c != 's' && c != 'u')
-							p--;
-						var tok = query.substr(b, p - b);
-						tokens.push({ val: tok, type: tok, pos: b});
-						state = 0;
-					}
-					break;
-				case 7:
-					// after '<'
-					// might be =, <, s, u
-					// if < goto 10
-					// if = goto 11
-					if (c == '=')
-						state = 11;
-					else if (c == '<')
-						state = 10;
-					else {
-						if (c != '=' && c != '<')
-							p--;
-						var tok = query.substr(b, p - b);
-						tokens.push({ val: tok, type: tok, pos: b});
-						state = 0;
-					}
-					break;
-				case 8:
-					// after '='
-					// might be = or > or nothing
-					if (c != '=' && c != '>')
-						p--;
-					var tok = query.substr(b, p - b);
-					tokens.push({ val: tok, type: tok, pos: b});
-					state = 0;
-					break;
-				case 9:
-					// after '>>'
-					// might be > or s or u or nothing
-					if (c != 's' && c != 'u' && c != '>')
-						p--;
-					var tok = query.substr(b, p - b);
-					tokens.push({ val: tok, type: tok, pos: b});
-					state = 0;
-					break;
-				case 10:
-					// after '<<'
-					// might be < or nothing
-					if (c != '<')
-						p--;
-					var tok = query.substr(b, p - b);
-					tokens.push({ val: tok, type: tok, pos: b});
-					state = 0;
-					break;
-				case 11:
-					// suffix s/u/nothing
-					if (c != 's' && c != 'u')
-						p--;
-					var tok = query.substr(b, p - b);
-					tokens.push({ val: tok, type: tok, pos: b});
-					state = 0;
-					break;
-				case 20:
-					// parsing hex number
-					if ((c >= 0 && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
-						state = 20;
-					else {
-						tokens.push({ val: query.substr(b, p - b), type: 'num', pos: b});
-						state = 0;
-						p--;
-					}
-					break;
-				default:
-					debugger;
-			}
-		}
-		return tokens;
-	}
-
-	var tokens = tokenize();
-	var debugstr = "";
-	for (var i = 0; i < tokens.length; i++) {
-		debugstr += "{" + tokens[i].val + "}";
-	}
-	//debugger;
-
-	var t = tokens[0];
-	var la = tokens[1];
-	var tindex = 1;
-
-	function next() {
-		t = la;
-		tindex++;
-		la = tokens[tindex];
-	}
-
-	function p_expr() {
-		return p_ternary();
-	}
-
-	function p_ternary() {
-		var cond = p_imply();
-		if (cond == null) return null;
-
-	}
-
-	function p_primary() {
-		var r = null;
-		switch (t.type) {
-		case 'num':
-			if (t.val.startsWith('0x'))
-				r = new Constant(parseInt(t.val.substr(2), 16));
-			r = new Constant(parseInt(t.val, 10));
-			next();
-			break;
-		case 'id':
-			if (la.type == '(') {
-				// function
-			}
-			else {
-				if (scope[variable] === undefined) {
-					if (varmap.indexOf(variable) < 0)
-						varmap.push(variable);
-					r = new Variable(varmap.indexOf(variable));
-				}
-				else {
-					r = scope[variable];
-				}
-			}
-			next();
-			break;
-		case '(':
-			next();
-			var inner = p_expr();
-			if (t.type != ')')
-				res.push('unclosed parenthesis at column ' + t.pos);
-			else
-				r = new Unary('dummy', inner);
-			break;
-		default:
-			res.push('unexpected \'' + t.type + '\' at column ' + t.pos);
-			break;
-		}
-		return r;
-	}
-
-
 
 	function main() {
+		var p = pos;
+		ws();
+		if (l("forall")) {
+			var quantified = [];
+			res[2] = quantified;
+			do {
+				ws();
+				var v = ident();
+				ws();
+				quantified.push(v);
+				if (l(",")) continue;
+			} while (false);
+			ws();
+			if (!l(":")) {
+				res.push("expected ':' to close list of quantified variables");
+				return;
+			}
+			ws();
+		}
+		ws();
 		res[0] = expr();
 	}
 
@@ -287,11 +58,11 @@ function parse(query) {
 		var p = pos;
 		var t;
 		if (!(t = boolor())) return back(p);
-		if (res.length > 2) return undefined;
+		if (res.length > 3) return undefined;
 		var left = t;
 		while (ws() && ((t = l("=>")))) {
 			var right = boolor();
-			if (res.length > 2) return undefined;
+			if (res.length > 3) return undefined;
 			if (!right) return error("invalid expression");
 			left = (new Binary(ops.indexOf(t), left, right));
 		}
@@ -302,11 +73,11 @@ function parse(query) {
 		var p = pos;
 		var t;
 		if (!(t = booland())) return back(p);
-		if (res.length > 2) return undefined;
+		if (res.length > 3) return undefined;
 		var left = t;
 		while (ws() && ((t = l("||")))) {
 			var right = booland();
-			if (res.length > 2) return undefined;
+			if (res.length > 3) return undefined;
 			if (!right) return error("invalid expression");
 			left = (new Binary(ops.indexOf(t), left, right));
 		}
@@ -317,11 +88,11 @@ function parse(query) {
 		var p = pos;
 		var t;
 		if (!(t = comparison())) return back(p);
-		if (res.length > 2) return undefined;
+		if (res.length > 3) return undefined;
 		var left = t;
 		while (ws() && ((t = l("&&")))) {
 			var right = comparison();
-			if (res.length > 2) return undefined;
+			if (res.length > 3) return undefined;
 			if (!right) return error("invalid expression");
 			left = (new Binary(ops.indexOf(t), left, right));
 		}
@@ -332,7 +103,7 @@ function parse(query) {
 		var p = pos;
 		var t;
 		if (!(t = or())) return back(p);
-		if (res.length > 2) return undefined;
+		if (res.length > 3) return undefined;
 		var left = t;
 		while (ws() && ((t = l("==")) || (t = l("!=")) ||
 				(t = l("<=s")) || (t = l("<=u")) || (t = l("<=")) ||
@@ -340,7 +111,7 @@ function parse(query) {
 				(t = l("<s")) || (t = l("<u")) || (t = l("<")) ||
 				(t = l(">s")) || (t = l(">u")) || (t = l(">")))) {
 			var right = or();
-			if (res.length > 2) return undefined;
+			if (res.length > 3) return undefined;
 			if (!right) return error("invalid expression");
 			if (t == "<") t = "<u";
 			if (t == ">") t = ">u";
@@ -355,11 +126,11 @@ function parse(query) {
 		var p = pos;
 		var t;
 		if (!(t = xor())) return back(p);
-		if (res.length > 2) return undefined;
+		if (res.length > 3) return undefined;
 		var left = t;
 		while (ws() && ((t = ll("|", "|")))) {
 			var right = xor();
-			if (res.length > 2) return undefined;
+			if (res.length > 3) return undefined;
 			if (!right) return error("invalid expression");
 			left = (new Binary(ops.indexOf(t), left, right));
 		}
@@ -370,11 +141,11 @@ function parse(query) {
 		var p = pos;
 		var t;
 		if (!(t = and())) return back(p);
-		if (res.length > 2) return undefined;
+		if (res.length > 3) return undefined;
 		var left = t;
 		while (ws() && ((t = l("^")))) {
 			var right = and();
-			if (res.length > 2) return undefined;
+			if (res.length > 3) return undefined;
 			if (!right) return error("invalid expression");
 			left = (new Binary(ops.indexOf(t), left, right));
 		}
@@ -385,11 +156,11 @@ function parse(query) {
 		var p = pos;
 		var t;
 		if (!(t = pshift())) return back(p);
-		if (res.length > 2) return undefined;
+		if (res.length > 3) return undefined;
 		var left = t;
 		while (ws() && ((t = ll("&", "&")))) {
 			var right = pshift();
-			if (res.length > 2) return undefined;
+			if (res.length > 3) return undefined;
 			if (!right) return error("invalid expression");
 			left = (new Binary(ops.indexOf(t), left, right));
 		}
@@ -400,11 +171,11 @@ function parse(query) {
 		var p = pos;
 		var t;
 		if (!(t = sum())) return back(p);
-		if (res.length > 2) return undefined;
+		if (res.length > 3) return undefined;
 		var left = t;
 		while (ws() && ((t = l("<<")) || (t = l(">>u")) || (t = l(">>s")) ||  (t = l(">>")) || (t = l(">>>")) || (t = l("<<<")))) {
 			var right = sum();
-			if (res.length > 2) return undefined;
+			if (res.length > 3) return undefined;
 			if (!right) return error("invalid expression");
 			if (t == ">>") t = ">>u";
 			left = (new Binary(ops.indexOf(t), left, right));
@@ -416,11 +187,11 @@ function parse(query) {
 		var p = pos;
 		var t;
 		if (!(t = product())) return back(p);
-		if (res.length > 2) return undefined;
+		if (res.length > 3) return undefined;
 		var left = t;
 		while (ws() && ((t = l("+")) || (t = l("-")))) {
 			var right = product();
-			if (res.length > 2) return undefined;
+			if (res.length > 3) return undefined;
 			if (!right) return error("invalid expression");
 			left = new Binary(ops.indexOf(t), left, right);
 		}
@@ -434,7 +205,7 @@ function parse(query) {
 		var left = t;
 		while (ws() && ((t = l("*")) || (t = l("/u")) || (t = l("/s")) || (t = l("/")) || (t = l("%u")) || (t = l("%s")) || (t = l("%")))) {
 			var right = prefix();
-			if (res.length > 2) return undefined;
+			if (res.length > 3) return undefined;
 			if (!right) return error("invalid expression");
 			if (t == "/") t = "/u";
 			if (t == "%") t = "%u";
@@ -447,7 +218,7 @@ function parse(query) {
 		var t;
 		if (ws() && ((t = l("~")) || (t = l("-")))) {
 			var right = prefix();
-			if (res.length > 2) return undefined;
+			if (res.length > 3) return undefined;
 			if (!right) return error("invalid expression");
 			return new Unary(t == "-" ? 1 : 0, right);
 		} else {
@@ -471,7 +242,7 @@ function parse(query) {
 		ws();
 		if (l("(")) {
 			var inner = expr();
-			if (res.length > 2) return undefined;
+			if (res.length > 3) return undefined;
 			if (!inner) return error("invalid expression");
 			if (!l(")")) return error("unclosed parenthesis");
 			return new Unary("dummy", inner);
