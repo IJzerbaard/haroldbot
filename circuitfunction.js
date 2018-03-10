@@ -89,6 +89,16 @@ CFunction.sub = function(x, y) {
 	return CFunction.not(CFunction.add(CFunction.not(x), y));
 }
 
+CFunction.bzhi = function(x, y) {
+	y = CFunction.and(y, CFunction.constant(255));
+	var bits = new Int32Array(32);
+	for (var i = 0; i < 32; i++) {
+		var t = CFunction.le(y, CFunction.constant(i), false);
+		bits[i] = circuit.and(~t._bits[0], x._bits[i]);
+	}
+	return new CFunction(bits, circuit.or(x._divideError, y._divideError));
+}
+
 CFunction.hor = function(x) {
 	var or = circuit.or_big(x._bits.slice());
 	var bits = new Int32Array(32);
@@ -222,6 +232,15 @@ CFunction.clpow = function(x, y) {
 		var p = CFunction.mux(ith, one, x);
 		r = CFunction.clmul(r, p);
 		x = CFunction.spread(x);
+	}
+	return r;
+}
+
+CFunction.ormul = function(x, y) {
+	var r = CFunction.constant(0);
+	for (var i = 0; i < 32; i++) {
+		r = CFunction.or(r, CFunction.and(x, CFunction.nthbit(y, i)));
+		x = CFunction.shlc(x, 1);
 	}
 	return r;
 }

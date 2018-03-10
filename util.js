@@ -1,18 +1,18 @@
 var unops = ["~", "-", "$popcnt", "$ntz", "$nlz", "$reverse", "$abs", "$ez80mlt"];
-//            1    2    3    4    5    6     7     8      9      10   11                   20    21    22    23   24    25   26    27    28      30     31     32    33    34    35            40     41     42    43    44     45     46    47            55        56        57        58        59         60         61        62
-var ops = [, "&", "|", "^", "+", "-", "<<", ">>", "<<<", ">>>", "/", "*", , , , , , , , , "==", "!=", "<=", "<", ">=", ">", "=>", "&&", "||", , ">>s", ">>u", "/s", "/u", "%s", "%u", , , , , "<=s", "<=u", "<s", "<u", ">=s", ">=u", ">s", ">u", ,,,,,,, "$min_u", "$min_s", "$max_u", "$max_s", "$hmul_u", "$hmul_s", "$clmul", "$clpow"];
-var associative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , false, false, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true, false, false, true, false];
-var commutative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , true, true, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, ,,,,,,, true, true, true, true, true, true, true, false];
+//            1    2    3    4    5    6     7     8      9      10   11                   20    21    22    23   24    25   26    27    28      30     31     32    33    34    35            40     41     42    43    44     45     46    47    48             55        56        57        58        59         60         61        62        63
+var ops = [, "&", "|", "^", "+", "-", "<<", ">>", "<<<", ">>>", "/", "*", , , , , , , , , "==", "!=", "<=", "<", ">=", ">", "=>", "&&", "||", , ">>s", ">>u", "/s", "/u", "%s", "%u", , , , , "<=s", "<=u", "<s", "<u", ">=s", ">=u", ">s", ">u", "$bzhi",,,,,,, "$min_u", "$min_s", "$max_u", "$max_s", "$hmul_u", "$hmul_s", "$clmul", "$clpow", "$ormul"];
+var associative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , false, false, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, false,,,,,,, true, true, true, true, false, false, true, false, true];
+var commutative = [, true, true, true, true, false, false, false, false, false, false, true, , , , , , , , , true, true, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, false,,,,,,, true, true, true, true, true, true, true, false, true];
 
 function precedence(index) {
-    var pre = [ 0, 16, 14, 15, 18, 18, 17, 17, 17, 17, 19, 19, 20, 20, 0, 0, 0, 0, 0, 0, 13, 13, 13, 13, 13, 13, 11, 12, 12, 0, 17, 17, 19, 19, 19, 19, 20, 20, 20, 20, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13];
+    var pre = [ 0, 16, 14, 15, 18, 18, 17, 17, 17, 17, 19, 19, 20, 20, 0, 0, 0, 0, 0, 0, 13, 13, 13, 13, 13, 13, 11, 12, 12, 0, 17, 17, 19, 19, 19, 19, 20, 20, 20, 20, 13, 13, 13, 13, 13, 13, 13, 13];
     if (index < 0 || index > pre.length)
         return 20;
     return pre[index];
 }
 
 function isbinfunc(index) {
-    return index >= 55;
+    return index >= 48;
 }
 
 function toHexUnsigned(x) {
@@ -136,6 +136,21 @@ function clpow_u32(a, b) {
     return r;
 }
 
+function ormul_u32(a, b) {
+    var prod = 0;
+    while (a != 0) {
+        prod |= Math.imul(b, (a & -a));
+        a &= a - 1;
+        prod |= Math.imul(b, (a & -a));
+        a &= a - 1;
+        prod |= Math.imul(b, (a & -a));
+        a &= a - 1;
+        prod |= Math.imul(b, (a & -a));
+        a &= a - 1;
+    }
+    return prod;
+}
+
 function hmul_i32(a, b) {
     var h = hmul_u32(a, b);
     var t1 = (a >> 31) & b;
@@ -148,9 +163,6 @@ function mulinv(d) {
     x = Math.imul(x, 2 - Math.imul(d, x) | 0);
     x = Math.imul(x, 2 - Math.imul(d, x) | 0);
     x = Math.imul(x, 2 - Math.imul(d, x) | 0);
-    // sanity check
-    if (Math.imul(x, d) != 1)
-        throw "incorrect multiplicative inverse";
     return x;
 }
 
@@ -164,57 +176,6 @@ function clinv(d) {
     if (clmul_u32(x, d) != 1)
         throw "incorrect multiplicative inverse";
     return x;
-}
-
-function clfactork(x, k) {
-    var one = CFunction.constant(1);
-    var not_one = CFunction.not(one);
-    var cost = CFunction.constant(0);
-    var val = one;
-    var extracond = CFunction.not(cost);
-    var parg = one;
-    for (var i = 0; i < 5; i++) {
-        var arg = CFunction.or(CFunction.argument(i), one);
-        val = CFunction.clmul(val, arg);
-        cost = CFunction.add(cost, CFunction.popcnt(CFunction.and(arg, not_one)));
-        extracond = CFunction.and(extracond, CFunction.le(parg, arg));
-        parg = arg;
-    }
-    var query = CFunction.and(CFunction.and(CFunction.eq(val, CFunction.constant(x)), CFunction.le(cost, CFunction.constant(k))), extracond);
-    var s = query.sat(5);
-    if (s == null) return null;
-    for (var i = 0; i < s.length; i++)
-        s[i] = (s[i] | 1) >>> 0;
-    return s;
-}
-
-function clfaccost(f) {
-    return f.map(function(x) { return popcnt(x) - 1; }).reduce(function(a, b) { return a + b; });
-}
-
-function clfactor(x) {
-    // binary-search for sparsest factorization
-    var lb = Math.max(1, Math.floor(Math.log(popcnt(x)) * (Math.E - 1)));
-    var ub = popcnt(x) - 1;
-    var f = clfactork(x, ub);
-    ub = clfaccost(f);
-    var s = [];
-    s[ub] = f;
-    while (lb < ub) {
-        var mid = (lb + ub) >>> 1;
-        var f = clfactork(x, mid);
-        if (f) mid = clfaccost(f);
-        s[mid] = f;
-        if (f)
-            ub = mid;
-        else
-            lb = mid + 1;
-    }
-    var solution = s[lb];
-    if (!solution)
-        solution = clfactork(x, lb);
-    solution = Array.from(solution);
-    return solution.filter(function(x) { return x != 1; });
 }
 
 function getmilitime() {

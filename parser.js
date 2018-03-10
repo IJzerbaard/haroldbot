@@ -22,8 +22,8 @@ function parse(query) {
 				var v = ident();
 				ws();
 				quantified.push(v);
-				if (l(",")) continue;
-			} while (false);
+				if (!l(",")) break;
+			} while (true);
 			ws();
 			if (!l(":")) {
 				res.push("expected ':' to close list of quantified variables");
@@ -278,8 +278,12 @@ function parse(query) {
 			return fun1("ntz");
 		} else if (l("reverse")) {
 			return fun1("reverse");
+		} else if (l("bzhi")) {
+			return fun2("bzhi", false);
 		} else if (l("hmul")) {
 			return fun2("hmul", true);
+		} else if (l("ormul")) {
+			return fun2("ormul", false);
 		} else if (l("fixmul")) {
 			return fun3("fixmul", true);
 		} else if (l("fixscale")) {

@@ -101,6 +101,16 @@ BDDFunction.abs = function(x) {
 	return BDDFunction.xor(BDDFunction.add(x, m), m);
 }
 
+BDDFunction.bzhi = function(x, y) {
+	y = BDDFunction.and(y, BDDFunction.constant(255));
+	var bits = new Int32Array(32);
+	for (var i = 0; i < 32; i++) {
+		var t = BDDFunction.le(y, BDDFunction.constant(i), false);
+		bits[i] = bdd.and(~t._bits[0], x._bits[i]);
+	}
+	return new BDDFunction(bits, bdd.or(x._divideError, y._divideError));
+}
+
 BDDFunction.hor = function(x) {
 	function insertionSort(array, cmp) {
 		for (var i = 1; i < array.length; i++) {
@@ -276,6 +286,25 @@ BDDFunction.clpow = function(x, y) {
 	}
 	return r;
 };
+
+BDDFunction.ormul = function(x, y) {
+	function countNonconstant(bits) {
+		var count = 0;
+		for (var i = 0; i < 32; i++) {
+			if (bits[i] != 0 && bits[i] != -1)
+				count++;
+		}
+		return count;
+	}
+	if (countNonconstant(x._bits) * countNonconstant(y._bits) > 256)
+		throw "multiplication seems hard";
+	var r = BDDFunction.constant(0);
+	for (var i = 0; i < 32; i++) {
+		r = BDDFunction.or(r, BDDFunction.and(x, BDDFunction.nthbit(y, i)));
+		x = BDDFunction.shlc(x, 1);
+	}
+	return r;
+}
 
 BDDFunction.ez80mlt = function(x) {
 	var a = BDDFunction.and(x, BDDFunction.constant(0xFF));

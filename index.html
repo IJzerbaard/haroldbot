@@ -114,7 +114,7 @@ function performQuery(input) {
     Node.AnalyzeProperties(data, varmap, expr, update);
   }
 
-  if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 28 || expr.op >= 40 && expr.op <= 48)) {
+  if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 28 || expr.op >= 40 && expr.op <= 47)) {
     // comparison
     (bddf||circuitf).AnalyzeTruth(data, expr.removeDummy(), varmap, function () {
       update();
@@ -278,7 +278,7 @@ function formatexpr(expr, ix, varmap) {
     }
 
     res.append(unops[expr.op]);
-    if ((expr.value.type == 'bin' && expr.value.op < 55) || expr.value.type == 'ter') {
+    if ((expr.value.type == 'bin' && expr.value.op < 48) || expr.value.type == 'ter') {
       res.append('(');
       res.append(inner);
       res.append(')');

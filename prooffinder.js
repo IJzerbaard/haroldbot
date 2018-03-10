@@ -673,6 +673,22 @@ function ProofFinder(op, assocmode) {
 			[">>s", [a(0)], [31]],
 			true, "numbers are negative iff the top bit is set", ,
 		],
+		// properties of bzhi
+		[
+			["$bzhi", [a(0)], [0]],
+			[0],
+			false, "zero all bits", ,
+		],
+		[
+			["$bzhi", [a(0)], [32]],
+			[a(0)],
+			false, "zero no bits", ,
+		],
+		[
+			["$bzhi", ["$bzhi", [a(0)], [a(1)]], [a(1)]],
+			["$bzhi", [a(0)], [a(1)]],
+			false, "multiple bzhi with the same index", ,
+		],
 
 		// interrelations between operations
 
@@ -976,6 +992,37 @@ function ProofFinder(op, assocmode) {
 			["$reverse", ["^", [a(0)], [a(1)]]],
 			["^", ["$reverse", [a(0)]], ["$reverse", [a(1)]]],
 			true, "reverse distributes over xor", ,
+		],
+		// bzhi distributes over some stuff
+		[
+			["$bzhi", ["|", [a(0)], [a(1)]], [a(2)]],
+			["|", ["$bzhi", [a(0)], [a(2)]], ["$bzhi", [a(1)], [a(2)]]],
+			true, "bzhi distributes over or", ,
+		],
+		[
+			["|", ["$bzhi", [a(0)], [a(1)]], ["$bzhi", [a(2)], [a(1)]]],
+			["$bzhi", ["|", [a(0)], [a(2)]], [a(1)]],
+			true, "bzhi distributes over or", ,
+		],
+		[
+			["$bzhi", ["^", [a(0)], [a(1)]], [a(2)]],
+			["^", ["$bzhi", [a(0)], [a(2)]], ["$bzhi", [a(1)], [a(2)]]],
+			true, "bzhi distributes over xor", ,
+		],
+		[
+			["^", ["$bzhi", [a(0)], [a(1)]], ["$bzhi", [a(2)], [a(1)]]],
+			["$bzhi", ["^", [a(0)], [a(2)]], [a(1)]],
+			true, "bzhi distributes over xor", ,
+		],
+		[
+			["$bzhi", ["&", [a(0)], [a(1)]], [a(2)]],
+			["&", ["$bzhi", [a(0)], [a(2)]], ["$bzhi", [a(1)], [a(2)]]],
+			true, "bzhi distributes over and", ,
+		],
+		[
+			["&", ["$bzhi", [a(0)], [a(1)]], ["$bzhi", [a(2)], [a(1)]]],
+			["$bzhi", ["&", [a(0)], [a(2)]], [a(1)]],
+			true, "bzhi distributes over or", ,
 		],
 		// reversing a boolean has no effect
 		[

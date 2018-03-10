@@ -395,6 +395,7 @@ function binaryToBddFunc(op, l, r) {
 		case 25:
 		case 47: return BDDFunction.gt(l, r, false);
 		case 46: return BDDFunction.gt(l, r, true);
+		case 48: return BDDFunction.bzhi(l, r);
 		case 55: return BDDFunction.mux(BDDFunction.gt(l, r, false), l, r);
 		case 56: return BDDFunction.mux(BDDFunction.gt(l, r, true), l, r);
 		case 57: return BDDFunction.mux(BDDFunction.lt(l, r, false), l, r);
@@ -407,6 +408,7 @@ function binaryToBddFunc(op, l, r) {
 		case 60: return BDDFunction.hmul(l, r, true);
 		case 61: return BDDFunction.clmul(l, r);
 		case 62: return BDDFunction.clpow(l, r);
+		case 63: return BDDFunction.ormul(l, r);
 		default: alert("Unimplemented operation in binaryToBddFunc");
 	}
 }
@@ -443,6 +445,7 @@ function binaryToCircuitFunc(op, l, r) {
 		case 25:
 		case 47: return CFunction.gt(l, r, false);
 		case 46: return CFunction.gt(l, r, true);
+		case 48: return CFunction.bzhi(l, r);
 		case 55: return CFunction.mux(CFunction.gt(l, r, false), l, r);
 		case 56: return CFunction.mux(CFunction.gt(l, r, true), l, r);
 		case 57: return CFunction.mux(CFunction.lt(l, r, false), l, r);
@@ -455,6 +458,7 @@ function binaryToCircuitFunc(op, l, r) {
 		case 60: return CFunction.hmul(l, r, true);
 		case 61: return CFunction.clmul(l, r);
 		case 62: return CFunction.clpow(l, r);
+		case 63: return CFunction.ormul(l, r);
 	}
 	alert("Unimplemented operation in binaryToCircuitFunc");
 }
@@ -526,6 +530,7 @@ function evalBinary(op, l, r) {
 		case 42: return l < r ? -1 : 0;
 		case 44: return l >= r ? -1 : 0;
 		case 46: return l > r ? -1 : 0;
+		case 48: return ((r & 0xFF) >= 31 ? l : l & (1 << r) - 1)|0;
 		case 55: return Math.min(l ^ m, r ^ m) ^ m;
 		case 56: return Math.min(l, r) | 0;
 		case 57: return Math.max(l ^ m, r ^ m) ^ m;
@@ -534,6 +539,7 @@ function evalBinary(op, l, r) {
 		case 60: return hmul_i32(l, r);
 		case 61: return clmul_u32(l, r);
 		case 62: return clpow_u32(l, r);
+		case 63: return ormul_u32(l, r);
 	}
 }
 
