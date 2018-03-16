@@ -475,7 +475,7 @@ Binary.prototype.removeDummy = function() {
 Binary.prototype.constantFold = function(nrec) {
 	var l = nrec ? this.l : this.l.constantFold(false);
 	var r = nrec ? this.r : this.r.constantFold(false);
-	if (l.type == 'const' && r.type == 'const') {
+	if (l.type == 'const' && r.type == 'const' && !mayThrow(this.op)) {
 		return new Constant(this.eval(null));
 	}
 	if (l.id != this.l.id ||

@@ -1034,6 +1034,9 @@ BDDFunction.prototype.Identify = function(vars) {
 		// unreachable
 	}
 
+	if (this._divideError != 0)
+		return null;
+
 	var r_constant = is_constant(this._bits);
 	if (r_constant != null) {
 		return new Constant(r_constant);

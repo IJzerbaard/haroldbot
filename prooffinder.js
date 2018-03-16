@@ -997,32 +997,32 @@ function ProofFinder(op, assocmode) {
 		[
 			["$bzhi", ["|", [a(0)], [a(1)]], [a(2)]],
 			["|", ["$bzhi", [a(0)], [a(2)]], ["$bzhi", [a(1)], [a(2)]]],
-			true, "bzhi distributes over or", ,
+			true, "bzhi right-distributes over or", ,
 		],
 		[
 			["|", ["$bzhi", [a(0)], [a(1)]], ["$bzhi", [a(2)], [a(1)]]],
 			["$bzhi", ["|", [a(0)], [a(2)]], [a(1)]],
-			true, "bzhi distributes over or", ,
+			true, "bzhi right-distributes over or", ,
 		],
 		[
 			["$bzhi", ["^", [a(0)], [a(1)]], [a(2)]],
 			["^", ["$bzhi", [a(0)], [a(2)]], ["$bzhi", [a(1)], [a(2)]]],
-			true, "bzhi distributes over xor", ,
+			true, "bzhi right-distributes over xor", ,
 		],
 		[
 			["^", ["$bzhi", [a(0)], [a(1)]], ["$bzhi", [a(2)], [a(1)]]],
 			["$bzhi", ["^", [a(0)], [a(2)]], [a(1)]],
-			true, "bzhi distributes over xor", ,
+			true, "bzhi right-distributes over xor", ,
 		],
 		[
 			["$bzhi", ["&", [a(0)], [a(1)]], [a(2)]],
 			["&", ["$bzhi", [a(0)], [a(2)]], ["$bzhi", [a(1)], [a(2)]]],
-			true, "bzhi distributes over and", ,
+			true, "bzhi right-distributes over and", ,
 		],
 		[
 			["&", ["$bzhi", [a(0)], [a(1)]], ["$bzhi", [a(2)], [a(1)]]],
 			["$bzhi", ["&", [a(0)], [a(2)]], [a(1)]],
-			true, "bzhi distributes over or", ,
+			true, "bzhi right-distributes over or", ,
 		],
 		// reversing a boolean has no effect
 		[

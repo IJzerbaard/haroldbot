@@ -15,6 +15,10 @@ function isbinfunc(index) {
     return index >= 48;
 }
 
+function mayThrow(index) {
+    return index == 10 || (index >= 32 && index <= 35);
+}
+
 function toHexUnsigned(x) {
     x = (x|0) + 0xFFFFFFFF + 1;
     var s = x.toString(16);
