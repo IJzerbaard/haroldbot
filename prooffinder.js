@@ -1024,6 +1024,12 @@ function ProofFinder(op, assocmode) {
 			["$bzhi", ["&", [a(0)], [a(2)]], [a(1)]],
 			true, "bzhi right-distributes over or", ,
 		],
+		// other bzhi properties
+		[
+			["&", ["$bzhi", [a(0)], [a(1)]], ["$bzhi", [a(0)], [a(2)]]],
+			["$bzhi", ["$bzhi", [a(0)], [a(1)]], [a(2)]],
+			true, "combine bzhi", "split bzhi",
+		],
 		// reversing a boolean has no effect
 		[
 			["$reverse", ["==", [a(0)], [a(1)]]],
