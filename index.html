@@ -340,7 +340,22 @@ function formatexpr(expr, ix, varmap) {
   }
   debugger;
 }
-function parseproofstep(proofstep, ix, varmap) {
+function parseproofstep(proofstep, ix, varmap, prevstep, nextstep) {
+  function getChildExprs(expr) {
+    switch (expr.type) {
+      default: return [];
+      case "bin": return [expr.l, expr.r];
+      case "un": return [expr.value];
+      case "assoc": return expr.operands;
+      case "fun": return expr.args;
+      case "ter": return [expr.t, expr.f, expr.cond];
+      case "let": return [expr.expr];
+    }
+  }
+  function containsID(expr, id) {
+    if (expr.id == id) return true;
+    return getChildExprs(expr).some(function(e){return containsID(e, id)});
+  }
   var container = $j('<div/>').addClass("proofj");
   container.attr("id", "proofj" + (ix + 1));
   var explanation = $j('<div/>').html(proofstep[0]).contents();
@@ -364,9 +379,9 @@ function parseproofstep(proofstep, ix, varmap) {
       pattern = formatexpr(["#",-1,proofstep[1]], ix, varmap);
     }
     parens = oldparens;
-    if (proofstep[1].l.type == 'bin' && precedence(proofstep[1].l.op) <= precedence(proofstep[1].op))
+    if ((proofstep[1].l.type == 'bin' || proofstep[1].l.type == 'assoc') && precedence(proofstep[1].l.op) <= precedence(proofstep[1].op))
       pattern = $j("<span />").append("(").append(pattern).append(")");
-    if (patternr && proofstep[1].r.type == 'bin' && precedence(proofstep[1].r.op) <= precedence(proofstep[1].op))
+    if (patternr && (proofstep[1].r.type == 'bin' || proofstep[1].r.type == 'assoc') && precedence(proofstep[1].r.op) <= precedence(proofstep[1].op))
       patternr = $j("<span />").append("(").append(patternr).append(")");
     var patternholder = $j('<span/>');
     patternholder.css('font-family', 'Consolas,monospace');
@@ -378,8 +393,28 @@ function parseproofstep(proofstep, ix, varmap) {
     {
       var cl1, cl2;
       if (patternr) {
-        cl1 = ".e" + ix + "_" + proofstep[1].l.id;
-        cl2 = ".e" + (ix + 2) + "_" + proofstep[1].r.id;
+        if (prevstep || nextstep) {
+          var highlight_L = [proofstep[1].l];
+          var highlight_R = [proofstep[1].r];
+          function matchhighlights(hl, expr) {
+            hl = hl.slice();
+            var i;
+            while ((i = hl.findIndex(function(h){return!containsID(expr,h.id)}))>=0) {
+              var item = hl[i];
+              hl.splice(i, 1);
+              hl = hl.concat(getChildExprs(item));
+            }
+            return hl;
+          }
+          if (prevstep) highlight_L = matchhighlights(highlight_L, prevstep);
+          if (nextstep) highlight_R = matchhighlights(highlight_R, nextstep);
+          cl1 = highlight_L.map(function(h){return".e"+ix+"_"+h.id;}).join(", ");
+          cl2 = highlight_R.map(function(h){return".e"+(ix+2)+"_"+h.id;}).join(", ");
+        }
+        else {
+          cl1 = ".e" + ix + "_" + proofstep[1].l.id;
+          cl2 = ".e" + (ix + 2) + "_" + proofstep[1].r.id;
+        }
       }
       else {
         cl1 = (".e" + ix + "_" + proofstep[1].l.id) + ", " +
@@ -441,7 +476,7 @@ function formatproof(parent, proofarray, varmap) {
       if (!assocsteps && proofarray[i][0] && proofarray[i][0].indexOf('associativity') == 0)
         i++;
       else {
-        proofcontainer.append(parseproofstep(proofarray[i], i - 1, varmap));
+        proofcontainer.append(parseproofstep(proofarray[i], i - 1, varmap, proofarray[i - 1], proofarray[i + 1]));
         havesteps = true;
       }
     }
