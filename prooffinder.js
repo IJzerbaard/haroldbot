@@ -586,6 +586,82 @@ function ProofFinder(op, assocmode) {
 			[32],
 			false, "the number of ones plus the number of zeroes is all bits", ,
 		],
+		// properties of BMI stuff
+		[
+			["$blsi", [a(0)]],
+			["&", [a(0)], ["-", [a(0)]]],
+			true, "definition of blsi", ,
+		],
+		[
+			["$blsr", [a(0)]],
+			["&", [a(0)], ["-", [a(0)], [1]]],
+			true, "definition of blsr", ,
+		],
+		[
+			["$blsmsk", [a(0)]],
+			["^", [a(0)], ["-", [a(0)], [1]]],
+			true, "definition of blsmsk", ,
+		],
+		[
+			["$tzmsk", [a(0)]],
+			["&", ["~", [a(0)]], ["-", [a(0)], [1]]],
+			true, "definition of tzmsk #1", ,
+		],
+		[
+			["$tzmsk", [a(0)]],
+			["-", ["&", [a(0)], ["-", [a(0)]]], [1]],
+			true, "definition of tzmsk #2", ,
+		],
+		[
+			["$tzmsk", [a(0)]],
+			["-", ["&", ["-", [a(0)]], [a(0)]], [1]],
+			true, "definition of tzmsk #2", ,
+		],
+		[
+			["$blsi", ["$blsi", [a(0)]]],
+			["$blsi", [a(0)]],
+			false, "blsi is idempotent", ,
+		],
+		[
+			["$blsr", ["$blsi", [a(0)]]],
+			[0],
+			false, "blsi leaves at most a single bit set", ,
+		],
+		[
+			["&", ["$popcnt", ["$blsi", [a(0)]]], [1]],
+			["$popcnt", ["$blsi", [a(0)]]],
+			false, "blsi leaves at most a single bit set", ,
+		],
+		[
+			["$blsmsk", ["$blsmsk", [a(0)]]],
+			[1],
+			false, "blsmsk always has an odd result", ,
+		],
+		[
+			["&", ["$blsmsk", [a(0)]], [1]],
+			[1],
+			false, "blsmsk always has an odd result", ,
+		],
+		[
+			["|", ["$blsmsk", [a(0)]], [1]],
+			["$blsmsk", [a(0)]],
+			false, "blsmsk always has an odd result", ,
+		],
+		[
+			["&", ["$blsr", [a(0)]], [1]],
+			[0],
+			false, "blsr always has an even result", ,
+		],
+		[
+			["&", ["$blsr", [a(0)]], [-2]],
+			["$blsr", [a(0)]],
+			false, "blsr always has an even result", ,
+		],
+		[
+			["$popcnt", ["$tzmsk", [a(0)]]],
+			["$ntz", [a(0)]],
+			false, "counting the trailing zeroes", ,
+		],
 		// properties of ==
 		[
 			["==", [a(0)], [a(0)]],

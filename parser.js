@@ -276,6 +276,14 @@ function parse(query) {
 			return fun1("nlz");
 		} else if (l("ntz")) {
 			return fun1("ntz");
+		} else if (l("blsi")) {
+			return fun1("blsi");
+		} else if (l("blsr")) {
+			return fun1("blsr");
+		} else if (l("blsmsk")) {
+			return fun1("blsmsk");
+		} else if (l("tzmsk")) {
+			return fun1("tzmsk");
 		} else if (l("reverse")) {
 			return fun1("reverse");
 		} else if (l("bzhi")) {

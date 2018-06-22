@@ -217,6 +217,10 @@ function unaryToBddFunction(op, inner) {
 		case 5:	return BDDFunction.rbit(inner);
 		case 6:	return BDDFunction.abs(inner);
 		case 7: return BDDFunction.ez80mlt(inner);
+		case 8: return BDDFunction.and(inner, BDDFunction.sub(BDDFunction.constant(0), inner));
+		case 9: return BDDFunction.and(inner, BDDFunction.sub(inner, BDDFunction.constant(1)));
+		case 10: return BDDFunction.xor(inner, BDDFunction.sub(inner, BDDFunction.constant(1)));
+		case 11: return BDDFunction.and(BDDFunction.not(inner), BDDFunction.sub(inner, BDDFunction.constant(1)));
 	}
 	alert("Severe bug in Unary.toBddFunc");
 }
@@ -234,6 +238,10 @@ Unary.prototype.toCircuitFunc = function() {
 		case 5:	return CFunction.rbit(inner);
 		case 6:	return CFunction.abs(inner);
 		case 7: return CFunction.ez80mlt(inner);
+		case 8: return CFunction.and(inner, CFunction.sub(CFunction.constant(0), inner));
+		case 9: return CFunction.and(inner, CFunction.sub(inner, CFunction.constant(1)));
+		case 10: return CFunction.xor(inner, CFunction.sub(inner, CFunction.constant(1)));
+		case 11: return CFunction.and(CFunction.not(inner), CFunction.sub(inner, CFunction.constant(1)));
 	}
 	//debugger;
 	alert("Severe bug in Unary.toCircuitFunc");
@@ -259,12 +267,16 @@ Unary.prototype.constantFold = function(nrec) {
 			case 2:	return new Constant(popcnt(inner.value));
 			case 3:	return new Constant(ctz(inner.value));
 			case 4:	return new Constant(clz(inner.value));
-			case 5:	return new Constant(rbit(inner.value))
+			case 5:	return new Constant(rbit(inner.value));
 			case 6:
 				var t = inner.value | 0;
 				var m = t >> 31;
 				return new Constant((t ^ m) - m | 0);
 			case 7:	return new Constant((inner.value & 0xFF) * ((inner.value >> 8) & 0xFF));
+			case 8: return new Constant(inner.value & -inner.value);
+			case 9: return new Constant(inner.value & inner.value - 1);
+			case 10: return new Constant(inner.value ^ inner.value - 1);
+			case 11: return new Constant(~inner.value & inner.value - 1);
 		}
 	}
 	if (inner.id != this.value.id)
@@ -294,6 +306,10 @@ Unary.prototype.eval = function(vars) {
 			var t = (inner|0) >> 31;
 			return ((inner ^ t) - t) | 0;
 		case 7: return (inner & 0xFF) * ((inner >> 8) & 0xFF);
+		case 8: return inner & -inner;
+		case 9: return inner & inner - 1;
+		case 10: return inner ^ inner - 1;
+		case 11: return ~inner & inner - 1;
 	}
 };
 
