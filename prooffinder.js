@@ -2423,48 +2423,55 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		}
 	}
 
-	if (from.equals2(to)) {
-		var v1 = new Variable(-1);
-		v1.id = from.id;
-		var v2 = new Variable(-1);
-		v2.id = to.id;
-		callback([from, ["structurally equal", new Binary(20, v1, v2)], to]);
-		return;
+	if (to) {
+		if (from.equals2(to)) {
+			var v1 = new Variable(-1);
+			v1.id = from.id;
+			var v2 = new Variable(-1);
+			v2.id = to.id;
+			callback([from, ["structurally equal", new Binary(20, v1, v2)], to]);
+			return;
+		}
+
+		var fromc = from.copy().constantFold();
+		var toc = to.copy().constantFold();
+
+		if (from.equals2(toc)) {
+			var v1 = new Variable(-1);
+			v1.id = from.id;
+			var v2 = new Variable(-1);
+			v2.id = toc.id;
+			callback([from, ["constant folding", new Binary(20, v1, v2)], toc]);
+			return;
+		}
+
+		if (fromc.equals2(to)) {
+			var v1 = new Variable(-1);
+			v1.id = from.id;
+			var v2 = new Variable(-1);
+			v2.id = to.id;
+			callback([from, ["constant folding", new Binary(20, v1, v2)], to]);
+			return;
+		}
+
+		from = fromc;
+		to = toc;
+		from.start = true;
+		to.end = true;
+
+		if (from.equals(to)) {
+			var v1 = new Variable(-1);
+			v1.id = from.id;
+			var v2 = new Variable(-1);
+			v2.id = to.id;
+			callback([from, ["structurally equal after normalization", new Binary(20, v1, v2)], to]);
+			return;
+		}
 	}
-
-	var fromc = from.copy().constantFold();
-	var toc = to.copy().constantFold();
-
-	if (from.equals2(toc)) {
-		var v1 = new Variable(-1);
-		v1.id = from.id;
-		var v2 = new Variable(-1);
-		v2.id = toc.id;
-		callback([from, ["constant folding", new Binary(20, v1, v2)], toc]);
-		return;
-	}
-
-	if (fromc.equals2(to)) {
-		var v1 = new Variable(-1);
-		v1.id = from.id;
-		var v2 = new Variable(-1);
-		v2.id = to.id;
-		callback([from, ["constant folding", new Binary(20, v1, v2)], to]);
-		return;
-	}
-
-	from = fromc;
-	to = toc;
-	from.start = true;
-	to.end = true;
-
-	if (from.equals(to)) {
-		var v1 = new Variable(-1);
-		v1.id = from.id;
-		var v2 = new Variable(-1);
-		v2.id = to.id;
-		callback([from, ["structurally equal after normalization", new Binary(20, v1, v2)], to]);
-		return;
+	else {
+		from = from.constantFold();
+		complexity_weight = 5;
+		steps_weight = 1;
 	}
 
 	// priority queues
@@ -2475,10 +2482,11 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 	h2 = [];
 
 	q1.push([null, from, null, false, 0, null]);
-	q2.push([null, to, null, true, 0, null]);
+	if (to) {
+		q2.push([null, to, null, true, 0, null]);
+		hash_update(h2, to, q2[0]);
+	}
 	hash_update(h1, from, q1[0]);
-	hash_update(h2, to, q2[0]);
-
 
 	var w = [];
 	var maxstep = 999999;
@@ -2553,7 +2561,39 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		}
 	}
 
-	loop_async(0, q1, q2, h1, h2, from, to, this.Rules, callback);
+	function loop_async_simp(index, best, q1, h1, from, rules, cb) {
+		var maxForwardWeight = from.weight + 5;
+		for (var counter = 0; counter < 10; counter++) {
+			var time = new Date();
+			if (q1.length == 0 || index > 100 || time.getTime() - starttime.getTime() > timelimit) {
+				if (best.n[1].equals(from)) {
+					cb(null, null);
+				}
+				else {
+					var node = best.n;
+					proofsteps = makesteps(false, node, [null, node[1]], rules);
+					cb(proofsteps, node[1]);
+				}
+				return;
+			}
+			// forward step only
+			var pn = removeMin(q1);
+			if (pn[1].weight < best.w) {
+				best.w = pn[1].weight;
+				best.n = pn;
+			}
+			// ignore result, no match can be found
+			processNode(pn, false, h1, q1, [], maxForwardWeight, rules);
+		}
+		setTimeout(function() {
+			loop_async_simp(index + 1, best, q1, h1, from, rules, cb);
+		}, 0);
+	}
+
+	if (to)
+		loop_async(0, q1, q2, h1, h2, from, to, this.Rules, callback);
+	else
+		loop_async_simp(0, {w:from.weight,n:q1[0]}, q1, h1, from, this.Rules, callback);
 
 	return;
 };

@@ -137,6 +137,16 @@ function performQuery(input) {
       data.simp = bddf.Identify(varmap);
       if (data.simp == undefined) {
         data.msg = "no simplication found";
+        // search for simplication with proof steps
+        var pf = new ProofFinder(20);
+        pf.Search(expr.removeDummy(), null, function (flatproof, simplified) {
+          if (flatproof == null)
+            return;
+          data.msg = undefined;
+          data.simp = simplified;
+          data.proof = flatproof;
+          update();
+        }, null, null, null, 2000);
       }
       else {
         Node.AnalyzeProperties(data, varmap, data.simp, update);
