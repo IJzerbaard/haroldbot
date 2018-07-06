@@ -2387,12 +2387,13 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 					var rr = r.r;
 
 					function test(node, l, r) {
-                        if (node.type == 'const')
-                            return (l.value & node.value) == 0 ||
-                                   (r.value & node.value) == 0;
-						if (node.type != 'un' || node.op != 0)
-							return false;
-						return node.value.equals(l) || node.value.equals(r);
+                        if (node.type == 'const' && l.type == 'const' && (l.value & node.value) == 0)
+                        	return true;
+                        if (node.type == 'const' && r.type == 'const' && (r.value & node.value) == 0)
+                        	return true;
+						if (node.type == 'un' && node.op == 0)
+							return node.value.equals(l) || node.value.equals(r);
+						return false;
 					}
 
 					return test(ll, rl, rr) ||
