@@ -662,6 +662,26 @@ function ProofFinder(op, assocmode) {
 			["$ntz", [a(0)]],
 			false, "counting the trailing zeroes", ,
 		],
+		[
+			["&", [a(0)], ["~", ["$blsi", [a(0)]]]],
+			["$blsr", [a(0)]],
+			false, "resetting lowest set bit", ,
+		],
+		[
+			["&", [a(0)], ["~", ["$blsi", [a(0)]]]],
+			["$blsr", [a(0)]],
+			false, "resetting lowest set bit", ,
+		],
+		[
+			["^", [a(0)], ["$blsi", [a(0)]]],
+			["$blsr", [a(0)]],
+			false, "resetting lowest set bit", ,
+		],
+		[
+			["-", [a(0)], ["$blsi", [a(0)]]],
+			["$blsr", [a(0)]],
+			false, "resetting lowest set bit", ,
+		],
 		// properties of ==
 		[
 			["==", [a(0)], [a(0)]],
