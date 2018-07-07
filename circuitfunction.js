@@ -24,6 +24,14 @@ CFunction.not = function(x) {
 	return new CFunction(bits, x._divideError);
 }
 
+CFunction.rbit = function(x) {
+	var bits = new Int32Array(32);
+	for (var i = 0; i < bits.length; i++) {
+		bits[i] = x._bits[bits.length - i - 1];
+	}
+	return new CFunction(bits, x._divideError);
+}
+
 CFunction.and = function(x, y) {
 	var bits = new Int32Array(32);
 	for (var i = 0; i < bits.length; i++) {
