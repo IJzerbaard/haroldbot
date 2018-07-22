@@ -1216,7 +1216,11 @@ function ProofFinder(op, assocmode) {
 			["&", [a(0)], [a(1)]],
 			false, "bit-level commutativity of and", ,
 		],
-
+		[
+			["-", ["+", [a(0)], [a(1)]], ["|", [a(0)], [a(1)]]],
+			["&", [a(0)], [a(1)]],
+			false, "bit-level commutativity of addition", , "extra steps", [["-", ["+", ["&", [a(0)], [a(1)]], ["|", [a(0)], [a(1)]]], ["|", [a(0)], [a(1)]]]]
+		],
 
 		
 		// two's complement relations
@@ -1320,6 +1324,11 @@ function ProofFinder(op, assocmode) {
 		],
 		[
 			["+", ["-", [a(0)], [a(1)]], [a(1)]],
+			[a(0)],
+			false, "adding and subtracting the same thing cancels", ,
+		],
+		[
+			["-", ["+", [a(0)], [a(1)]], [a(1)]],
 			[a(0)],
 			false, "adding and subtracting the same thing cancels", ,
 		],
