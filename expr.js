@@ -976,69 +976,6 @@ Node.AnalyzeProperties = function(data, vars, expr, callback) {
 		default: return;
 		case 1:
 			function invert(expr, inv) {
-				// util functions
-				function bddIsClmulC(bits) {
-					var mask = 0;
-					var variable = -1;
-					for (var i = 0; i < bits.length; i++) {
-						var f = bits[i];
-						// no constants allowed
-						if (f == 0 || f == -1) return null;
-						// check whether bit is XOR of previous bits
-						var m = 0;
-						do {
-							var inv = f >> 31;
-							var v = bdd._v[f ^ inv];
-							var lo = bdd._lo[f ^ inv] ^ inv;
-							var hi = bdd._hi[f ^ inv] ^ inv;
-							// if the checked bit is not from the current bit index or earlier, it's not a clmul
-							if (((v >> 6) ^ 31) > i)
-								return null;
-							m |= 1 << (i - ((v >> 6) ^ 31));
-
-							// if the variable changed, it's not clmul
-							if (variable != (v & 63) && variable >= 0) return null;
-							variable = v & 63;
-
-							/* hi == ~lo, xor with v[i]
-							   otherwise: not an xor
-							*/
-							if (hi == ~lo)
-								f = lo;
-							else return null;
-						} while (f != 0 && f != -1);
-						// if a bit in the mask used to be set and is now not set,
-						// that is inconsistent with a clmul
-						if ((mask & ~m) != 0) return null;
-						mask = m;
-					}
-					// clmul by even is not invertible anyway
-					if ((mask & 1) == 0) return null;
-					// reconstruct bdd and check whether it matches
-					var v = BDDFunction.argument(variable);
-					var x = BDDFunction.constant(0);
-					for (var i = 0; i < 32; i++) {
-						if (((mask >> i) & 1) != 0)
-							x = BDDFunction.xor(x, BDDFunction.shlc(v, i));
-					}
-					for (var i = 0; i < x._bits.length; i++) {
-						if (x._bits[i] != bits[i]) return null;
-					}
-					// everything matches, so this is a clmul(variable, mask)
-					return [variable, mask];
-				}
-
-				if (expr.bddf) {
-					// bdd is available, try to invert based on that
-					// anything that may throw cannot be inverted
-					if (expr.bddf._divideError != 0) return null;
-					var bddclmulc = bddIsClmulC(expr.bddf._bits);
-					if (bddclmulc) {
-						//var f = clfactor(bddclmulc[1]);
-						//var m = toHexUnsigned(f.reduce(clmul_u32));
-						debugger;
-					}
-				}
 				switch (expr.type) {
 					default: return null;
 					case "var": return inv;
