@@ -455,7 +455,7 @@ var bdd = {
 		f ^= f >> 31;
 
 		var hash = f % 1048573;
-		if (this._memoop[hash] == 6 && this._memokey1[hash] == f)
+		if (this._memoop[hash] == 8 && this._memokey1[hash] == f)
 			return this._memo[hash] ^ invert;
 
 		var fv = this._v[f];
@@ -464,7 +464,7 @@ var bdd = {
 
 		var value = this.mk(fv + 1, this.incv(flo), this.incv(fhi));
 
-		this._memoop[hash] = 6;
+		this._memoop[hash] = 8;
 		this._memokey1[hash] = f;
 		this._memo[hash] = value;
 
