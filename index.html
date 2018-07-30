@@ -538,6 +538,8 @@ function update(optdata) {
     }
     else if (stuff.count) {
       container.append('<p>in ' + stuff.count + ' cases</p>');
+      if (stuff.pred)
+        container.append($j('<p>namely when: </p>').append(formatexpr(stuff.pred, 1000000, varmap)));
       if (stuff.examples)
         container.append($j('<p>for example:</p>').append(formatVariableAssignments(stuff.examples, varmap, stuff.ext_examples, data.quantified)));
     }

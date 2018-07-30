@@ -602,6 +602,41 @@ BDDFunction.quantU = function (f, q, varmap) {
 	return new BDDFunction(bits, de);
 };
 
+BDDFunction.IdentifyPredicate = function(bit, negated) {
+	// is of form (var & m) == c
+	function isAndEqConst(x) {
+		var m = 0, c = 0, vindex = -1;
+		while (x != 0 && x != -1) {
+			var inv = x >> 31;
+			var v = bdd._v[x ^ inv];
+			var lo = bdd._lo[x ^ inv] ^ inv;
+			var hi = bdd._hi[x ^ inv] ^ inv;
+			var vind = v & 63;
+			if (vindex == -1) vindex = vind;
+			else if (vindex != vind) return null;
+			if (hi != 0 && lo != 0) return null;
+			var vbit = (v >> 6) ^ 31;
+			m |= 1 << vbit;
+			if (lo == 0) {
+				c |= 1 << vbit;
+				x = hi;
+			}
+			else x = lo;
+		}
+		return [vindex, m, c];
+	}
+
+	var t = isAndEqConst(bit);
+	if (t) {
+		var x = new Variable(t[0]);
+		if (t[1] != -1)
+			x = new Binary(1, x, new Constant(t[1]));
+		return new Binary(negated ? 21 : 20, x, new Constant(t[2]));
+	}
+
+	return null;
+};
+
 BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcallback) {
 	var res = data;
 
@@ -667,6 +702,13 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugc
 					return res;
 				}
 			};
+
+			if (this._bits.every(function (elem) { return elem == bit0; })) {
+				var p = BDDFunction.IdentifyPredicate(bit0, false) || BDDFunction.IdentifyPredicate(~bit0, true);
+				if (p) res.true.pred = p;
+				var q = BDDFunction.IdentifyPredicate(~bit0, false) || BDDFunction.IdentifyPredicate(bit0, true);
+				if (q) res.false.pred = q;
+			}
 		}
 	}
 	else if (this._divideError == -1) {
