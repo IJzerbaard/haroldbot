@@ -393,6 +393,13 @@ BDDFunction.divs = function (a, b) {
 	return BDDFunction.xor(sign, BDDFunction.add(sign, div));
 }
 
+BDDFunction.dive = function (a, b) {
+	var sa = BDDFunction.nthbit(a, 31);
+	var sb = BDDFunction.nthbit(b, 31);
+	var div = BDDFunction.divu(BDDFunction.xor(a, sa), BDDFunction.abs(b));
+	return BDDFunction.xor(sb, BDDFunction.add(sb, BDDFunction.xor(sa, div)));
+}
+
 BDDFunction.remu = function (a, b) {
 	var diverror = bdd.or(BDDFunction.eqz(b), bdd.or(a._divideError, b._divideError));
 	var P = new Int32Array(64);
@@ -432,6 +439,13 @@ BDDFunction.rems = function (a, b) {
 	var sign = BDDFunction.xor(BDDFunction.nthbit(a, 31), BDDFunction.nthbit(b, 31));
 	var div = BDDFunction.remu(BDDFunction.abs(a), BDDFunction.abs(b));
 	return BDDFunction.xor(sign, BDDFunction.add(sign, div));
+}
+
+BDDFunction.reme = function (a, b) {
+	var sa = BDDFunction.nthbit(a, 31);
+	b = BDDFunction.abs(b);
+	var div = BDDFunction.remu(BDDFunction.xor(a, sa), b);
+	return BDDFunction.add(BDDFunction.and(sa, b), BDDFunction.xor(sa, div));
 }
 
 function bdd_mul64(a, b, signed) {

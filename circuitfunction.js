@@ -310,6 +310,13 @@ CFunction.divs = function (a, b) {
 	return CFunction.xor(sign, CFunction.add(sign, div));
 }
 
+CFunction.dive = function (a, b) {
+	var sa = CFunction.nthbit(a, 31);
+	var sb = CFunction.nthbit(b, 31);
+	var div = CFunction.divu(CFunction.xor(a, sa), CFunction.abs(b));
+	return CFunction.xor(sb, CFunction.add(sb, CFunction.xor(sa, div)));
+}
+
 CFunction.remu = function (a, b) {
 	var diverror = circuit.or(CFunction.eqz(b), circuit.or(a._divideError, b._divideError));
 	var P = new Int32Array(64);
@@ -349,6 +356,13 @@ CFunction.rems = function (a, b) {
 	var sign = CFunction.xor(CFunction.nthbit(a, 31), CFunction.nthbit(b, 31));
 	var div = CFunction.remu(CFunction.abs(a), CFunction.abs(b));
 	return CFunction.xor(sign, CFunction.add(sign, div));
+}
+
+CFunction.reme = function (a, b) {
+	var sa = CFunction.nthbit(a, 31);
+	b = CFunction.abs(b);
+	var div = CFunction.remu(CFunction.xor(a, sa), b);
+	return CFunction.add(CFunction.and(sa, b), CFunction.xor(sa, div));
 }
 
 function cf_mul64(a, b, signed) {

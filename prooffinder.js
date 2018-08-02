@@ -124,6 +124,11 @@ function ProofFinder(op, assocmode) {
 			["|", [a(0)], [a(1)]],
 			false, "changed bits are masked", ,
 		],
+		[
+			["|", ["&", [a(0)], [a(1)]], ["&", [a(0)], ["~", [a(1)]]]],
+			[a(0)],
+			false, "union of complementary subsets", ,
+		],
 		// properties of xor
 		[
 			["^", [a(0)], [0]],
@@ -220,6 +225,11 @@ function ProofFinder(op, assocmode) {
 			["^", [a(0)], ["~", [a(1)]]],
 			true, "move complement", ,
 		],
+		[
+			["^", ["&", [a(0)], [a(1)]], ["&", [a(0)], ["~", [a(1)]]]],
+			[a(0)],
+			false, "xor of complementary subsets", ,
+		],
 		// properties of addition
 		[
 			["+", [a(0)], [0]],
@@ -270,6 +280,11 @@ function ProofFinder(op, assocmode) {
 			["+", [a(0)], [a(1)]],
 			["+", [a(1)], [a(0)]],
 			false, "commutativity of addition", ,
+		],
+		[
+			["+", ["&", [a(0)], [a(1)]], ["&", [a(0)], ["~", [a(1)]]]],
+			[a(0)],
+			false, "addition of complementary subsets", ,
 		],
 		
 		// properties of subtraction
@@ -329,6 +344,16 @@ function ProofFinder(op, assocmode) {
 			["?", ["~", [a(0)]], [a(1)], [a(2)]],
 			["?", [a(0)], [a(2)], [a(1)]],
 			false, "swap arguments of mux", ,
+		],
+		[
+			["?", [a(0)], [a(0)], ["~", [a(0)]]],
+			[-1],
+			false, "mux between something and its complement", ,
+		],
+		[
+			["?", [a(0)], ["~", [a(0)]], [a(0)]],
+			[0],
+			false, "mux between something and its complement", ,
 		],
 		[
 			["?", [a(0)], [a(1)], ["?", [a(0)], [a(2)], [a(3)]]],
@@ -486,6 +511,11 @@ function ProofFinder(op, assocmode) {
 			false, "shift by zero", ,
 		],
 		[
+			["<<", [0], [a(0)]],
+			[0],
+			false, "shifting zero", ,
+		],
+		[
 			["<<", [a(0)], [1]],
 			["+", [a(0)], [a(0)]],
 			false, "shift by one is *2", ,
@@ -494,6 +524,28 @@ function ProofFinder(op, assocmode) {
 			["<<", [a(0)], [1]],
 			["*", [a(0)], [2]],
 			false, "shift by one is *2", ,
+		],
+		// properties of right shift
+		[
+			[">>u", [a(0)], [0]],
+			[a(0)],
+			false, "shift by zero", ,
+		],
+		[
+			[">>u", [0], [a(0)]],
+			[0],
+			false, "shifting zero", ,
+		],
+		// properties of arithmetic right shift
+		[
+			[">>s", [a(0)], [0]],
+			[a(0)],
+			false, "shift by zero", ,
+		],
+		[
+			[">>s", [0], [a(0)]],
+			[0],
+			false, "shifting zero", ,
 		],
 		// properties of multiplication
 		[
@@ -785,6 +837,57 @@ function ProofFinder(op, assocmode) {
 			["$bzhi", [a(0)], [a(1)]],
 			false, "multiple bzhi with the same index", ,
 		],
+		// division stuff
+		[
+			["/u", [a(0)], [1]],
+			[a(0)],
+			false, "division by 1", ,
+		],
+		[
+			["/s", [a(0)], [1]],
+			[a(0)],
+			false, "division by 1", ,
+		],
+		[
+			["/e", [a(0)], [1]],
+			[a(0)],
+			false, "division by 1", ,
+		],
+		[
+			["%e", [a(0)], ["-", [a(1)]]],
+			["%e", [a(0)], [a(1)]],
+			false, "Euclidean remainder ignores sign of divisor", ,
+		],
+		[
+			["%e", [a(0)], ["$abs", [a(1)]]],
+			["%e", [a(0)], [a(1)]],
+			false, "Euclidean remainder ignores sign of divisor", ,
+		],
+		[
+			["/e", [a(0)], ["-", [a(1)]]],
+			["-", ["/e", [a(0)], [a(1)]]],
+			true, "move negation out of division", "move negation into division",
+		],
+		[
+			["/e", [a(0)], [a(1, except_unknown_or_zero)]],
+			["-", ["/e", [a(0)], ["-", [a(1)]]]],
+			false, "move negation out of division", ,
+		],
+		[
+			["+", ["*", [a(0)], ["/u", [a(1)], [a(0)]]], ["%u", [a(1)], [a(0)]]],
+			[a(1)],
+			false, "division rule", ,
+		],
+		[
+			["+", ["*", [a(0)], ["/s", [a(1)], [a(0)]]], ["%s", [a(1)], [a(0)]]],
+			[a(1)],
+			false, "division rule", ,
+		],
+		[
+			["+", ["*", [a(0)], ["/e", [a(1)], [a(0)]]], ["%e", [a(1)], [a(0)]]],
+			[a(1)],
+			false, "division rule", ,
+		],
 
 		// interrelations between operations
 
@@ -814,12 +917,12 @@ function ProofFinder(op, assocmode) {
 		[
 			["~", ["~", [a(0)]]],
 			[aex(0, except_not)],
-			true, "double complement", ,
+			false, "double complement", ,
 		],
 		[
 			["-", ["-", [a(0)]]],
 			[aex(0, except_neg)],
-			true, "double negation", ,
+			false, "double negation", ,
 		],
 		[
 			["$abs", ["$abs", [a(0)]]],
@@ -1320,7 +1423,7 @@ function ProofFinder(op, assocmode) {
 		[
 			["+", [a(0)], ["-", [a(1)]]],
 			["-", [a(0)], [a(1)]],
-			false, "adding a negative", ,
+			true, "adding a negative", ,
 		],
 		[
 			["+", ["-", [a(0)], [a(1)]], [a(1)]],
@@ -1790,7 +1893,20 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				}
 			}
 		} else if (pattern.length == 2) {
-			if (expr.type != 'un' || pattern[0] != expr.op)
+			var op = pattern[0];
+			if (expr.type == 'const' && op < 2 && pattern[1].any != undefined && pattern[1].except == undefined) {
+				debugger;
+				var any_index = pattern[1].any;
+				var fake_expr = new Unary(op, new Constant(op == 0 ? ~expr.value : ~~-expr.value));
+				fake_expr.id = expr.id;
+				wildcards[any_index] = fake_expr;
+				if (res_pattern) {
+					res_pattern[0] = new Variable(~any_index);
+					res_pattern[0].id = expr.id;
+				}
+				return true;
+			}
+			if (expr.type != 'un' || op != expr.op)
 				return false;
 			if (isTopLevelMatch(pattern[1], expr.value, wildcards, rev, res_pattern)) {
 				if (res_pattern) {
@@ -1986,45 +2102,60 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				break;
 		}
 
-		var rules = allrules[root.hash2];
-		for (var i = 0; i < rules.length; i++) {
-			var mres = match(rules[i], root, patternNode);
-			if (mres != null) {
-				var n = mres[0];
-				if (rules[i][5] == "extra steps") {
-					if (getPattern) {
-						// don't generate pattern in 1 step
-						continue;
-					}
-					else {
-						var prev = parent;
-						for (var j = 0; j < rules[i][6].length; j++) {
-							var expr = rewrite(rules[i][6][j], mres[1], mres[2], null);
-							var node = [prev, expr, null, backwards, parent[4] + 6 + j, null];
-							prev = node;
-							results.push(node);
+		function checkMatches(root, rules, results, parent, backwards, getPattern, matchonly) {
+			"use strict";
+			for (var i = 0; i < rules.length; i++) {
+				var mres = match(rules[i], root, patternNode);
+				if (mres != null) {
+					if (matchonly) return true;
+					var n = mres[0];
+					if (rules[i][5] == "extra steps") {
+						if (getPattern) {
+							// don't generate pattern in 1 step
+							continue;
 						}
-						results.push([prev, n, rules[i], backwards, parent[4] + 1, null]);
-					}
-				}
-				else {
-					if (getPattern) {
-						if (rules[i][5] == "no intersect")
-							results.push([patternNode[0], n, rules[i], new Binary(20, new Binary(1, root.l, root.r), new Constant(0))]);
-						else if (rules[i][5] == "non negative")
-							results.push([patternNode[0], n, rules[i], new Binary(20, new Binary(1, root.value, new Constant(0x80000000)), new Constant(0))]);
-						else
-							results.push([patternNode[0], n, rules[i]]);
+						else {
+							var prev = parent;
+							for (var j = 0; j < rules[i][6].length; j++) {
+								var expr = rewrite(rules[i][6][j], mres[1], mres[2], null);
+								var node = [prev, expr, null, backwards, parent[4] + 6 + j, null];
+								prev = node;
+								results.push(node);
+							}
+							results.push([prev, n, rules[i], backwards, parent[4] + 1, null]);
+						}
 					}
 					else {
-						if (rules[i][5] == "no intersect" ||
-							rules[i][5] == "non negative")
-							results.push([parent, n, rules[i], backwards, parent[4] + 3, root]);
-						else
+						if (getPattern) {
+							if (rules[i][5] == "no intersect")
+								results.push([patternNode[0], n, rules[i], new Binary(20, new Binary(1, root.l, root.r), new Constant(0))]);
+							else if (rules[i][5] == "non negative")
+								results.push([patternNode[0], n, rules[i], new Binary(20, new Binary(1, root.value, new Constant(0x80000000)), new Constant(0))]);
+							else
+								results.push([patternNode[0], n, rules[i]]);
+						}
+						else if (rules[i].length > 5) {
+							if (rules[i][5] == "no intersect" ||
+								rules[i][5] == "non negative")
+								results.push([parent, n, rules[i], backwards, parent[4] + 3, root]);
+							else
+								results.push([parent, n, rules[i], backwards, parent[4] + 1, null]);
+						}
+						else {
 							results.push([parent, n, rules[i], backwards, parent[4] + 1, null]);
+						}
 					}
 				}
 			}
+			return false;
+		}
+
+		checkMatches(root, allrules[root.hash2], results, parent, backwards, getPattern, false);
+
+		function mkvar(idx, id) {
+			var v = new Variable(~idx);
+			v.id = id;
+			return v;
 		}
 
 		if (root.type == 'bin' &&
@@ -2041,113 +2172,184 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				else
 					args.push(root);
 			}
-			function rebuildWithout(root, args, op, x, out, idx) {
-				if (!idx) idx = { argindex: 0 };
-				if (root.type == 'bin' && root.op == op) {
-					var l = rebuildWithout(root.l, args, op, x, out, idx);
-					var r = rebuildWithout(root.r, args, op, x, out, idx);
-					if (l == null) return r;
-					if (r == null) return l;
-					return new Binary(op, l, r);
-				}
+			function rebuildTreeLike(root, argcb, op1, op2, idx) {
+				if (!idx) idx = { argindex: 1 };
+				var l = null, r = null;
+				if (root.l.type == 'bin' && (root.l.op == op1 || root.l.op == op2))
+					l = rebuildTreeLike(root.l, argcb, op1, op2, idx);
 				else {
-					var a = args[idx.argindex++];
-					var r = a == null ? a : a.copy();
-					if (a != null && a.id == x)
-						out[0] = r.id;
-					return r;
+					l = argcb(root.l, idx);
+					l.id = root.l.id;
 				}
+				if (root.r.type == 'bin' && (root.r.op == op1 || root.r.op == op2))
+					r = rebuildTreeLike(root.r, argcb, op1, op2, idx);
+				else {
+					r = argcb(root.r, idx);
+					r.id = root.r.id;
+				}
+				var res = new Binary(root.op, l, r);
+				res.id = root.id;
+				return res;
 			}
 
 			gatherArgs(root, args, op);
 
+			// TODO: look-ahead for matches on re-associated expr
+			if (args.length > 2) {
+				for (var j = 1; j < args.length; j++) {
+					for (var i = 0; i < j; i++) {
+						//var vroot = new Binary(op, args[i], args[j]);
+						//var hasMatch = checkMatches(vroot, allrules[vroot.hash2], [], null, backwards, getPattern, true);
+					}
+				}
+			}
+
 			switch (op) {
-			default:
-				break;
-			case 3: // try to cancel an xor
-				if (args.length < 3) break;
-				var found = false;
-				for (var i = 1; i < args.length && !found; i++) {
-					for (var j = 0; j < i; j++) {
-						if (args[j].equals2(args[i])) {
-							found = true;
-							var nargs = args.slice();
-							nargs[i] = null;
-							nargs[j] = null;
-							var res = rebuildWithout(root, nargs, op, -1, null);
-							if (getPattern) {
-								var p = new Binary(op, args[j], args[i]);
-								results.push([p, res, [,,,"cancel xor with self", "create xor with self"]]);
-							}
-							else
-								results.push([parent, res, null, backwards, parent[4] + 1, null]);
-							break;
+			default: break;
+			case 4:
+				// addition
+				// check complementary subsets
+				if (args.some(function (e){ return e.type != 'bin' || e.op != 1 || (e.l.type != 'const' && e.r.type != 'const'); })) break;
+				var values = args.map(function (e){ return e.l.type == 'const' ? e.l.value : e.r.value; });
+				var isgood = true;
+				for (var i = 1; i < values.length; i++)
+					for (var j = 0; j < i; j++)
+						if ((values[i] & values[j]) != 0)
+							isgood = false;
+				if (!isgood) break;
+				if (values.reduce(function (a, b){ return a|b; }, 0) != -1) break;
+				var res = args[0].l.type == 'const' ? args[0].r : args[0].l;
+				if (args.some(function (e){ return !res.equals2(e.l) && !res.equals2(e.r); })) break;
+				if (getPattern) {
+					var pp = rebuildTreeLike(root, function (e,a){ return e.equals2(res) ? mkvar(0, 0) : mkvar(a.argindex++, 0); }, op, 1);
+					var p = new Binary(20, pp, mkvar(0, res.id));
+					var desc = "addition of complementary subsets (condition: masks exactly cover -1)";
+					results.push([p, res, [,,,desc, desc]]);
+				}
+				else
+					results.push([parent, res, null, backwards, parent[4] + 1, null]);
+			}
+		}
+		else if (root.type == 'bin' && (root.op == 6 || root.op == 30 || root.op == 31)) {
+			var op = root.op;
+			var args = [];
+
+			function gatherArgs(root, args, op) {
+				if (root.type == 'bin' && root.op == op) {
+					gatherArgs(root.l, args, op);
+					args.push(root.r);
+				}
+				else
+					args.push(root);
+			}
+
+			gatherArgs(root, args, op);
+			if (args.length > 2) {
+				// chained shifts
+				var base = args[0];
+				args = args.slice(1);
+				if (args.every(function(a) { return a.type == 'const'; })) {
+					var total = args.reduce(function(a, b) { return a + (b.value & 31) | 0; }, 0);
+					if ((total >>> 0) >= 32 && op == 30) {
+						var res = new Binary(30, base, new Constant(31));
+						if (getPattern) {
+							var p = new Binary(20, root, res);
+							var desc = "shifting (arithmetic) by 32 or more in total";
+							results.push([p, res, [,,,desc, desc]]);
 						}
+						else
+							results.push([parent, res, null, backwards, parent[4] + 1, null]);
+					}
+					else if ((total >>> 0) >= 32 && op != 30) {
+						var res = new Constant(0);
+						if (getPattern) {
+							var p = new Binary(20, root, res);
+							var desc = "shifting (logical) by 32 or more in total";
+							results.push([p, res, [,,,desc, desc]]);
+						}
+						else
+							results.push([parent, res, null, backwards, parent[4] + 1, null]);
+					}
+					else {
+						var res = new Binary(op, base, new Constant(total));
+						if (getPattern) {
+							var p = new Binary(20, root, res);
+							var fdesc = "chained shifts can be combined if total shift amount is &lt;u 32";
+							var rdesc = "shift can be decomposed into several steps";
+							results.push([p, res, [,,,fdesc, rdesc]]);
+						}
+						else
+							results.push([parent, res, null, backwards, parent[4] + 1, null]);
 					}
 				}
-				break;
-			case 1:
-			case 2:
-			case 55:
-			case 56:
-			case 57:
-			case 58:
-				// remove duplicate from and/or/min/max
-				if (args.length < 2) break;
-				var found = false;
-				for (var i = 1; i < args.length && !found; i++) {
-					for (var j = 0; j < i; j++) {
-						if (args[j].equals2(args[i])) {
-							found = true;
-							var nargs = args.slice();
-							nargs[i] = null;
-							var newid = [];
-							var res = rebuildWithout(root, nargs, op, args[j].id, newid);
-							if (getPattern) {
-								var a = args[j].copy();
-								a.id = newid[0];
-								var p = new Binary(20, new Binary(op, args[j], args[i]), a);
-								var desc = "redundant " + opstr[op] + " with self";
-								results.push([p, res, [,,,desc, desc]]);
-							}
-							else
-								results.push([parent, res, null, backwards, parent[4] + 1, null]);
-							break;
-						}
-					}
+			}
+		}
+		else if (root.type == 'bin' && root.op == 33) {
+			// /u
+			if (root.r.type == 'const' && popcnt(root.r.value) == 1) {
+				var res = new Binary(31, root.l, new Constant(ctz(root.r.value)));
+				if (getPattern) {
+					var sh = new Unary(3, mkvar(1, root.r.id));
+					sh.id = res.r.id;
+					var p = new Binary(20, new Binary(33, mkvar(0, root.l.id), mkvar(1, root.r.id)), new Binary(31, mkvar(0, root.l.id), sh));
+					p.l.id = root.id;
+					p.r.id = res.id;
+					var desc = "division by power of two (condition: y is a power of two)";
+					results.push([p, res, [,,,desc, desc]]);
 				}
-				if (op == 1 || op == 2) {
-					// and/or
-					// find something and its complement
-					found = false;
-					for (var i = 0; i < args.length && !found; i++) {
-						for (var j = 0; j < args.length; j++) {
-							if (i == j) continue;
-							if (args[j].type == 'un' &&
-							    args[j].op == 0 &&
-							    args[j].value.equals2(args[i]))
-							{
-								found = true;
-								var nargs = args.slice();
-								nargs[i] = null;
-								nargs[j] = new Constant(1 - op);
-								var newid = [];
-								var res = rebuildWithout(root, nargs, op, nargs[j].id, newid);
-								if (getPattern) {
-									var a = nargs[j].copy();
-									a.id = newid[0];
-									var p = new Binary(20, new Binary(op, args[i], args[j]), a);
-									var desc = opstr[op] + " with complement of self";
-									results.push([p, res, [,,,desc, desc]]);
-								}
-								else
-									results.push([parent, res, null, backwards, parent[4] + 1, null]);
-								break;
-							}
-						}
-					}
+				else
+					results.push([parent, res, null, backwards, parent[4] + 1, null])
+			}
+		}
+		else if (root.type == 'bin' && root.op == 35) {
+			// %u
+			if (root.r.type == 'const' && popcnt(root.r.value) == 1) {
+				var res = new Binary(1, root.l, new Constant(~~(root.r.value - 1)));
+				if (getPattern) {
+					var msk = new Binary(5, mkvar(1, root.r.id), new Constant(1));
+					msk.id = res.r.id;
+					var p = new Binary(20, new Binary(35, mkvar(0, root.l.id), mkvar(1, root.r.id)), new Binary(1, mkvar(0, root.l.id), msk));
+					p.l.id = root.id;
+					p.r.id = res.id;
+					var desc = "remainder by power of two (condition: y is a power of two)";
+					results.push([p, res, [,,,desc, desc]]);
 				}
-				break;
+				else
+					results.push([parent, res, null, backwards, parent[4] + 1, null])
+			}
+		}
+		else if (root.type == 'bin' && root.op == 12) {
+			// /e
+			if (root.r.type == 'const' && popcnt(root.r.value) == 1) {
+				var res = new Binary(30, root.l, new Constant(ctz(root.r.value)));
+				if (getPattern) {
+					var sh = new Unary(3, mkvar(1, root.r.id));
+					sh.id = res.r.id;
+					var p = new Binary(20, new Binary(12, mkvar(0, root.l.id), mkvar(1, root.r.id)), new Binary(30, mkvar(0, root.l.id), sh));
+					p.l.id = root.id;
+					p.r.id = res.id;
+					var desc = "division by power of two (condition: y is a power of two)";
+					results.push([p, res, [,,,desc, desc]]);
+				}
+				else
+					results.push([parent, res, null, backwards, parent[4] + 1, null])
+			}
+		}
+		else if (root.type == 'bin' && root.op == 13) {
+			// %e
+			if (root.r.type == 'const' && popcnt(root.r.value) == 1) {
+				var res = new Binary(1, root.l, new Constant(~~(root.r.value - 1)));
+				if (getPattern) {
+					var msk = new Binary(5, mkvar(1, root.r.id), new Constant(1));
+					msk.id = res.r.id;
+					var p = new Binary(20, new Binary(13, mkvar(0, root.l.id), mkvar(1, root.r.id)), new Binary(1, mkvar(0, root.l.id), msk));
+					p.l.id = root.id;
+					p.r.id = res.id;
+					var desc = "remainder by power of two (condition: y is a power of two)";
+					results.push([p, res, [,,,desc, desc]]);
+				}
+				else
+					results.push([parent, res, null, backwards, parent[4] + 1, null])
 			}
 		}
 
@@ -2266,7 +2468,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			var p = results[i];
 			if (p == null)
 				continue;
-			if (proofnode[0]) {
+			/*if (proofnode[0]) {
 				var unc0 = proofnode[0][1].containsDoubleUnary();
 				var unc1 = proofnode[1].containsDoubleUnary();
 				if (unc1 > unc0) {
@@ -2274,7 +2476,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 					if (unc2 >= unc1)
 						continue;
 				}
-			}
+			}*/
 			if (p[2] && p[2][5]) {
 				if (!special_handle(p[2][5], p[5], p[2][6]))
 					continue;
