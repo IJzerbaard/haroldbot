@@ -286,7 +286,11 @@ function ProofFinder(op, assocmode) {
 			[a(0)],
 			false, "addition of complementary subsets", ,
 		],
-		
+		[
+			["+", ["<<", ["&", [a(0)], [a(1)]], [1]], ["^", [a(0)], [a(1)]]],
+			["+", [a(0)], [a(1)]],
+			false, "combine single-bit sums with carries", "split into single-bit sums and carries",
+		],
 		// properties of subtraction
 		[
 			["-", [a(0)], [0]],
@@ -1461,7 +1465,17 @@ function ProofFinder(op, assocmode) {
 			["&", [a(0)], ["~", [a(1)]]],
 			["^", ["&", [a(0)], [a(1)]], [a(0)]],
 			false, "and with -1", , "extra steps", [["&", [a(0)], ["^", [a(1)], [-1]]], ["^", ["&", [a(0)], [a(1)]], ["&", [a(0)], [-1]]]]
-		]
+		],
+		[
+			["-", ["+", [a(0)], [a(1)]], ["^", [a(0)], [a(1)]]],
+			["<<", ["&", [a(0)], [a(1)]], [1]],
+			false, "", , "extra steps", [["-", ["+", ["<<", ["&", [a(0)], [a(1)]], [1]], ["^", [a(0)], [a(1)]]], ["^", [a(0)], [a(1)]]]]
+		],
+		[
+			["-", ["+", [a(0)], [a(1)]], ["<<", ["&", [a(0)], [a(1)]], [1]]],
+			["^", [a(0)], [a(1)]],
+			false, "", , "extra steps", [["-", ["+", ["<<", ["&", [a(0)], [a(1)]], [1]], ["^", [a(0)], [a(1)]]], ["<<", ["&", [a(0)], [a(1)]], [1]]], ["-", ["+", ["^", [a(0)], [a(1)]], ["<<", ["&", [a(0)], [a(1)]], [1]]], ["<<", ["&", [a(0)], [a(1)]], [1]]]]
+		],
 	];
 
 	var rules_neq = [
@@ -2594,7 +2608,10 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			// output proof
 			proofsteps.push(steps[j]);
 			var explindex = explbackwards ? 4 : 3;
-			proofsteps.push([explanation[2][explindex], explanation[0], explanation[3]]);
+			if (explanation == null)
+				proofsteps.push([]);
+			else
+				proofsteps.push([explanation[2][explindex], explanation[0], explanation[3]]);
 		}
 		proofsteps.push(steps[steps.length - 1]);
 		return proofsteps;
