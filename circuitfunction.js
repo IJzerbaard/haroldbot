@@ -677,9 +677,11 @@ CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcal
 			}
 		}
 		var demodel = new Int32Array(64);
-		for (var i = 1; i <= 32 * 64; i++) {
-			if (de[i] == 1)
-				demodel[(i - 1) >> 5] |= 1 << ((i - 1) & 31);
+		if (de) {
+			for (var i = 1; i <= 32 * 64; i++) {
+				if (de[i] == 1)
+					demodel[(i - 1) >> 5] |= 1 << ((i - 1) & 31);
+			}
 		}
 
 		var can_be_true = tmodel_raw != null;
