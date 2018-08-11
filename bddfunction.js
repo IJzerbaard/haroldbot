@@ -403,7 +403,7 @@ BDDFunction.dive = function (a, b) {
 BDDFunction.divupony = function (a, b) {
 	var bnz = BDDFunction.hor(b);
 	var az = BDDFunction.and(a, bnz);
-	return BDDFunction.divu(az, BDDFunction.or(b, BDDFunction.not(bnz)));
+	return new BDDFunction(BDDFunction.divu(az, BDDFunction.or(b, BDDFunction.not(bnz)))._bits, 0);
 }
 
 BDDFunction.remu = function (a, b) {

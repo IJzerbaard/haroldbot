@@ -320,7 +320,7 @@ CFunction.dive = function (a, b) {
 CFunction.divupony = function (a, b) {
 	var bnz = CFunction.hor(b);
 	var az = CFunction.and(a, bnz);
-	return CFunction.divu(az, CFunction.or(b, CFunction.not(bnz)));
+	return new CFunction(CFunction.divu(az, CFunction.or(b, CFunction.not(bnz)))._bits, 0);
 }
 
 CFunction.remu = function (a, b) {
