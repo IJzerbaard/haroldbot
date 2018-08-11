@@ -339,7 +339,7 @@ function Binary(op, l, r) {
 	var opweight = 1.0;
 	if (op >= 4)
 		opweight = 1.1;
-	if ((op >= 10 && op <= 13) || (op >= 32 && op <= 35))
+	if ((op >= 10 && op <= 14) || (op >= 32 && op <= 35))
 		opweight = 4.0;
 	this.weight = opweight + l.weight + r.weight;
 }
@@ -379,7 +379,7 @@ Binary.prototype.print = function(varmap) {
 
 Binary.prototype.toBddFunc = function() {
 	var op = this.op;
-	if ((op == 11 || op == 12 || op == 13 || (op >= 32 && op <= 35) || (op >= 59)) && this.l.type != 'const' && this.r.type != 'const') throw "BDD timeout";
+	if (((op >= 11 && op <= 14) || (op >= 32 && op <= 35) || (op >= 59)) && this.l.type != 'const' && this.r.type != 'const') throw "BDD timeout";
 	var bddf = binaryToBddFunc(op, this.l.toBddFunc(), this.r.toBddFunc());
 	this.bddf = bddf;
 	return bddf;
@@ -396,6 +396,7 @@ function binaryToBddFunc(op, l, r) {
 		case 11: return BDDFunction.mul(l, r);
 		case 12: return BDDFunction.dive(l, r);
 		case 13: return BDDFunction.reme(l, r);
+		case 14: return BDDFunction.divupony(l, r);
 		case 20: return BDDFunction.eq(l, r);
 		case 21: return BDDFunction.not(BDDFunction.eq(l, r));
 		case 26: return BDDFunction.or(BDDFunction.not(BDDFunction.hor(l)), BDDFunction.hor(r));
@@ -448,6 +449,7 @@ function binaryToCircuitFunc(op, l, r) {
 		case 11: return CFunction.mul(l, r);
 		case 12: return CFunction.dive(l, r);
 		case 13: return CFunction.reme(l, r);
+		case 14: return CFunction.divupony(l, r);
 		case 20: return CFunction.eq(l, r);
 		case 21: return CFunction.not(CFunction.eq(l, r));
 		case 26: return CFunction.or(CFunction.not(CFunction.hor(l)), CFunction.hor(r));
@@ -531,6 +533,7 @@ function evalBinary(op, l, r) {
 		case 9: return (l >>> (r & 31)) | (l << (-r & 31));
 		case 12: return BDDFunction.to_constant(BDDFunction.dive(BDDFunction.constant(l), BDDFunction.constant(r)));
 		case 13: return BDDFunction.to_constant(BDDFunction.reme(BDDFunction.constant(l), BDDFunction.constant(r)));
+		case 14: return BDDFunction.to_constant(BDDFunction.divupony(BDDFunction.constant(l), BDDFunction.constant(r)));
 		case 10:
 		case 33: return BDDFunction.to_constant(BDDFunction.divu(BDDFunction.constant(l), BDDFunction.constant(r)));
 		case 32: return BDDFunction.to_constant(BDDFunction.divs(BDDFunction.constant(l), BDDFunction.constant(r)));

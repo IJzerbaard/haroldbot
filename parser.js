@@ -203,7 +203,7 @@ function parse(query) {
 		var t;
 		if (!(t = prefix())) return back(p);
 		var left = t;
-		while (ws() && ((t = l("*")) || (t = l("/u")) || (t = l("/s")) || (t = l("/e")) || (t = l("/")) || (t = l("%u")) || (t = l("%s")) || (t = l("%e")) || (t = l("%")))) {
+		while (ws() && ((t = l("*")) || (t = l("/u")) || (t = l("/s")) || (t = l("/e")) || (t = l("/p")) || (t = l("/")) || (t = l("%u")) || (t = l("%s")) || (t = l("%e")) || (t = l("%")))) {
 			var right = prefix();
 			if (res.length > 3) return undefined;
 			if (!right) return error("invalid expression");

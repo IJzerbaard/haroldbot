@@ -1,8 +1,8 @@
 var unops = ["~", "-", "$popcnt", "$ntz", "$nlz", "$reverse", "$abs", "$ez80mlt", "$blsi", "$blsr", "$blsmsk", "$tzmsk"];
-//            1    2    3    4    5    6     7     8      9      10   11   12    13                20    21    22    23   24    25   26    27    28      30     31     32    33    34    35            40     41     42    43    44     45     46    47    48             55        56        57        58        59         60         61        62        63
-var ops = [, "&", "|", "^", "+", "-", "<<", ">>", "<<<", ">>>", "/", "*", "/e", "%e", , , , , , , "==", "!=", "<=", "<", ">=", ">", "=>", "&&", "||", , ">>s", ">>u", "/s", "/u", "%s", "%u", , , , , "<=s", "<=u", "<s", "<u", ">=s", ">=u", ">s", ">u", "$bzhi",,,,,,, "$min_u", "$min_s", "$max_u", "$max_s", "$hmul_u", "$hmul_s", "$clmul", "$clpow", "$ormul"];
-var associative = [, true, true, true, true, false, false, false, false, false, false, true, false, false, , , , , , , false, false, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, false,,,,,,, true, true, true, true, false, false, true, false, true];
-var commutative = [, true, true, true, true, false, false, false, false, false, false, true, false, false, , , , , , , true, true, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, false,,,,,,, true, true, true, true, true, true, true, false, true];
+//            1    2    3    4    5    6     7     8      9      10   11   12    13    14               20    21    22    23   24    25   26    27    28      30     31     32    33    34    35            40     41     42    43    44     45     46    47    48             55        56        57        58        59         60         61        62        63
+var ops = [, "&", "|", "^", "+", "-", "<<", ">>", "<<<", ">>>", "/", "*", "/e", "%e", "/p" , , , , , , "==", "!=", "<=", "<", ">=", ">", "=>", "&&", "||", , ">>s", ">>u", "/s", "/u", "%s", "%u", , , , , "<=s", "<=u", "<s", "<u", ">=s", ">=u", ">s", ">u", "$bzhi",,,,,,, "$min_u", "$min_s", "$max_u", "$max_s", "$hmul_u", "$hmul_s", "$clmul", "$clpow", "$ormul"];
+var associative = [, true, true, true, true, false, false, false, false, false, false, true, false, false, false, , , , , , false, false, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, false,,,,,,, true, true, true, true, false, false, true, false, true];
+var commutative = [, true, true, true, true, false, false, false, false, false, false, true, false, false, false, , , , , , true, true, false, false, false, false, false, true, true, , false, false, false, false, false, false, , , , , false, false, false, false, false, false, false, false, false,,,,,,, true, true, true, true, true, true, true, false, true];
 
 function precedence(index) {
     var pre = [ 0, 16, 14, 15, 18, 18, 17, 17, 17, 17, 19, 19, 20, 20, 20, 20, 0, 0, 0, 0, 13, 13, 13, 13, 13, 13, 11, 12, 12, 0, 17, 17, 19, 19, 19, 19, 20, 20, 20, 20, 13, 13, 13, 13, 13, 13, 13, 13];
@@ -16,7 +16,7 @@ function isbinfunc(index) {
 }
 
 function mayThrow(index) {
-    return index == 10 || index == 12 || index == 13 || (index >= 32 && index <= 35);
+    return index == 10 || (index >= 12 && index <= 14) || (index >= 32 && index <= 35);
 }
 
 function toHexUnsigned(x) {

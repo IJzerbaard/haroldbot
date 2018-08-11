@@ -400,6 +400,12 @@ BDDFunction.dive = function (a, b) {
 	return BDDFunction.xor(sb, BDDFunction.add(sb, BDDFunction.xor(sa, div)));
 }
 
+BDDFunction.divupony = function (a, b) {
+	var bnz = BDDFunction.hor(b);
+	var az = BDDFunction.and(a, bnz);
+	return BDDFunction.divu(az, BDDFunction.or(b, BDDFunction.not(bnz)));
+}
+
 BDDFunction.remu = function (a, b) {
 	var diverror = bdd.or(BDDFunction.eqz(b), bdd.or(a._divideError, b._divideError));
 	var P = new Int32Array(64);

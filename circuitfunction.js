@@ -317,6 +317,12 @@ CFunction.dive = function (a, b) {
 	return CFunction.xor(sb, CFunction.add(sb, CFunction.xor(sa, div)));
 }
 
+CFunction.divupony = function (a, b) {
+	var bnz = CFunction.hor(b);
+	var az = CFunction.and(a, bnz);
+	return CFunction.divu(az, CFunction.or(b, CFunction.not(bnz)));
+}
+
 CFunction.remu = function (a, b) {
 	var diverror = circuit.or(CFunction.eqz(b), circuit.or(a._divideError, b._divideError));
 	var P = new Int32Array(64);
