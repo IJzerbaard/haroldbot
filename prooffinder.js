@@ -578,6 +578,11 @@ function ProofFinder(op, assocmode) {
 			false, "multiplication by minus one", ,
 		],
 		[
+			["+", ["*", [a(0)], [a(1)]], [a(0)]],
+			["*", [a(0)], ["+", [a(1)], [1]]],
+			false, "special case of distributivity", ,
+		],
+		[
 			["&", ["*", [a(0)], [a(1)]], [aex(2, except_non_mersenne)]],
 			["&", ["*", ["&", [a(0)], [aex(2, except_non_mersenne)]], ["&", [a(1)], [aex(2, except_non_mersenne)]]], [aex(2, except_non_mersenne)]],
 			false, "low bits of the result depend only on low bits of the inputs (condition: z is a power of two minus one)", ,
@@ -878,17 +883,17 @@ function ProofFinder(op, assocmode) {
 			false, "move negation out of division", ,
 		],
 		[
-			["+", ["*", [a(0)], ["/u", [a(1)], [a(0)]]], ["%u", [a(1)], [a(0)]]],
+			["+", ["*", [a(0, except_unknown_or_zero)], ["/u", [a(1)], [a(0, except_unknown_or_zero)]]], ["%u", [a(1)], [a(0, except_unknown_or_zero)]]],
 			[a(1)],
 			false, "division rule", ,
 		],
 		[
-			["+", ["*", [a(0)], ["/s", [a(1)], [a(0)]]], ["%s", [a(1)], [a(0)]]],
+			["+", ["*", [a(0, except_unknown_or_zero)], ["/s", [a(1)], [a(0, except_unknown_or_zero)]]], ["%s", [a(1)], [a(0, except_unknown_or_zero)]]],
 			[a(1)],
 			false, "division rule", ,
 		],
 		[
-			["+", ["*", [a(0)], ["/e", [a(1)], [a(0)]]], ["%e", [a(1)], [a(0)]]],
+			["+", ["*", [a(0, except_unknown_or_zero)], ["/e", [a(1)], [a(0, except_unknown_or_zero)]]], ["%e", [a(1)], [a(0, except_unknown_or_zero)]]],
 			[a(1)],
 			false, "division rule", ,
 		],
@@ -1439,6 +1444,11 @@ function ProofFinder(op, assocmode) {
 			[a(0)],
 			false, "adding and subtracting the same thing cancels", ,
 		],
+		[
+			["~", ["+", ["~", [a(0)]], [a(1)]]],
+			["-", [a(0)], [a(1)]],
+			false, "definition of subtraction", ,
+		],
 		// conditional rules
 		[
 			["^", [a(0)], [a(1)]],
@@ -1475,7 +1485,7 @@ function ProofFinder(op, assocmode) {
 			["-", ["+", [a(0)], [a(1)]], ["<<", ["&", [a(0)], [a(1)]], [1]]],
 			["^", [a(0)], [a(1)]],
 			false, "", , "extra steps", [["-", ["+", ["<<", ["&", [a(0)], [a(1)]], [1]], ["^", [a(0)], [a(1)]]], ["<<", ["&", [a(0)], [a(1)]], [1]]], ["-", ["+", ["^", [a(0)], [a(1)]], ["<<", ["&", [a(0)], [a(1)]], [1]]], ["<<", ["&", [a(0)], [a(1)]], [1]]]]
-		],
+		]
 	];
 
 	var rules_neq = [
