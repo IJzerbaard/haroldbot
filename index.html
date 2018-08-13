@@ -146,6 +146,7 @@ function performQuery(input) {
           data.simp = simplified;
           data.proof = flatproof;
           update();
+          Node.AnalyzeProperties(data, varmap, data.simp, update);
         }, null, null, null, 2000);
       }
       else {
