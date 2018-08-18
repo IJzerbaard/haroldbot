@@ -894,7 +894,10 @@ Fun.prototype.removeDummy = function() {
 };
 
 Fun.prototype.constantFold = function(nrec) {
-	var args = this.args.map(function(x) { return nrec ? x : x.constantFold(false); });
+	var args = this.args.map(function (x) { return nrec ? x : x.constantFold(false); });
+	if (args.every(function (x){return x.type=='const';})) {
+		return new Constant(BDDFunction.to_constant(new Fun(this.fun, args).toBddFunc()));
+	}
 	for (var i = 0; i < args.length; i++) {
 		if (args[i].id != this.args[i].id)
 			return new Fun(this.fun, args);
@@ -913,8 +916,15 @@ Fun.prototype.copy = function() {
 };
 
 Fun.prototype.eval = function(vars) {
-	debugger;
-	throw "not implemented";
+	var a = this.args.map(function (a){return BDDFunction.constant(a.eval(vars));});
+	switch (this.fun) {
+		case "$fixscale":
+			return BDDFunction.to_constant(BDDFunction.fixscale(a[0], a[1], a[2]));
+		case "$fixmul_u":
+			return BDDFunction.to_constant(BDDFunction.fixmul(a[0], a[1], a[2]));
+		default:
+			throw "unimplemented function";
+	}
 };
 
 Fun.prototype.sseeval = function(vars) {

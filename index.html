@@ -349,6 +349,17 @@ function formatexpr(expr, ix, varmap) {
       return res.append(" " + escapeHtml(ops[expr.op]) + " ").append(p);
     }, res);
   }
+  if (expr.type == 'fun') {
+    var args = expr.args.map(function (a){return formatexpr(a, ix, varmap);});
+    res.append(escapeHtml(expr.fun.substr(1))).append("(");
+    args.forEach(function (a,i){
+      if (i != 0)
+        res.append(", ");
+      res.append(a);
+    });
+    res.append(")");
+    return res;
+  }
   debugger;
 }
 function parseproofstep(proofstep, ix, varmap, prevstep, nextstep) {
