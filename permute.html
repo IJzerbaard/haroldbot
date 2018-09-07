@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>haroldbot (permute)</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<link rel="shortcut icon" href="/favicon.ico" />
+<link rel="stylesheet" type="text/css" href="mainstyle.css" />
+<script type="text/javascript" src="minisat.js"></script>
+<script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="jquery.color-2.1.2.min.js"></script>
+<script type="text/javascript" src="util.js"></script>
+<script type="text/javascript">
+var $j = jQuery.noConflict();
+var id = 0;
+var cnf = "";
+var clauses = 0;
+
+function cnf_bfly_state(k, mask, indices) {
+  var res_indices = new Int32Array(64 * 6);
+  for (var i = 0; i < 64; i++) {
+    var j = i ^ (1 << k);
+    res_indices.set(cnf_mux_array(mask[i & ~(1 << k)], indices.subarray(j * 6, j * 6 + 6), indices.subarray(i * 6, i * 6 + 6)), i * 6);
+    if ((i & (1 << k)) != 0) {
+      cnf += -mask[i] + " 0\n";
+      clauses++;
+    }
+  }
+
+  return res_indices;
+}
+
+function cnf_mux_array(cond, t, f) {
+  var res = new Int32Array(t.length);
+  for (var i = 0; i < res.length; i++)
+    res[i] = cnf_mux(cond, t[i], f[i]);
+  return res;
+}
+
+function cnf_mux(c, t, f) {
+  var x = ++id;
+  cnf += -x + " " + c + " " + f + " 0\n";
+  cnf += -x + " " + -c + " " + t + " 0\n";
+  cnf += x + " " + c + " " + -f + " 0\n";
+  cnf += x + " " + -c + " " + -t + " 0\n";
+  clauses += 4;
+  return x;
+}
+
+function cnf_eq(vars, value) {
+  vars.forEach(function (x) {
+    var v = (value & 1) == 0 ? -x : x;
+    cnf += v + " 0\n";
+    clauses++;
+    value >>= 1;
+  });
+}
+
+function cnf_different_or_zero(v1, v2) {
+  var is_nzero = ++id;
+  var are_different = ++id;
+  cnf += -is_nzero + " " + are_different + " 0\n";
+  clauses++;
+  v1.forEach(function (v, i) {
+    var w = v2[i];
+    cnf += is_nzero + " " + -v + " 0\n";
+    cnf += is_nzero + " " + -w + " 0\n";
+    clauses += 2;
+  });
+  var diff = [];
+  v1.forEach(function (v, i) {
+    var w = v2[i];
+    var c = ++id;
+    diff.push(c);
+    cnf += -c + " " + -v + " " + -w + " 0\n";
+    cnf += -c + " " + v + " " + w + " 0\n";
+    clauses += 2;
+  });
+  cnf += -are_different + " " + diff.join(" ") + " 0\n";
+  clauses++;
+}
+
+function solve(cb) {
+    var solve_string = Module.cwrap('solve_string', 'string', ['string', 'int']);
+    var str = "p cnf " + id + " " + clauses + "\n" + cnf;
+    var res = solve_string(str, str.length);
+    var parts = res.split(" ");
+    var r = null;
+    if (parts[0] == "SAT") {
+      r = new Int8Array(id);
+      for (var i = 1; i < parts.length; i++) {
+        var v = parseInt(parts[i]);
+        if (v > 0)
+          r[v] = 1;
+      }
+    }
+    if (cb) cb(r);
+    return r;
+}
+
+function route(bitpos, sm) {
+  id = 1;
+  clauses = 0;
+  var FALSE = 1, TRUE = -1;
+  cnf = "-1 0\n";
+  clauses = 1;
+
+  var indices = new Int32Array(64 * 6);
+  for (var i = 0; i < 64; i++) {
+    for (var j = 0; j < 6; j++) {
+      indices[i * 6 + j] = ((i >> j) & 1) == 0 ? FALSE : TRUE;
+    }
+  }
+
+  var maskvars = [];
+  for (var i = 0; i < 12; i++) {
+    maskvars[i] = new Int32Array(64);
+    for (var j = 0; j < maskvars[i].length; j++) {
+      maskvars[i][j] = ++id;
+      if ((sm & (1 << i)) == 0) {
+        cnf += -maskvars[i][j] + " 0\n";
+        clauses++;
+      }
+    }
+  }
+
+  cnf_different_or_zero(maskvars[0], maskvars[11]);
+  cnf_different_or_zero(maskvars[1], maskvars[10]);
+  cnf_different_or_zero(maskvars[2], maskvars[9]);
+  cnf_different_or_zero(maskvars[3], maskvars[8]);
+  cnf_different_or_zero(maskvars[4], maskvars[7]);
+  cnf_different_or_zero(maskvars[5], maskvars[6]);
+
+  var i1 = cnf_bfly_state(5, maskvars[0], indices);
+  var i2 = cnf_bfly_state(4, maskvars[1], i1);
+  var i3 = cnf_bfly_state(3, maskvars[2], i2);
+  var i4 = cnf_bfly_state(2, maskvars[3], i3);
+  var i5 = cnf_bfly_state(1, maskvars[4], i4);
+  var i6 = cnf_bfly_state(0, maskvars[5], i5);
+  var i7 = cnf_bfly_state(0, maskvars[6], i6);
+  var i8 = cnf_bfly_state(1, maskvars[7], i7);
+  var i9 = cnf_bfly_state(2, maskvars[8], i8);
+  var iA = cnf_bfly_state(3, maskvars[9], i9);
+  var iB = cnf_bfly_state(4, maskvars[10], iA);
+  var iC = cnf_bfly_state(5, maskvars[11], iB);
+
+  for (var i = 0; i < bitpos.length; i++) {
+    if (bitpos[i] > 0)
+      cnf_eq(iC.subarray(i * 6, i * 6 + 6), bitpos[i]);
+  }
+
+  var result = solve();
+  if (result) {
+    data.masks = [];
+    data.shiftseq = [32, 16, 8, 4, 2, 1, 1, 2, 4, 8, 16, 32];
+    for (var i = 0; i < 12; i++)
+      data.masks[i] = result.subarray(maskvars[i][0], maskvars[i][0] + 64);
+
+    var changed = true;
+    while (data.shiftseq.length > 1 && changed) {
+      changed = false;
+      for (var i = data.shiftseq.length - 1; i >= 0; i--) {
+        if (data.masks[i].every(function (x){return x==0;})) {
+          data.shiftseq.splice(i, 1);
+          data.masks.splice(i, 1);
+          changed = true;
+        }
+        else if (i > 0 && data.shiftseq[i] == data.shiftseq[i - 1]) {
+          var xmask = data.masks[i].map(function (x, j) {
+            return data.masks[i - 1][j] ^ x;
+          });
+          if (xmask.every(function (x) {return x==0;})) {
+            // no exchanges, drop stages
+            data.shiftseq.splice(i - 1, 2);
+            data.masks.splice(i - 1, 2);
+          }
+          else {
+            // some exchanges, xor stages
+            data.shiftseq.splice(i - 1, 1);
+            data.masks.splice(i - 1, 2, xmask);
+          }
+          changed = true;
+        }
+      }
+    }
+    data.msg = null;
+    return true;
+  }
+  data.msg = "Could not route the permutation";
+  return false;
+}
+
+function performQuery(permute) {
+  var parts = permute.split(" ");
+  var bitpos = new Int32Array(64);
+  bitpos.fill(-1);
+  var bitidx = 0;
+  for (var i = 0; i < parts.length && i < 64; i++) {
+    if (parts[i] == "*") {
+      bitidx++;
+      continue;
+    }
+    else if (parts[i].indexOf("..") >= 0) {
+      var bounds = parts[i].split("..");
+      var l = parseInt(bounds[0]);
+      var h = parseInt(bounds[1]);
+      if (l < 0 || h < 0 || isNaN(l) || isNaN(h) || l > 63 || h > 63) {
+        data.msg = "bad index";
+        update();
+        return;
+      }
+      if (l <= h) {
+        for (var j = l; j <= h; j++)
+          bitpos[bitidx++] = j;
+      }
+      else {
+        for (var j = l; j >= h; j--)
+          bitpos[bitidx++] = j;
+      }
+    }
+    else {
+      var val = parseInt(parts[i]);
+      if (val < 0 || isNaN(val) || val > 63) {
+        data.msg = "bad index";
+        update();
+        return;
+      }
+      bitpos[bitidx++] = val;
+    }
+  }
+
+  data = { input: bitpos };
+
+  if (bitpos.every(function (p, i) { return p == -1 || p == i; })) {
+    data.shiftseq = [];
+    data.masks = [];
+    update();
+    return;
+  }
+
+  function iter(msk) {
+    if (route(bitpos, msk)) {
+      update();
+      if (msk != 0x03F)
+        window.setTimeout(iter, 0, 0x03F);
+    }
+  }
+
+  window.setTimeout(iter, 0, 0xFFF);
+}
+
+var data = null;
+
+function update() {
+  parens = $j('#explicitparens').is(':checked');
+  $j('#resultDiv').empty();
+  
+  if (data == null || data == undefined) {
+    $j('#resultDiv').append("Query Failed");
+    return;
+  }
+
+  if (data.msg) {
+    $j('#resultDiv').append(data.msg);
+    return;
+  }
+
+  function formatMask(bits) {
+    var r = "0x";
+    for (var nib = 15; nib >= 0; nib--) {
+      var n = 0;
+      for (var i = 0; i < 4; i++)
+        n += bits[nib * 4 + i] << i;
+      r += n.toString(16);
+    }
+    return r;
+  }
+
+  if (data.masks && data.masks.length > 0) {
+    var code = "";
+    for (var i = 0; i < data.masks.length; i++) {
+      code += "bit_permute_step(x, " + formatMask(data.masks[i]) + ", " + data.shiftseq[i] + ");\n";
+    }
+    var cb = $j("<pre/>").text(code).addClass("bigger");
+    $j('#resultDiv').append(cb);
+  }
+  else if (data.masks && data.masks.length == 0) {
+    $j('#resultDiv').append($j("<p/>").append("No stages (identity permutation)"));
+  }
+}
+
+function doquery(q) {
+  if (q === undefined || q == null || q.length == 0 || q === 0)
+    return;
+  $j('#q').val(decodeURIComponent(q.replace(/\+/g, " ")));
+  $j('#resultDiv').empty();
+  $j('#resultDiv').text('Waiting for result...');
+  performQuery(decodeURIComponent(q.replace(/\+/g, " ")));
+}
+$j(document).ready(function(){
+  doquery(urlParam('q'));
+});
+</script>
+</head>
+<body>
+<div id="header"><h1>haroldbot 2 (permutation mode)</h1>
+</div>
+<div id="querybar">
+  <div id="querybox">
+    <form method="get">
+      <input type="text" placeholder="permutation" name="q" id="q" autofocus/>
+      <input type="submit" value="compute" id="submit"/>
+    </form>
+  </div>
+</div>
+<div id="page">
+  <div id="query-printback"></div>
+  <div id="resultDiv"></div>
+  <div id="examples">
+    <h2>Examples</h2>
+    <p>Rotate by 32 (rotations are not detected)<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute.html?q=32..63+0..31"><tt>32..63 0..31</tt></a></p>
+    <p>Simple bit-swap<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute.html?q=1+0+2..63"><tt>1 0 2..63</tt></a></p>
+    <p>Reverse bits<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute.html?q=63..0"><tt>63..0</tt></a></p>
+    <p>Large permutation with don't-cares<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute.html?q=3+11+19+27+*+*+*+2+10+18+26+34+*+*+1+9+17+25+33+41+*+0+8+16+24+32+40+48+*+7+15+23+31+39+47+*+*+14+22+30+38+46+*+*+*+21+29+37+45"><tt>3 11 19 27 * * * 2 10 18 26 34 * * 1 9 17 25 33 41 * 0 8 16 24 32 40 48 * 7 …</tt></a></p>
+  </div>
+  <div>
+    <h2>Notes</h2>
+    <p>This is (for now) only a tool to generate permutations of a 64bit word using delta swaps with power-of-two shift counts, with the large shift counts at the begin and end and the shift count of 1 in the middle. Steps with a mask of zero are omitted, in the worst case an 11-step Beneš network will be used. As special cases the result may be a butterfly network or a single delta swap or even <i>nothing</i>. No other approaches are attempted so in general the result is not optimal.</p>
+    <p>The solving approach is pretty dumb, I just make a routing network with variable masks, constrain the output indices, and have MiniSAT solve for the masks.</p>
+    <p>Since everything happens client-side, I don't get automatic bug reports. Please <a href="https://github.com/IJzerbaard/haroldbot/issues">open an issue</a> or contact me (eg via email or twitter @HaroldAptroot).</p>
+  </div>
+</div>
+</body>
+</html>
