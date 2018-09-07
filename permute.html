@@ -15,7 +15,7 @@ var id = 0;
 var cnf = "";
 var clauses = 0;
 
-function cnf_bfly_state(k, mask, indices) {
+function cnf_bfly_stage(k, mask, indices) {
   var res_indices = new Int32Array(64 * 6);
   for (var i = 0; i < 64; i++) {
     var j = i ^ (1 << k);
@@ -27,6 +27,20 @@ function cnf_bfly_state(k, mask, indices) {
   }
 
   return res_indices;
+}
+
+function cnf_rol_stage(rot_dist, indices) {
+  var res = indices;
+  for (var k = 1, ki = 0; k < 64; k *= 2, ki++) {
+    var rr = new Int32Array(64 * 6);
+    for (var i = 0; i < 64; i++) {
+      var j = (i - k + 64) & 63;
+      rr.set(cnf_mux_array(rot_dist[ki], res.subarray(j * 6, j * 6 + 6), res.subarray(i * 6, i * 6 + 6)), i * 6);
+    }
+    res = rr;
+  }
+
+  return res;
 }
 
 function cnf_mux_array(cond, t, f) {
@@ -123,6 +137,15 @@ function route(bitpos, sm) {
     }
   }
 
+  var rol_dist = new Int32Array(6);
+  for (var j = 0; j < rol_dist.length; j++) {
+    rol_dist[j] = ++id;
+    if ((sm & (1 << 12)) == 0) {
+      cnf += -rol_dist[j] + " 0\n";
+      clauses++;
+    }
+  }
+
   cnf_different_or_zero(maskvars[0], maskvars[11]);
   cnf_different_or_zero(maskvars[1], maskvars[10]);
   cnf_different_or_zero(maskvars[2], maskvars[9]);
@@ -130,62 +153,64 @@ function route(bitpos, sm) {
   cnf_different_or_zero(maskvars[4], maskvars[7]);
   cnf_different_or_zero(maskvars[5], maskvars[6]);
 
-  var i1 = cnf_bfly_state(5, maskvars[0], indices);
-  var i2 = cnf_bfly_state(4, maskvars[1], i1);
-  var i3 = cnf_bfly_state(3, maskvars[2], i2);
-  var i4 = cnf_bfly_state(2, maskvars[3], i3);
-  var i5 = cnf_bfly_state(1, maskvars[4], i4);
-  var i6 = cnf_bfly_state(0, maskvars[5], i5);
-  var i7 = cnf_bfly_state(0, maskvars[6], i6);
-  var i8 = cnf_bfly_state(1, maskvars[7], i7);
-  var i9 = cnf_bfly_state(2, maskvars[8], i8);
-  var iA = cnf_bfly_state(3, maskvars[9], i9);
-  var iB = cnf_bfly_state(4, maskvars[10], iA);
-  var iC = cnf_bfly_state(5, maskvars[11], iB);
+  var i1 = indices;
+  if ((sm & (1 << 12)) != 0) {
+    i1 = cnf_rol_stage(rol_dist, i1);
+  }
+
+  var stagenum = [5, 4, 3, 2, 1, 0, 0, 1, 2, 3, 4, 5];
+  for (var i = 0; i < maskvars.length; i++) {
+    if ((sm & (1 << i)) != 0)
+      i1 = cnf_bfly_stage(stagenum[i], maskvars[i], i1);
+  }
 
   for (var i = 0; i < bitpos.length; i++) {
-    if (bitpos[i] > 0)
-      cnf_eq(iC.subarray(i * 6, i * 6 + 6), bitpos[i]);
+    if (bitpos[i] >= 0)
+      cnf_eq(i1.subarray(i * 6, i * 6 + 6), bitpos[i]);
   }
 
   var result = solve();
   if (result) {
-    data.masks = [];
-    data.shiftseq = [32, 16, 8, 4, 2, 1, 1, 2, 4, 8, 16, 32];
+    var d = {};
+    d.masks = [];
+    d.shiftseq = [32, 16, 8, 4, 2, 1, 1, 2, 4, 8, 16, 32];
     for (var i = 0; i < 12; i++)
-      data.masks[i] = result.subarray(maskvars[i][0], maskvars[i][0] + 64);
+      d.masks[i] = result.subarray(maskvars[i][0], maskvars[i][0] + 64);
+    d.rol_dist = 0;
+    for (var i = 0; i < 6; i++)
+      d.rol_dist += result[rol_dist[i]] << i;
 
     var changed = true;
-    while (data.shiftseq.length > 1 && changed) {
+    while (d.shiftseq.length > 1 && changed) {
       changed = false;
-      for (var i = data.shiftseq.length - 1; i >= 0; i--) {
-        if (data.masks[i].every(function (x){return x==0;})) {
-          data.shiftseq.splice(i, 1);
-          data.masks.splice(i, 1);
+      for (var i = d.shiftseq.length - 1; i >= 0; i--) {
+        if (d.masks[i].every(function (x){return x==0;})) {
+          d.shiftseq.splice(i, 1);
+          d.masks.splice(i, 1);
           changed = true;
         }
-        else if (i > 0 && data.shiftseq[i] == data.shiftseq[i - 1]) {
-          var xmask = data.masks[i].map(function (x, j) {
-            return data.masks[i - 1][j] ^ x;
+        else if (i > 0 && d.shiftseq[i] == d.shiftseq[i - 1]) {
+          var xmask = d.masks[i].map(function (x, j) {
+            return d.masks[i - 1][j] ^ x;
           });
           if (xmask.every(function (x) {return x==0;})) {
             // no exchanges, drop stages
-            data.shiftseq.splice(i - 1, 2);
-            data.masks.splice(i - 1, 2);
+            d.shiftseq.splice(i - 1, 2);
+            d.masks.splice(i - 1, 2);
           }
           else {
             // some exchanges, xor stages
-            data.shiftseq.splice(i - 1, 1);
-            data.masks.splice(i - 1, 2, xmask);
+            d.shiftseq.splice(i - 1, 1);
+            d.masks.splice(i - 1, 2, xmask);
           }
           changed = true;
         }
       }
     }
-    data.msg = null;
+    if (!data.masks || (d.masks.length + (d.rol_dist == 0 ? 0 : 1)) < (data.masks.length + (data.rol_dist == 0 ? 0 : 1)))
+      data = d;
     return true;
   }
-  data.msg = "Could not route the permutation";
   return false;
 }
 
@@ -230,22 +255,38 @@ function performQuery(permute) {
 
   data = { input: bitpos };
 
-  if (bitpos.every(function (p, i) { return p == -1 || p == i; })) {
+  var rol_dist = 0;
+  for (var i = 0; i < 64; i++) {
+    if (bitpos[i] >= 0) {
+      rol_dist = (i - bitpos[i]) & 63;
+      break;
+    }
+  }
+
+  if (bitpos.every(function (p, i) { return p == -1 || p == ((i - rol_dist) & 63); })) {
     data.shiftseq = [];
     data.masks = [];
+    data.rol_dist = rol_dist;
     update();
     return;
   }
 
-  function iter(msk) {
+  var msk_sequence = [0xFFF, 0x103F, 0x3F, 0x103E];
+
+  function iter(i) {
+    var msk = msk_sequence[i];
     if (route(bitpos, msk)) {
       update();
-      if (msk != 0x03F)
-        window.setTimeout(iter, 0, 0x03F);
+      if (i < msk_sequence.length)
+        window.setTimeout(iter, 0, i + 1);
+    }
+    else if (!data.masks) {
+      data.msg = "Could not route the permutation";
+      update();
     }
   }
 
-  window.setTimeout(iter, 0, 0xFFF);
+  window.setTimeout(iter, 0, 0);
 }
 
 var data = null;
@@ -275,15 +316,18 @@ function update() {
     return r;
   }
 
-  if (data.masks && data.masks.length > 0) {
+  if (data.masks && (data.masks.length > 0 || data.rol_dist != 0)) {
     var code = "";
+    if (data.rol_dist != 0) {
+      code = "x = (x << " + data.rol_dist + ") | (x >> " + (64 - data.rol_dist) + ")\n";
+    }
     for (var i = 0; i < data.masks.length; i++) {
-      code += "bit_permute_step(x, " + formatMask(data.masks[i]) + ", " + data.shiftseq[i] + ");\n";
+      code += "x = bit_permute_step(x, " + formatMask(data.masks[i]) + ", " + data.shiftseq[i] + ");\n";
     }
     var cb = $j("<pre/>").text(code).addClass("bigger");
     $j('#resultDiv').append(cb);
   }
-  else if (data.masks && data.masks.length == 0) {
+  else if (data.masks && data.masks.length == 0 && data.rol_dist == 0) {
     $j('#resultDiv').append($j("<p/>").append("No stages (identity permutation)"));
   }
 }
@@ -317,10 +361,10 @@ $j(document).ready(function(){
   <div id="resultDiv"></div>
   <div id="examples">
     <h2>Examples</h2>
-    <p>Rotate by 32 (rotations are not detected)<br/>
-      &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute.html?q=32..63+0..31"><tt>32..63 0..31</tt></a></p>
     <p>Simple bit-swap<br/>
       &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute.html?q=1+0+2..63"><tt>1 0 2..63</tt></a></p>
+    <p>Sometimes a rotate is used<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute.html?q=2+1+3..63+0"><tt>2 1 3..63 0</tt></a></p>
     <p>Reverse bits<br/>
       &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute.html?q=63..0"><tt>63..0</tt></a></p>
     <p>Large permutation with don't-cares<br/>
@@ -328,7 +372,7 @@ $j(document).ready(function(){
   </div>
   <div>
     <h2>Notes</h2>
-    <p>This is (for now) only a tool to generate permutations of a 64bit word using delta swaps with power-of-two shift counts, with the large shift counts at the begin and end and the shift count of 1 in the middle. Steps with a mask of zero are omitted, in the worst case an 11-step Beneš network will be used. As special cases the result may be a butterfly network or a single delta swap or even <i>nothing</i>. No other approaches are attempted so in general the result is not optimal.</p>
+    <p>This is (for now) only a tool to generate permutations of a 64bit word using an optional rotation at the start and then delta swaps with power-of-two shift counts, with the large shift counts at the begin and end and the shift count of 1 in the middle. Steps with a mask of zero are omitted, in the worst case an 11-step Beneš network will be used. As special cases the result may be a butterfly network or a single delta swap or even <i>nothing</i>. No other approaches are attempted so in general the result is not optimal.</p>
     <p>The solving approach is pretty dumb, I just make a routing network with variable masks, constrain the output indices, and have MiniSAT solve for the masks.</p>
     <p>Since everything happens client-side, I don't get automatic bug reports. Please <a href="https://github.com/IJzerbaard/haroldbot/issues">open an issue</a> or contact me (eg via email or twitter @HaroldAptroot).</p>
   </div>
