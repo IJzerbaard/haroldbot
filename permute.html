@@ -18,9 +18,9 @@ var clauses = 0;
 function cnf_bfly_stage(k, mask, indices) {
   var res_indices = new Int32Array(64 * 6);
   for (var i = 0; i < 64; i++) {
-    var j = i ^ (1 << k);
-    res_indices.set(cnf_mux_array(mask[i & ~(1 << k)], indices.subarray(j * 6, j * 6 + 6), indices.subarray(i * 6, i * 6 + 6)), i * 6);
-    if ((i & (1 << k)) != 0) {
+    var j = i ^ k;
+    res_indices.set(cnf_mux_array(mask[i & ~k], indices.subarray(j * 6, j * 6 + 6), indices.subarray(i * 6, i * 6 + 6)), i * 6);
+    if ((i & k) != 0) {
       cnf += -mask[i] + " 0\n";
       clauses++;
     }
@@ -43,6 +43,77 @@ function cnf_rol_stage(rot_dist, indices) {
   return res;
 }
 
+function cnf_delta_swap(k, mask, indices, enabled) {
+  var r = new Int32Array(64 * 6);
+  for (var i = 0; i < 64; i++) {
+    var x = indices.subarray(6*i,6*i+6);
+    var jp = i + k;
+    if (jp < 64) {
+      var shp = indices.subarray(6*jp,6*jp+6);
+      x = cnf_mux_array(mask[i], shp, x);
+    }
+    else {
+      cnf += -mask[i] + " " + -enabled + " 0\n";
+      clauses++;
+    }
+    var jn = i - k;
+    if (jn >= 0) {
+      var shn = indices.subarray(6*jn,6*jn+6);
+      x = cnf_mux_array(mask[jn], shn, x);
+    }
+    r.set(x, i*6);
+  }
+  return r;
+}
+
+function cnf_add(x, y) {
+  var r = new Int32Array(x.length);
+  var carry = 1;
+  for (var i = 0; i < r.length; i++) {
+    var nc = cnf_or(cnf_and(carry, x[i]), cnf_and(carry, y[i]));
+    var t = cnf_mux(x[i], -y[i], y[i]);
+    r[i] = cnf_mux(carry, -t, t);
+    carry = nc;
+  }
+  return {sum:r, carry:carry}
+}
+
+function cnf_iseq(x, imm) {
+  var r = ++id;
+  var cl = r + " ";
+  x.forEach(function (v,i) {
+    if ((imm & (1 << i)) == 0) {
+      cl += " " + v;
+      cnf += -r + " " + -v + " 0\n";
+      clauses++;
+    }
+    else {
+      cl += " " + -v;
+      cnf += -r + " " + v + " 0\n";
+      clauses++;
+    }
+  });
+  cnf += cl + " 0\n";
+  clauses++;
+  return r;
+}
+
+function cnf_or(a, b) {
+  return -cnf_and(-a, -b);
+}
+
+function cnf_and(a, b) {
+  if (a == 1 || b == 1) return 1;
+  if (a == -1) return b;
+  if (b == -1) return a;
+  var c = ++id;
+  cnf += c + " " + -a + " " + -b + " 0\n";
+  cnf += -c + " " + a + " 0\n";
+  cnf += -c + " " + b + " 0\n";
+  clauses += 3;
+  return c;
+}
+
 function cnf_mux_array(cond, t, f) {
   var res = new Int32Array(t.length);
   for (var i = 0; i < res.length; i++)
@@ -51,6 +122,11 @@ function cnf_mux_array(cond, t, f) {
 }
 
 function cnf_mux(c, t, f) {
+  if (c == 1) return f;
+  if (c == -1) return t;
+  if (t == f) return t;
+  if (t == -1 && f == 1) return c;
+  if (t == 1 && f == -1) return -c;
   var x = ++id;
   cnf += -x + " " + c + " " + f + " 0\n";
   cnf += -x + " " + -c + " " + t + " 0\n";
@@ -111,7 +187,50 @@ function solve(cb) {
     return r;
 }
 
-function route(bitpos, sm) {
+function route_bfly(bitpos) {
+  var masks = [];
+  var shifts = [];
+  var state = bitpos.slice();
+  for (var i = 5; i >= 0; i--) {
+    var nstate = new Int32Array(64);
+    nstate.fill(-1);
+    var m = 1 << i;
+    var msk = new Int8Array(64);
+    var any_set = 0;
+    for (var j = 0; j < 64; j++) {
+      if (state[j] == -1) continue;
+      var to = (state[j] & m) | (j & ~m);
+      msk[j & ~m] = ((state[j] ^ j) >> i) & 1;
+      any_set |= msk[j & ~m];
+      if (nstate[to] == -1)
+        nstate[to] = state[j];
+      else
+        return false;
+    }
+    if (any_set != 0) {
+      shifts.push(m);
+      masks.push(msk);
+    }
+    state = nstate;
+  }
+  d = {
+    masks: masks,
+    shiftseq: shifts,
+    rol_dist: 0
+  };
+  if (!data.masks || (d.masks.length + (d.rol_dist == 0 ? 0 : 1)) < (data.masks.length + (data.rol_dist == 0 ? 0 : 1)))
+    data = d;
+  return true;
+}
+
+function resultToInt(result, array) {
+  var r = 0;
+  for (var i = 0; i < array.length; i++)
+    r |= result[array[i]] << i;
+  return r;
+}
+
+function route_rol_benes_masked(bitpos, sm) {
   id = 1;
   clauses = 0;
   var FALSE = 1, TRUE = -1;
@@ -146,22 +265,15 @@ function route(bitpos, sm) {
     }
   }
 
-  cnf_different_or_zero(maskvars[0], maskvars[11]);
-  cnf_different_or_zero(maskvars[1], maskvars[10]);
-  cnf_different_or_zero(maskvars[2], maskvars[9]);
-  cnf_different_or_zero(maskvars[3], maskvars[8]);
-  cnf_different_or_zero(maskvars[4], maskvars[7]);
-  cnf_different_or_zero(maskvars[5], maskvars[6]);
-
   var i1 = indices;
   if ((sm & (1 << 12)) != 0) {
     i1 = cnf_rol_stage(rol_dist, i1);
   }
 
-  var stagenum = [5, 4, 3, 2, 1, 0, 0, 1, 2, 3, 4, 5];
+  var sh = [32, 16, 8, 4, 2, 1, 1, 2, 4, 8, 16, 32];
   for (var i = 0; i < maskvars.length; i++) {
     if ((sm & (1 << i)) != 0)
-      i1 = cnf_bfly_stage(stagenum[i], maskvars[i], i1);
+      i1 = cnf_bfly_stage(sh[i], maskvars[i], i1);
   }
 
   for (var i = 0; i < bitpos.length; i++) {
@@ -214,7 +326,96 @@ function route(bitpos, sm) {
   return false;
 }
 
+function route_deltaswaps(bitpos, stages, shiftseq) {
+  id = 1;
+  clauses = 0;
+  var FALSE = 1, TRUE = -1;
+  cnf = "-1 0\n";
+  clauses = 1;
+
+  var indices = new Int32Array(64 * 6);
+  for (var i = 0; i < 64; i++) {
+    for (var j = 0; j < 6; j++) {
+      indices[i * 6 + j] = ((i >> j) & 1) == 0 ? FALSE : TRUE;
+    }
+  }
+
+  var maskvars = [];
+  var distances = [];
+  for (var i = 0; i < stages; i++) {
+    maskvars[i] = new Int32Array(64);
+    for (var j = 0; j < maskvars[i].length; j++)
+      maskvars[i][j] = ++id;
+    distances[i] = new Int32Array(6);
+    for (var j = 0; j < distances[i].length; j++)
+      distances[i][j] = ++id;
+  }
+
+  if (!shiftseq) {
+    shiftseq = [];
+    for (var i = 1; i < 64; i++)
+      shiftseq.push(i);
+  }
+
+  for (var st = 0; st < stages; st++) {
+    var x = indices;
+    for (var k = 0; k < shiftseq.length; k++) {
+      var isk = cnf_iseq(distances[st], shiftseq[k]);
+      x = cnf_mux_array(isk, cnf_delta_swap(shiftseq[k], maskvars[st], x, isk), x);
+    }
+    indices = x;
+  }
+
+  for (var i = 0; i < bitpos.length; i++) {
+    if (bitpos[i] >= 0)
+      cnf_eq(indices.subarray(i * 6, i * 6 + 6), bitpos[i]);
+  }
+
+  var result = solve();
+  if (result) {
+    var d = { masks: [], shiftseq: [], rol_dist: 0 };
+
+    for (var i = 0; i < stages; i++) {
+      d.shiftseq[i] = resultToInt(result, distances[i]);
+      d.masks[i] = result.subarray(maskvars[i][0], maskvars[i][0] + 64);
+    }
+
+    var changed = true;
+    while (d.shiftseq.length > 1 && changed) {
+      changed = false;
+      for (var i = d.shiftseq.length - 1; i >= 0; i--) {
+        if (d.masks[i].every(function (x){return x==0;})) {
+          d.shiftseq.splice(i, 1);
+          d.masks.splice(i, 1);
+          changed = true;
+        }
+        else if (i > 0 && d.shiftseq[i] == d.shiftseq[i - 1]) {
+          var xmask = d.masks[i].map(function (x, j) {
+            return d.masks[i - 1][j] ^ x;
+          });
+          if (xmask.every(function (x) {return x==0;})) {
+            // no exchanges, drop stages
+            d.shiftseq.splice(i - 1, 2);
+            d.masks.splice(i - 1, 2);
+          }
+          else {
+            // some exchanges, xor stages
+            d.shiftseq.splice(i - 1, 1);
+            d.masks.splice(i - 1, 2, xmask);
+          }
+          changed = true;
+        }
+      }
+    }
+    if (!data.masks || (d.masks.length + (d.rol_dist == 0 ? 0 : 1)) < (data.masks.length + (data.rol_dist == 0 ? 0 : 1)))
+      data = d;
+    return true;
+  }
+  return false;
+}
+
 function performQuery(permute) {
+  data = {};
   var parts = permute.split(" ");
   var bitpos = new Int32Array(64);
   bitpos.fill(-1);
@@ -225,20 +426,35 @@ function performQuery(permute) {
       continue;
     }
     else if (parts[i].indexOf("..") >= 0) {
-      var bounds = parts[i].split("..");
+      var p = parts[i];
+      var step = 1;
+      var fst = NaN;
+      if (parts[i].indexOf(",") >= 0) {
+        var spl = p.split(",");
+        p = spl[1];
+        fst = parseInt(spl[0]);
+      }
+      var bounds = p.split("..");
       var l = parseInt(bounds[0]);
       var h = parseInt(bounds[1]);
-      if (l < 0 || h < 0 || isNaN(l) || isNaN(h) || l > 63 || h > 63) {
+      if (!isNaN(fst)) {
+        step = l - fst;
+        l = fst;
+      }
+      else {
+        step = 1;
+      }
+      if (l < 0 || h < 0 || isNaN(l) || isNaN(h) || l > 63 || h > 63 || step == 0) {
         data.msg = "bad index";
         update();
         return;
       }
       if (l <= h) {
-        for (var j = l; j <= h; j++)
+        for (var j = l; j <= h; j += step)
           bitpos[bitidx++] = j;
       }
       else {
-        for (var j = l; j >= h; j--)
+        for (var j = l; j >= h; j -= step)
           bitpos[bitidx++] = j;
       }
     }
@@ -253,7 +469,7 @@ function performQuery(permute) {
     }
   }
 
-  data = { input: bitpos };
+  data.input = bitpos;
 
   var rol_dist = 0;
   for (var i = 0; i < 64; i++) {
@@ -275,7 +491,7 @@ function performQuery(permute) {
 
   function iter(i) {
     var msk = msk_sequence[i];
-    if (route(bitpos, msk)) {
+    if (route_rol_benes_masked(bitpos, msk)) {
       update();
       if (i < msk_sequence.length)
         window.setTimeout(iter, 0, i + 1);
@@ -286,7 +502,13 @@ function performQuery(permute) {
     }
   }
 
-  window.setTimeout(iter, 0, 0);
+  if (route_bfly(bitpos))
+    update();
+  window.setTimeout(function() {
+    if (route_deltaswaps(bitpos, 3, [7, 9, 14, 16, 18, 28, 36]))
+      update();
+    window.setTimeout(iter, 0, 0);
+  }, 0);
 }
 
 var data = null;
@@ -369,6 +591,8 @@ $j(document).ready(function(){
       &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute.html?q=63..0"><tt>63..0</tt></a></p>
     <p>Large permutation with don't-cares<br/>
       &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute.html?q=3+11+19+27+*+*+*+2+10+18+26+34+*+*+1+9+17+25+33+41+*+0+8+16+24+32+40+48+*+7+15+23+31+39+47+*+*+14+22+30+38+46+*+*+*+21+29+37+45"><tt>3 11 19 27 * * * 2 10 18 26 34 * * 1 9 17 25 33 41 * 0 8 16 24 32 40 48 * 7 …</tt></a></p>
+    <p>Transpose 8x8<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute.html?q=0%2C8..56+1%2C9..57+2%2C10..58+3%2C11..59+4%2C12..60+5%2C13..61+6%2C14..62+7%2C15..63"><tt>0,8..56 1,9..57 2,10..58 3,11..59 4,12..60 5,13..61 6,14..62 7,15..63</tt></a></p>
   </div>
   <div>
     <h2>Notes</h2>
