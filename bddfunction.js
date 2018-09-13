@@ -96,6 +96,20 @@ BDDFunction.sub = function(x, y) {
 	return BDDFunction.not(BDDFunction.add(BDDFunction.not(x), y));
 }
 
+BDDFunction.subus = function(x, y) {
+	var timelimit = getmilitime() + 1000;
+	var bits = new Int32Array(32);
+	var borrow = 0;
+	for (var i = 0; i < bits.length; i++) {
+		bits[i] = bdd.xorxor(x._bits[i], y._bits[i], borrow, timelimit);
+		borrow = bdd.carry(borrow, ~x._bits[i], y._bits[i]);
+	}
+	for (var i = 0; i < bits.length; i++)
+		bits[i] = bdd.and(bits[i], ~borrow);
+	
+	return new BDDFunction(bits, bdd.or(x._divideError, y._divideError));
+}
+
 BDDFunction.abs = function(x) {
 	var m = BDDFunction.nthbit(x, 31);
 	return BDDFunction.xor(BDDFunction.add(x, m), m);

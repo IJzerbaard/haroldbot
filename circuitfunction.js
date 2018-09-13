@@ -97,6 +97,19 @@ CFunction.sub = function(x, y) {
 	return CFunction.not(CFunction.add(CFunction.not(x), y));
 }
 
+CFunction.subus = function(x, y) {
+	var bits = new Int32Array(32);
+	var borrow = 0;
+	for (var i = 0; i < bits.length; i++) {
+		bits[i] = circuit.xor(x._bits[i], circuit.xor(y._bits[i], borrow));
+		borrow = circuit.carry(~x._bits[i], y._bits[i], borrow);
+	}
+	for (var i = 0; i < bits.length; i++)
+		bits[i] = circuit.and(bits[i], ~borrow);
+	
+	return new CFunction(bits, circuit.or(x._divideError, y._divideError));
+}
+
 CFunction.bzhi = function(x, y) {
 	y = CFunction.and(y, CFunction.constant(255));
 	var bits = new Int32Array(32);

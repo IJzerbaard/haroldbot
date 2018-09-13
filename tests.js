@@ -29,6 +29,11 @@ QUnit.test("bddfunction tests", function(assert) {
 	h = BDDFunction.xor(f, g);
 	assert.deepEqual(f._bits, g._bits, "add == add2");
 
+	f = BDDFunction.subus(x, y);
+	g = BDDFunction.and(BDDFunction.sub(x, y), BDDFunction.gt(x, y, false));
+	h = BDDFunction.xor(f, g);
+	assert.deepEqual(f._bits, g._bits, "subus(x, y) == (x - y) & (x >u y)");
+
 	var h = BDDFunction.to_constant(BDDFunction.divu(BDDFunction.constant(0xff704000), BDDFunction.constant(3)));
 	assert.equal(h, 0x55256aaa, "divu test");
 	h = BDDFunction.to_constant(BDDFunction.shruc(BDDFunction.hmul(BDDFunction.constant(0xff704000), BDDFunction.constant(0xAAAAAAAAB), false), 1));
@@ -118,6 +123,12 @@ QUnit.test("Circuit SAT tests", function(assert) {
 	f = new CFunction(bits, 0);
 	res = f.sat();
 	assert.equal(res, null, "x^y == y?~x:x");
+
+	f = CFunction.subus(x, y);
+	g = CFunction.and(CFunction.sub(x, y), CFunction.gt(x, y, false));
+	g = CFunction.xor(f, g);
+	res = g.sat();
+	assert.equal(res, null, "subus(x, y) == (x - y) & (x >u y)");
 
 	
 	//f = CFunction.not(CFunction.eq(CFunction.shruc(CFunction.hmul(x, CFunction.constant(0xAAAAAAAAB), false), 1), CFunction.divu(x, CFunction.constant(3))));

@@ -292,6 +292,8 @@ function parse(query) {
 			return fun2("hmul", true);
 		} else if (l("ormul")) {
 			return fun2("ormul", false);
+		} else if (l("subus")) {
+			return fun2("subus", false);
 		} else if (l("fixmul")) {
 			return fun3("fixmul", true);
 		} else if (l("fixscale")) {

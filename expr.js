@@ -362,7 +362,7 @@ Binary.prototype.equals2 = function(node) {
 };
 
 Binary.prototype.print = function(varmap) {
-	if (this.op >= 55)
+	if (isbinfunc(this.op))
 		return ops[this.op].substr(1) + "(" + this.l.print(varmap) + ", " + this.r.print(varmap) + ")";
 	var res = "";
 	if (this.l.type == 'bin' || this.l.type == 'ter' || this.l.type == 'assoc')
@@ -417,6 +417,7 @@ function binaryToBddFunc(op, l, r) {
 		case 47: return BDDFunction.gt(l, r, false);
 		case 46: return BDDFunction.gt(l, r, true);
 		case 48: return BDDFunction.bzhi(l, r);
+		case 49: return BDDFunction.subus(l, r);
 		case 55: return BDDFunction.mux(BDDFunction.gt(l, r, false), l, r);
 		case 56: return BDDFunction.mux(BDDFunction.gt(l, r, true), l, r);
 		case 57: return BDDFunction.mux(BDDFunction.lt(l, r, false), l, r);
@@ -470,6 +471,7 @@ function binaryToCircuitFunc(op, l, r) {
 		case 47: return CFunction.gt(l, r, false);
 		case 46: return CFunction.gt(l, r, true);
 		case 48: return CFunction.bzhi(l, r);
+		case 49: return CFunction.subus(l, r);
 		case 55: return CFunction.mux(CFunction.gt(l, r, false), l, r);
 		case 56: return CFunction.mux(CFunction.gt(l, r, true), l, r);
 		case 57: return CFunction.mux(CFunction.lt(l, r, false), l, r);
@@ -558,6 +560,7 @@ function evalBinary(op, l, r) {
 		case 44: return l >= r ? -1 : 0;
 		case 46: return l > r ? -1 : 0;
 		case 48: return ((r & 0xFF) >= 31 ? l : l & (1 << r) - 1)|0;
+		case 49: return (l >>> 0) < (r >>> 0) ? 0 : (l - r)|0;
 		case 55: return Math.min(l ^ m, r ^ m) ^ m;
 		case 56: return Math.min(l, r) | 0;
 		case 57: return Math.max(l ^ m, r ^ m) ^ m;
