@@ -187,6 +187,8 @@ var bdd = {
 	},
 
 	xorxor: function(f, g, h, timelimit) {
+		return this.xor(this.xor(f, g), h);
+
 		function issink(x) {
 			return (x == 0 || x == -1) ? 1 : 0;
 		}
