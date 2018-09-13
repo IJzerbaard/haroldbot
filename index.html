@@ -114,16 +114,16 @@ function performQuery(input) {
     Node.AnalyzeProperties(data, varmap, expr, update);
   }
 
-  if (expr.type == 'bin' && (expr.op >= 20 && expr.op <= 28 || expr.op >= 40 && expr.op <= 47)) {
+  if (expr.type == 'bin' && binOpResultsInBool(expr.op)) {
     // comparison
     (bddf||circuitf).AnalyzeTruth(data, expr.removeDummy(), varmap, function () {
       update();
     }, function (exprc, backwards) {
       if (backwards) {
-        //$j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        $j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
       else {
-        //$j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        $j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
     });
     update();

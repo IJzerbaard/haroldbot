@@ -415,6 +415,11 @@ function ProofFinder(op, assocmode) {
 			["?", ["<u", [a(0)], [a(1)]], [a(0)], [a(1)]],
 			true, "definition of minimum", ,
 		],
+		[
+			["$min_u", [a(0)], [a(1)]],
+			["?", [">u", [a(0)], [a(1)]], [a(1)], [a(0)]],
+			true, "definition of minimum", ,
+		],
 		// properties of min_s
 		[
 			["$min_s", [a(0)], [0x80000000]],
@@ -444,6 +449,11 @@ function ProofFinder(op, assocmode) {
 		[
 			["$min_s", [a(0)], [a(1)]],
 			["?", ["<s", [a(0)], [a(1)]], [a(0)], [a(1)]],
+			true, "definition of minimum", ,
+		],
+		[
+			["$min_s", [a(0)], [a(1)]],
+			["?", [">s", [a(0)], [a(1)]], [a(1)], [a(0)]],
 			true, "definition of minimum", ,
 		],
 		// properties of max_u
@@ -477,6 +487,11 @@ function ProofFinder(op, assocmode) {
 			["?", [">u", [a(0)], [a(1)]], [a(0)], [a(1)]],
 			true, "definition of maximum", ,
 		],
+		[
+			["$max_u", [a(0)], [a(1)]],
+			["?", ["<u", [a(0)], [a(1)]], [a(1)], [a(0)]],
+			true, "definition of maximum", ,
+		],
 		// properties of max_s
 		[
 			["$max_s", [a(0)], [0x80000000]],
@@ -506,6 +521,11 @@ function ProofFinder(op, assocmode) {
 		[
 			["$max_s", [a(0)], [a(1)]],
 			["?", [">s", [a(0)], [a(1)]], [a(0)], [a(1)]],
+			true, "definition of maximum", ,
+		],
+		[
+			["$max_s", [a(0)], [a(1)]],
+			["?", ["<s", [a(0)], [a(1)]], [a(1)], [a(0)]],
 			true, "definition of maximum", ,
 		],
 		// properties of left shift
@@ -647,6 +667,32 @@ function ProofFinder(op, assocmode) {
 			[32],
 			false, "the number of ones plus the number of zeroes is all bits", ,
 		],
+		// properties of subus
+		[
+			["$subus", [a(0)], [a(1)]],
+			["&", ["-", [a(0)], [a(1)]], [">u", [a(0)], [a(1)]]],
+			true, "definition of subtraction with unsigned saturation", ,
+		],
+		[
+			["$subus", [a(0)], [a(1)]],
+			["?", [">u", [a(0)], [a(1)]], ["-", [a(0)], [a(1)]], [0]],
+			true, "definition of subtraction with unsigned saturation", ,
+		],
+		[
+			["$subus", [a(0)], [a(1)]],
+			["-", ["+", ["$subus", [a(1)], [a(0)]], [a(0)]], [a(1)]],
+			false, "compensated commutativity of saturating subtraction", ,
+		],
+		[
+			["-", ["+", ["$subus", [a(0)], [a(1)]], [a(1)]], [a(0)]],
+			["$subus", [a(1)], [a(0)]],
+			false, "compensated commutativity of saturating subtraction", ,
+		],/*
+		[
+			["+", ["$subus", [a(0)], [a(1)]], ["+", [a(1)], ["-", ["$subus", [a(0)], [a(1)]], [a(0)]]]],
+			[]
+			
+		],*/
 		// properties of BMI stuff
 		[
 			["$blsi", [a(0)]],
@@ -1440,8 +1486,23 @@ function ProofFinder(op, assocmode) {
 			false, "adding and subtracting the same thing cancels", ,
 		],
 		[
+			["+", [a(0)], ["-", [a(1)], [a(2)]]],
+			["-", ["+", [a(0)], [a(1)]], [a(2)]],
+			true, "associativity of addition", ,
+		],
+		[
+			["+", ["-", [a(0)], [a(1)]], [a(2)]],
+			["-", ["+", [a(0)], [a(2)]], [a(1)]],
+			false, "commutativity of addition", ,
+		],
+		[
 			["-", ["+", [a(0)], [a(1)]], [a(1)]],
 			[a(0)],
+			false, "adding and subtracting the same thing cancels", ,
+		],
+		[
+			["-", [a(0)], ["-", [a(0)], [a(1)]]],
+			[a(1)],
 			false, "adding and subtracting the same thing cancels", ,
 		],
 		[
@@ -1485,6 +1546,22 @@ function ProofFinder(op, assocmode) {
 			["-", ["+", [a(0)], [a(1)]], ["<<", ["&", [a(0)], [a(1)]], [1]]],
 			["^", [a(0)], [a(1)]],
 			false, "", , "extra steps", [["-", ["+", ["<<", ["&", [a(0)], [a(1)]], [1]], ["^", [a(0)], [a(1)]]], ["<<", ["&", [a(0)], [a(1)]], [1]]], ["-", ["+", ["^", [a(0)], [a(1)]], ["<<", ["&", [a(0)], [a(1)]], [1]]], ["<<", ["&", [a(0)], [a(1)]], [1]]]]
+		],
+		[
+			["+", ["$subus", [a(0)], [a(1)]], [a(1)]],
+			["$max_u", [a(0)], [a(1)]],
+			false, "", , "extra steps", [["+", ["?", [">u", [a(0)], [a(1)]], ["-", [a(0)], [a(1)]], [0]], [a(1)]],
+										["?", [">u", [a(0)], [a(1)]], ["+", ["-", [a(0)], [a(1)]], [a(1)]], ["+", [0], [a(1)]]],
+										["?", [">u", [a(0)], [a(1)]], ["+", ["-", [a(0)], [a(1)]], [a(1)]], [a(1)]],
+										["?", [">u", [a(0)], [a(1)]], [a(0)], [a(1)]]]
+		],
+		[
+			["-", [a(0)], ["$subus", [a(0)], [a(1)]]],
+			["$min_u", [a(0)], [a(1)]],
+			false, "", , "extra steps", [["-", [a(0)], ["?", [">u", [a(0)], [a(1)]], ["-", [a(0)], [a(1)]], [0]]],
+										["?", [">u", [a(0)], [a(1)]], ["-", [a(0)], ["-", [a(0)], [a(1)]]], ["-", [a(0)], [0]]],
+										["?", [">u", [a(0)], [a(1)]], ["-", [a(0)], ["-", [a(0)], [a(1)]]], [a(0)]],
+										["?", [">u", [a(0)], [a(1)]], [a(1)], [a(0)]]]
 		]
 	];
 
@@ -2375,6 +2452,48 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				else
 					results.push([parent, res, null, backwards, parent[4] + 1, null])
 			}
+		}
+
+
+		if (root.type == 'bin' && !mayThrow(root.op) && root.l.type == 'ter' &&
+			root.l.cond.type == 'bin' && binOpResultsInBool(root.l.cond.op)) {
+			var res = new Ternary(root.l.cond, new Binary(root.op, root.l.t, root.r), new Binary(root.op, root.l.f, root.r));
+			if (getPattern) {
+				// (C ? X : Y) + Z
+				var C = mkvar(0, root.l.cond.id), X = mkvar(1, root.l.t.id), Y = mkvar(2, root.l.f.id), Z = mkvar(3, root.r.id);
+				var p = new Binary(20,
+					new Binary(root.op, new Ternary(C, X, Y), Z),
+					new Ternary(C, new Binary(root.op, X, Z), new Binary(root.op, Y, Z)));
+				p.l.id = root.id;
+				p.r.id = res.id;
+				p.l.l.id = root.l.id;
+				p.r.t.id = res.t.id;
+				p.r.f.id = res.f.id;
+				var desc = "anything distributes over conditional-select (condition: x is a boolean)";
+				results.push([p, res, [,,,desc, desc]]);
+			}
+			else
+				results.push([parent, res, null, backwards, parent[4] + 1, null]);
+		}
+		if (root.type == 'bin' && !mayThrow(root.op) && root.r.type == 'ter' &&
+			root.r.cond.type == 'bin' && binOpResultsInBool(root.r.cond.op)) {
+			var res = new Ternary(root.r.cond, new Binary(root.op, root.l, root.r.t), new Binary(root.op, root.l, root.r.f));
+			if (getPattern) {
+				// X + (C ? Y : Z)
+				var X = mkvar(1, root.l.id), C = mkvar(0, root.r.cond.id), Y = mkvar(2, root.r.t.id), Z = mkvar(3, root.r.f.id);
+				var p = new Binary(20,
+					new Binary(root.op, X, new Ternary(C, Y, Z)),
+					new Ternary(C, new Binary(root.op, X, Y), new Binary(root.op, X, Z)));
+				p.l.id = root.id;
+				p.r.id = res.id;
+				p.l.r.id = root.r.id;
+				p.r.t.id = res.t.id;
+				p.r.f.id = res.f.id;
+				var desc = "anything distributes over conditional-select (condition: x is a boolean)";
+				results.push([p, res, [,,,desc, desc]]);
+			}
+			else
+				results.push([parent, res, null, backwards, parent[4] + 1, null]);
 		}
 
 		if (root.type != 'const') {

@@ -19,6 +19,10 @@ function mayThrow(index) {
     return index == 10 || (index >= 12 && index <= 14) || (index >= 32 && index <= 35);
 }
 
+function binOpResultsInBool(index) {
+    return (index >= 20 && index <= 28) || (index >= 40 && index <= 47);
+}
+
 function toHexUnsigned(x) {
     x = (x|0) + 0xFFFFFFFF + 1;
     var s = x.toString(16);
