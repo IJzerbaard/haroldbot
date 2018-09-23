@@ -958,6 +958,32 @@ Let.prototype.print = function (varmap) {
 	return str + " in " + expr.print(varmap);
 };
 
+Node.fromBareObject = function (expr) {
+	function clone(expr) {
+		switch (expr.type) {
+		case 'const':
+			return new Constant(expr.value);
+		case 'var':
+			return new Variable(expr.index);
+		case 'un':
+			return new Unary(expr.op, Node.fromBareObject(expr.value));
+		case 'bin':
+			return new Binary(expr.op, Node.fromBareObject(expr.l), Node.fromBareObject(expr.r));
+		case 'ter':
+			return new Ternary(Node.fromBareObject(expr.cond), Node.fromBareObject(expr.t), Node.fromBareObject(expr.f));
+		case 'fun':
+			return new Fun(expr.fun, expr.args.map(Node.fromBareObject));
+		default:
+			debugger;
+			alert("Missing case in Node.fromBareObject");
+		}
+	};
+	if (expr == null) return null;
+	var c = clone(expr);
+	c.id = expr.id;
+	return c;
+};
+
 Node.normalize = function (expr) {
 	switch (expr.type) {
 		default: return expr;

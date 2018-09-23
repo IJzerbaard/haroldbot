@@ -687,12 +687,7 @@ function ProofFinder(op, assocmode) {
 			["-", ["+", ["$subus", [a(0)], [a(1)]], [a(1)]], [a(0)]],
 			["$subus", [a(1)], [a(0)]],
 			false, "compensated commutativity of saturating subtraction", ,
-		],/*
-		[
-			["+", ["$subus", [a(0)], [a(1)]], ["+", [a(1)], ["-", ["$subus", [a(0)], [a(1)]], [a(0)]]]],
-			[]
-			
-		],*/
+		],
 		// properties of BMI stuff
 		[
 			["$blsi", [a(0)]],
@@ -2778,6 +2773,9 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 						   test(rl, ll, lr) ||
 						   test(rr, ll, lr);
 				}
+				else if (l.type == 'bin' && r.type == 'bin' && l.op == 49 && r.op == 49) {
+					return l.l.equals2(r.r) && l.r.equals2(r.l);
+				}
 				return false;
 			case "non negative":
 				if (node.type != 'un')
@@ -2878,7 +2876,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 
 		while (q1.length + q2.length > 0 && counter < 10 && (counter == 0 || mode !== 'slow')) {
 			var time = new Date();
-			if (time.getTime() - starttime.getTime() > timelimit) {
+			if (time.getTime() - starttime.getTime() > Math.min(timelimit, 2000)) {
 				cb(null);
 				return;
 			}
@@ -2943,7 +2941,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		var maxForwardWeight = from.weight + 5;
 		for (var counter = 0; counter < 10; counter++) {
 			var time = new Date();
-			if (q1.length == 0 || index > 100 || time.getTime() - starttime.getTime() > timelimit) {
+			if (q1.length == 0 || index > 100 || time.getTime() - starttime.getTime() > Math.min(timelimit, 2000)) {
 				if (best.n[1].equals(from)) {
 					cb(null, null);
 				}
@@ -2974,4 +2972,21 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		loop_async_simp(0, {w:from.weight,n:q1[0]}, q1, h1, from, this.Rules, callback);
 
 	return;
+};
+
+ProofFinder.proveAsync = function(from, to, cb) {
+  if (window.Worker && window.location.protocol != 'file:') {
+    var pfw = new Worker('pfworker.js');
+    pfw.onmessage = function(e) {
+      cb(e.data.steps, e.data.res);
+    };
+    pfw.postMessage({id: id, from: from, to: to, tl: 2000});
+  }
+  else {
+  	console.log('Running ProofFinder on main thread');
+    var pf = new ProofFinder(20);
+    pf.Search(from, to, function (steps, res) {
+      cb(steps, res);
+    }, null, 2000);
+  }
 };

@@ -705,11 +705,10 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugc
 				proof: undefined
 			};
 			if (root.type == 'bin' && data.quantified.length == 0) {
-				var pf = new ProofFinder(root.op);
-				pf.Search(root.l, root.r, function (flatproof) {
+				ProofFinder.proveAsync(root.l, root.r, function (flatproof) {
 					resobj.proof = flatproof;
 					callback();
-				}, debugcallback);
+				});
 			}
 			res.true = resobj;
 		} else {

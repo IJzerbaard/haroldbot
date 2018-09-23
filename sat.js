@@ -31,18 +31,36 @@ SAT.prototype.addDIMACS = function(clause) {
 };
 
 SAT.prototype.solve = function (cb) {
-    var solve_string = Module.cwrap('solve_string', 'string', ['string', 'int']);
-    var str = "p cnf " + (this.highestvar + 1) + " " + this.clauses + "\n" + this.dimacs;
-    var res = solve_string(str, str.length);
-    var parts = res.split(" ");
-    if (parts[0] != "SAT")
-        return null;
-    var r = new Int8Array(this.highestvar);
-    for (var i = 1; i < parts.length; i++) {
-        var v = parseInt(parts[i]);
-        if (v > 0)
-            r[v - 1] = 1;
+    var highestvar = this.highestvar;
+    function processRes(res) {
+        var parts = res.split(" ");
+        if (parts[0] != "SAT")
+            return null;
+        var r = new Int8Array(highestvar);
+        for (var i = 1; i < parts.length; i++) {
+            var v = parseInt(parts[i]);
+            if (v > 0)
+                r[v - 1] = 1;
+        }
+        return r;
     }
-    if (cb) cb(r);
-    return r;
+
+    var str = "p cnf " + (highestvar + 1) + " " + this.clauses + "\n" + this.dimacs;
+    if (cb && window.Worker && window.location.protocol != 'file:') {
+        var sw = new Worker('satworker.js');
+        sw.onmessage = function (res) {
+            cb(processRes(res.data));
+        };
+        sw.postMessage(str);
+        window.setTimeout(function(){sw.terminate();}, 5000);
+        return null;
+    }
+    else {
+        console.log('Running MiniSAT on main thread');
+        var solve_string = Module.cwrap('solve_string', 'string', ['string', 'int']);
+        var res = solve_string(str, str.length);
+        var r = processRes(res);
+        if (cb) cb(r);
+        return r;
+    }
 };

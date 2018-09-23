@@ -537,257 +537,128 @@ CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcal
 		return void(0);
 	}
 
-	if (this._divideError == 0) {
+	function getModel(bit, cb, bannedModels) {
+		if (!bannedModels) bannedModels = [];
+		else if (bannedModels[0] == null) return cb(null);
 		var sat = new SAT();
-		circuit.to_cnf(~this._bits[0], sat);
-		var fmodel_raw = sat.solve();
-		sat = new SAT();
-		circuit.to_cnf(this._bits[0], sat);
-		var tmodel_raw = sat.solve();
-
-		var can_be_true = tmodel_raw != null;
-		var can_be_false = fmodel_raw != null;
-
-		var fmodel = new Int32Array(64);
-		if (can_be_false) {
+		circuit.to_cnf(bit, sat);
+		bannedModels.forEach(function (bannedModel) {
+			var clause = [];
+			for (var i = 0; i < 32 * vars.length; i++) {
+				if ((bannedModel[i >> 5] & (1 << (i & 31))) == 0)
+					clause.push(i + 1);
+				else
+					clause.push(~(i + 1));
+			}
+			sat.addClause(clause);
+		});
+		sat.solve(function (raw) {
+			if (!raw) return cb(null);
+			var model = new Int32Array(64);
 			for (var i = 1; i <= 32 * 64; i++) {
-				if (fmodel_raw[i] == 1)
-					fmodel[(i - 1) >> 5] |= 1 << ((i - 1) & 31);
+				if (raw[i] == 1)
+					model[(i - 1) >> 5] |= 1 << ((i - 1) & 31);
 			}
-		}
-		var tmodel = new Int32Array(64);
-		if (can_be_true) {
-			for (var i = 1; i <= 32 * 64; i++) {
-				if (tmodel_raw[i] == 1)
-					tmodel[(i - 1) >> 5] |= 1 << ((i - 1) & 31);
-			}
-		}
-
-		if (can_be_true) {
-			if (!can_be_false) {
-				var resobj = {
-					count: "#always"
-				};
-				if (root.type == 'bin' && ops[root.op] == '==') {
-					var pf = new ProofFinder();
-					pf.Search(root.l, root.r, function (flatproof) {
-						resobj.proof = flatproof;
-						callback();
-					}, debugcallback);
-				}
-				res.true = resobj;
-			}
-			else {
-				var trueobj1 = {
-					count: "#at least once",
-					examples: function (ix) {
-						return [tmodel][ix];
-					}
-				};
-				res.true = trueobj1;
-				callback();
-
-				var bits = this._bits;
-
-				setTimeout(function() {
-					var second = getModelWithBan(bits[0], tmodel);
-					var trueobj = {
-						count: second ? "#at least twice" : "1",
-						examples: function (ix) {
-							return [tmodel, second][ix];
-						}
-					};
-					res.true = trueobj;
-					callback();
-				}, 0);
-			}
-		}
-		if (can_be_false) {
-			if (!can_be_true) {
-				res.false = {
-					count: "#always"
-				};
-				if (root.type == 'bin' && root.op == 20 && vars.length > 0) {
-					res.false.ext_examples = true;
-					res.false.examples = function(ix) {
-						var len = vars.length;
-						var var_values = new Int32Array(len + 2);
-						for (var i = 0; i < 32; i++)
-							var_values[i % len] |= ((ix >>> i) & 1) << ~~(i / len);
-						var_values[len] = root.l.eval(var_values);
-						var_values[len + 1] = root.r.eval(var_values);
-						return var_values;
-					};
-				}
-			}
-			else {
-				var falseobj1 = {
-					count: "#at least once",
-					examples: function (ix) {
-						return [fmodel][ix];
-					}
-				};
-				res.false = falseobj1;
-				callback();
-				var bits = this._bits;
-
-				setTimeout(function() {
-					var second = getModelWithBan(~bits[0], fmodel);
-					var makeExamples = root.type == 'bin' && root.op == 20 && vars.length > 0;
-					var falseobj = {
-						count: second ? "#at least twice" : "1",
-						ext_examples: makeExamples,
-						examples: function (ix) {
-							var values = [fmodel, second][ix];
-							if (!makeExamples || !values) return values;
-							var len = vars.length;
-							var res = new Int32Array(len + 2);
-							for (var i = 0; i < len; i++)
-								res[i] = values[i];
-							res[len] = root.l.eval(res);
-							res[len + 1] = root.r.eval(res);
-							return res;
-						}
-					};
-					res.false = falseobj;
-					callback();
-				}, 0);
-			}
-		}
+			cb(model);
+		});
 	}
-	else if (this._divideError == -1) {
+
+	var true_without_de = circuit.and(~this._divideError, this._bits[0]);
+	var false_without_de = circuit.and(~this._divideError, ~this._bits[0]);
+	var divideError = this._divideError;
+	getModel(~divideError, function (ndemodel) {
+	getModel(divideError, function (demodel) {
+	if (demodel) {
 		res.diverror = {
-			count: "#always"
+			count: "#at least once",
+			examples: function(ix) {
+				return [demodel][ix];
+			}
 		};
+		if (!ndemodel) res.diverror.count = "#always";
+		callback();
 	}
-	else {
-		var sat = new SAT();
-		circuit.to_cnf(this._divideError, sat);
-		var de = sat.solve();
-
-		var true_without_de = circuit.and(~this._divideError, this._bits[0]);
-		var false_without_de = circuit.and(~this._divideError, ~this._bits[0]);
-
-		sat = new SAT();
-		circuit.to_cnf(false_without_de, sat);
-		var fmodel_raw = sat.solve();
-		sat = new SAT();
-		circuit.to_cnf(true_without_de, sat);
-		var tmodel_raw = sat.solve();
-
-		var fmodel = new Int32Array(66);
-			if (fmodel_raw) {
-			for (var i = 1; i <= 32 * 64; i++) {
-				if (fmodel_raw[i] == 1)
-					fmodel[(i - 1) >> 5] |= 1 << ((i - 1) & 31);
+	getModel(true_without_de, function (tmodel) {
+	if (tmodel) {
+		res.true = {
+			count: "#at least once",
+			examples: function(ix) {
+				return [tmodel][ix];
 			}
-		}
-		var tmodel = new Int32Array(64);
-		if (tmodel_raw) {
-			for (var i = 1; i <= 32 * 64; i++) {
-				if (tmodel_raw[i] == 1)
-					tmodel[(i - 1) >> 5] |= 1 << ((i - 1) & 31);
-			}
-		}
-		var demodel = new Int32Array(64);
-		if (de) {
-			for (var i = 1; i <= 32 * 64; i++) {
-				if (de[i] == 1)
-					demodel[(i - 1) >> 5] |= 1 << ((i - 1) & 31);
-			}
-		}
-
-		var can_be_true = tmodel_raw != null;
-		var can_be_false = fmodel_raw != null;
-
-		if (de == null) {
-			if (can_be_true) {
-				if (!can_be_false) {
-					var resobj = {
-						count: "#always",
-						proof: undefined
-					};
-					if (root.type == 'bin' && ops[root.op] == '==') {
-						var pf = new ProofFinder();
-						pf.Search(root.l, root.r, function (flatproof) {
-							resobj.proof = flatproof;
-							callback();
-						}, debugcallback);
-					}
-					res.true = resobj;
-				}
-				else {
-					var trueobj = {
-						count: "#at least once",
-						examples: function (ix) {
-							if (ix == 0)
-								return tmodel;
-						}
-					};
-					res.true = trueobj;
-				}
-			}
-			if (can_be_false) {
-				if (!can_be_true) {
-					res.false = {
-						count: "#always"
-					};
-				}
-				else {
-					var falseobj = {
-						count: "#at least once",
-						examples: function (ix) {
-							if (ix == 0)
-								return fmodel;
-						}
-					};
-					res.false = falseobj;
-				}
-			}
-		}
-		else {
-			sat = new SAT();
-			circuit.to_cnf(~this._divideError, sat);
-			var always_de = sat.solve() == null;
-			if (always_de) {
-				res.diverror = {
-					count: "#always"
-				};
-			}
-			else {
-				res.diverror = {
-					count: "#at least once",
-					examples: function(ix) {
-						if (ix == 0)
-							return demodel;
-					}
-				};
-				if (can_be_true) {
-					res.true = {
-						count: "#at least once",
-						examples: function(ix) {
-							if (ix == 0)
-								return tmodel;
-						}
-					};
-				}
-				if (can_be_false) {
-					var ext_examples = root.type == 'bin' && root.op == 20;
-					if (ext_examples) {
-						fmodel[vars.length] = root.l.eval(fmodel);
-						fmodel[vars.length + 1] = root.r.eval(fmodel);
-					}
-					res.false = {
-						count: "#at least once",
-						ext_examples: ext_examples,
-						examples: function(ix) {
-							if (ix == 0)
-								return fmodel;
-						}
-					};
-				}
-			}
-		}
+		};
+		callback();
 	}
-	return res;
+	getModel(false_without_de, function (fmodel) {
+	if (fmodel) {
+		res.false = {
+			count: "#at least once",
+			examples: function(ix) {
+				return [fmodel][ix];
+			}
+		};
+		callback();
+	}
+
+	if (!demodel && !fmodel && tmodel) {
+		var resobj = {count: "#always"};
+		if (root.type == 'bin' && ops[root.op] == '==') {
+			ProofFinder.proveAsync(root.l, root.r, function (flatproof) {
+				resobj.proof = flatproof;
+				callback();
+			});
+		}
+		res.true = resobj;
+		callback();
+		return;
+	}
+	if (!demodel && !tmodel && fmodel) {
+		res.false = {count: "#always"};
+		callback();
+		return;
+	}
+	if (!tmodel && !fmodel && demodel) {
+		res.diverror = {count: "#always"};
+		callback();
+		return;
+	}
+
+
+	// second set of models
+	getModel(true_without_de, function (tmodel2) {
+	if (tmodel2) {
+		res.true = {
+			count: "#at least twice",
+			examples: function(ix) {
+				return [tmodel, tmodel2][ix];
+			}
+		};
+		callback();
+	}
+	else if (tmodel) {
+		res.true.count = "1";
+		callback();
+	}
+	getModel(false_without_de, function (fmodel2) {
+	if (fmodel2) {
+		res.false = {
+			count: "#at least twice",
+			examples: function(ix) {
+				return [fmodel, fmodel2][ix];
+			}
+		};
+		callback();
+	}
+	else if (fmodel) {
+		res.false.count = "1";
+		callback();
+	}
+	}, [fmodel]);
+	}, [tmodel]);
+
+	});
+	});
+	});
+	});
+
+	return null;
 }

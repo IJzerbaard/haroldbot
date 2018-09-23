@@ -120,10 +120,10 @@ function performQuery(input) {
       update();
     }, function (exprc, backwards) {
       if (backwards) {
-        $j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        //$j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
       else {
-        $j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
+        //$j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
       }
     });
     update();
@@ -137,31 +137,21 @@ function performQuery(input) {
       data.simp = bddf.Identify(varmap);
       if (data.simp == undefined) {
         data.msg = "no simplication found";
-        // search for simplication with proof steps
-        var pf = new ProofFinder(20);
-        pf.Search(expr.removeDummy(), null, function (flatproof, simplified) {
-          if (flatproof == null)
-            return;
+        ProofFinder.proveAsync(expr.removeDummy(), null, function (steps, res) {
+          if (!steps) return;
           data.msg = undefined;
-          data.simp = simplified;
-          data.proof = flatproof;
+          data.simp = res;
+          data.proof = steps;
           update();
           Node.AnalyzeProperties(data, varmap, data.simp, update);
-        }, null, null, null, 2000);
+        });
       }
       else {
         Node.AnalyzeProperties(data, varmap, data.simp, update);
-        var pf = new ProofFinder(20);
-        pf.Search(expr.removeDummy(), data.simp, function (flatproof) {
-          data.proof = flatproof;
+        ProofFinder.proveAsync(expr.removeDummy(), data.simp, function (steps) {
+          if (!steps) return;
+          data.proof = steps;
           update();
-        }, function (exprc, backwards) {
-          if (backwards) {
-            //$j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
-          }
-          else {
-            //$j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
-          }
         });
       }
       
@@ -382,7 +372,7 @@ function parseproofstep(proofstep, ix, varmap, prevstep, nextstep) {
   container.attr("id", "proofj" + (ix + 1));
   var explanation = $j('<div/>').html(proofstep[0]).contents();
   if (proofstep[2]) {
-    var ex = encodeURIComponent(proofstep[2].print(varmap));
+    var ex = encodeURIComponent(Node.fromBareObject(proofstep[2]).print(varmap));
     explanation.filter('.replace').attr('href', 'index.html?q=' + ex);
   }
   var explanationTextSpan = $j("<span />").append(explanation);
@@ -715,6 +705,7 @@ $j(document).ready(function(){
       <li><tt>reverse</tt> bit-reversal</li>
       <li><tt>hmul = hmul_u, hmul_s</tt> high half of product</li>
       <li><tt>blsi, blsr, blsmsk, tzmsk</tt> BMI operations</li>
+      <li><tt>subus</tt> subtraction with unsigned saturation (aka <tt>dozu</tt>)</li>
     </ul>
   </div>
   <div id="exprdebug">
