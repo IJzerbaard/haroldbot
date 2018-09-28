@@ -489,6 +489,29 @@ CFunction.popcnt2 = function(x) {
 	return r;
 };
 
+CFunction.pdep = function (value, mask) {
+	var res = CFunction.constant(0);
+	for (var i = 0; i < 32; i++) {
+		var lowest = CFunction.and(CFunction.sub(CFunction.constant(0), mask), mask);
+		mask = CFunction.and(mask, CFunction.not(lowest));
+		var vbit = CFunction.nthbit(value, i);
+		res = CFunction.or(res, CFunction.and(lowest, vbit));
+	}
+	return res;
+};
+
+CFunction.pext = function (value, mask) {
+	var res = CFunction.constant(0);
+	for (var i = 0; i < 32; i++) {
+		var lowest = CFunction.and(CFunction.sub(CFunction.constant(0), mask), mask);
+		mask = CFunction.and(mask, CFunction.not(lowest));
+		var spread = CFunction.hor(CFunction.and(lowest, value));
+		var biti = CFunction.constant(1 << i);
+		res = CFunction.or(res, CFunction.and(biti, spread));
+	}
+	return res;
+};
+
 CFunction.prototype.sat = function(varcount) {
 	if (!varcount)
 		varcount = 4;
@@ -511,31 +534,6 @@ CFunction.prototype.sat = function(varcount) {
 CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcallback) {
 	var res = data;
 	res.msg = "Using SAT fallback";
-
-	function getModelWithBan(bit, bannedModel) {
-		var sat = new SAT();
-		circuit.to_cnf(bit, sat);
-		if (bannedModel) {
-			var clause = [];
-			for (var i = 0; i < 32 * vars.length; i++) {
-				if ((bannedModel[i >> 5] & (1 << (i & 31))) == 0)
-					clause.push(i + 1);
-				else
-					clause.push(~(i + 1));
-			}
-			sat.addClause(clause);
-		}
-		var model_raw = sat.solve();
-		if (model_raw != null) {
-			var model = new Int32Array(64);
-			for (var i = 1; i <= 32 * 64; i++) {
-				if (model_raw[i] == 1)
-					model[(i - 1) >> 5] |= 1 << ((i - 1) & 31);
-			}
-			return model;
-		}
-		return void(0);
-	}
 
 	function getModel(bit, cb, bannedModels) {
 		if (!bannedModels) bannedModels = [];

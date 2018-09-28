@@ -580,7 +580,7 @@ BDDFunction.fixscale = function (a, x, y) {
 
 	var diverror = bdd.or(BDDFunction.eqz(y), bdd.or(a._divideError, bdd.or(x._divideError, y._divideError)));
 	return new BDDFunction(div64_32(bdd_mul64(a._bits, x._bits, false), y._bits), diverror);
-}
+};
 
 BDDFunction.fixlerp = function (a, b, x, y) {
 	// (a * x + b * y) / (x + y)
@@ -616,7 +616,30 @@ BDDFunction.fixlerp = function (a, b, x, y) {
 	var d = fullmul(b._bits, y._bits);
 	var e = new Int32Array(64);
 	
-}
+};
+
+BDDFunction.pdep = function (value, mask) {
+	var res = BDDFunction.constant(0);
+	for (var i = 0; i < 32; i++) {
+		var lowest = BDDFunction.and(BDDFunction.sub(BDDFunction.constant(0), mask), mask);
+		mask = BDDFunction.and(mask, BDDFunction.not(lowest));
+		var vbit = BDDFunction.nthbit(value, i);
+		res = BDDFunction.or(res, BDDFunction.and(lowest, vbit));
+	}
+	return res;
+};
+
+BDDFunction.pext = function (value, mask) {
+	var res = BDDFunction.constant(0);
+	for (var i = 0; i < 32; i++) {
+		var lowest = BDDFunction.and(BDDFunction.sub(BDDFunction.constant(0), mask), mask);
+		mask = BDDFunction.and(mask, BDDFunction.not(lowest));
+		var spread = BDDFunction.hor(BDDFunction.and(lowest, value));
+		var biti = BDDFunction.constant(1 << i);
+		res = BDDFunction.or(res, BDDFunction.and(biti, spread));
+	}
+	return res;
+};
 
 BDDFunction.quantU = function (f, q, varmap) {
 	var bits = f._bits.slice();

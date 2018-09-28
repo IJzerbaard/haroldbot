@@ -294,6 +294,10 @@ function parse(query) {
 			return fun2("ormul", false);
 		} else if (l("subus")) {
 			return fun2("subus", false);
+		} else if (l("pdep")) {
+			return fun2("pdep", false);
+		} else if (l("pext")) {
+			return fun2("pext", false);
 		} else if (l("fixmul")) {
 			return fun3("fixmul", true);
 		} else if (l("fixscale")) {
@@ -411,7 +415,7 @@ function parse(query) {
 			}
 			ws();
 		} while (true);
-		return new Fun(name, args);
+		return new Fun("$" + name, args);
 	}
 
 	function ident() {

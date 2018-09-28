@@ -887,6 +887,28 @@ function ProofFinder(op, assocmode) {
 			["$bzhi", [a(0)], [a(1)]],
 			false, "multiple bzhi with the same index", ,
 		],
+		// properties of pdep
+		[
+			["$pdep", [a(0)], [0]],
+			[0],
+			false, "empty mask", ,
+		],
+		[
+			["$pdep", [a(0)], [aex(1, except_non_mersenne)]],
+			["&", [a(0)], [a(1)]],
+			false, "contiguous mask", ,
+		],
+		// properties of pext
+		[
+			["$pext", [a(0)], [0]],
+			[0],
+			false, "empty mask", ,
+		],
+		[
+			["$pext", [a(0)], [aex(1, except_non_mersenne)]],
+			["&", [a(0)], [a(1)]],
+			false, "contiguous mask", ,
+		],
 		// division stuff
 		[
 			["/u", [a(0)], [1]],
@@ -1504,6 +1526,17 @@ function ProofFinder(op, assocmode) {
 			["~", ["+", ["~", [a(0)]], [a(1)]]],
 			["-", [a(0)], [a(1)]],
 			false, "definition of subtraction", ,
+		],
+		// pext/pdep
+		[
+			["$pdep", ["$pext", [a(0)], [a(1)]], [a(1)]],
+			["&", [a(0)], [a(1)]],
+			false, "selected bits are put back in their original positions", ,
+		],
+		[
+			["$pdep", [a(0)], ["<<", [a(1)], [a(2)]]],
+			["<<", ["$pdep", [a(0)], [a(1)]], [a(2)]],
+			true, "move shift out of pdep", "move shift into pdep",
 		],
 		// conditional rules
 		[

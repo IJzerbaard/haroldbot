@@ -116,17 +116,7 @@ function performQuery(input) {
 
   if (expr.type == 'bin' && binOpResultsInBool(expr.op)) {
     // comparison
-    (bddf||circuitf).AnalyzeTruth(data, expr.removeDummy(), varmap, function () {
-      update();
-    }, function (exprc, backwards) {
-      if (backwards) {
-        //$j('#exprdebug1').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
-      }
-      else {
-        //$j('#exprdebug0').append($j('<div/>').append(formatexpr(exprc, 99999, varmap)));
-      }
-    });
-    update();
+    (bddf||circuitf).AnalyzeTruth(data, expr.removeDummy(), varmap, update, null);
   }
   else {
     if (quantified) {

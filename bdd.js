@@ -111,7 +111,7 @@ var bdd = {
 		return ~this.and(~f, ~g);
 	},
 
-	and: function(f, g) {
+	and: function(f, g, timelimit) {
 		if (f == -1 || g == -1 || f == 0 || g == 0 || f == ~g || f == g)
 			return f & g;
 
@@ -120,6 +120,11 @@ var bdd = {
 		var hash = ((((key1 << 17) - key1) ^ ((key2 << 16) + key2)) & 0x7fffffff) % 1048573;
 		if (this._memoop[hash] == 1 && this._memokey1[hash] == key1 && this._memokey2[hash] == key2)
 			return this._memo[hash];
+
+		if (timelimit && getmilitime() >= timelimit)
+			throw "BDD timeout";
+		else if (!timelimit)
+			timelimit = getmilitime() + 100;
 
 		var invf = f >> 31;
 		var invg = g >> 31;
@@ -132,11 +137,11 @@ var bdd = {
 
 		var value = 0;
 		if (fv == gv)
-			value = this.mk(fv, this.and(flo, glo), this.and(fhi, ghi));
+			value = this.mk(fv, this.and(flo, glo, timelimit), this.and(fhi, ghi, timelimit));
 		else if (fv < gv)
-			value = this.mk(fv, this.and(flo, g), this.and(fhi, g));
+			value = this.mk(fv, this.and(flo, g, timelimit), this.and(fhi, g, timelimit));
 		else
-			value = this.mk(gv, this.and(f, glo), this.and(f, ghi));
+			value = this.mk(gv, this.and(f, glo, timelimit), this.and(f, ghi, timelimit));
 
 		this._memoop[hash] = 1;
 		this._memokey1[hash] = key1;
@@ -162,6 +167,8 @@ var bdd = {
 
 		if (timelimit && getmilitime() >= timelimit)
 			throw "BDD timeout";
+		else if (!timelimit)
+			timelimit = getmilitime() + 100;
 
 		var fv = this._v[f];
 		var gv = this._v[g];
@@ -172,11 +179,11 @@ var bdd = {
 
 		var value = 0;
 		if (fv == gv)
-			value = this.mk(fv, this.xor(flo, glo), this.xor(fhi, ghi));
+			value = this.mk(fv, this.xor(flo, glo, timelimit), this.xor(fhi, ghi, timelimit));
 		else if (fv < gv)
-			value = this.mk(fv, this.xor(flo, g), this.xor(fhi, g));
+			value = this.mk(fv, this.xor(flo, g, timelimit), this.xor(fhi, g, timelimit));
 		else
-			value = this.mk(gv, this.xor(f, glo), this.xor(f, ghi));
+			value = this.mk(gv, this.xor(f, glo, timelimit), this.xor(f, ghi, timelimit));
 
 		this._memoop[hash] = 2;
 		this._memokey1[hash] = key1;
