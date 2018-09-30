@@ -379,7 +379,7 @@ Binary.prototype.print = function(varmap) {
 
 Binary.prototype.toBddFunc = function() {
 	var op = this.op;
-	if (((op >= 11 && op <= 14) || (op >= 32 && op <= 35) || (op >= 59)) && this.l.type != 'const' && this.r.type != 'const') throw "BDD timeout";
+	if (((op >= 12 && op <= 14) || (op >= 32 && op <= 35) || (op >= 59)) && this.l.type != 'const' && this.r.type != 'const') throw "BDD timeout";
 	var bddf = binaryToBddFunc(op, this.l.toBddFunc(), this.r.toBddFunc());
 	this.bddf = bddf;
 	return bddf;

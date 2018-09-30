@@ -145,7 +145,7 @@ function performQuery(input) {
         });
       }
       
-      bddf.AnalyzeProperties(data, varmap, null);
+      bddf.AnalyzeProperties(data, varmap, data.simp || expr.removeDummy(), update);
       update();
     }
     else {
@@ -611,9 +611,17 @@ function update(optdata) {
     }
     else if (prop.hasOwnProperty('invertible')) {
       var propinv = $j('<div>invertible: </div>');
-      propinv.append(prop.invertible + "");
+      propinv.append(prop.invertible + " ");
+      propinv.append($j('<a>proof</a>').attr('href', 'index.html?q=' + encodeURIComponent(prop.inverseproof)));
       propscont.append(propinv);
-      $j('#displayoptions').show();
+      haveAny = true;
+    }
+
+    if (prop.hasOwnProperty('commutative')) {
+      var propcomm = $j('<div>commutative: </div>');
+      propcomm.append(prop.commutative + " ");
+      propcomm.append($j('<a>proof</a>').attr('href', 'index.html?q=' + encodeURIComponent(prop.commutativeproof)));
+      propscont.append(propcomm);
       haveAny = true;
     }
 

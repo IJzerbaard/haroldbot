@@ -694,7 +694,7 @@ BDDFunction.IdentifyPredicate = function(bit, negated) {
 	return null;
 };
 
-BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcallback) {
+BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback) {
 	var res = data;
 
 	var remap = new Array(2048);
@@ -799,6 +799,7 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugc
 			};
 		}
 	}
+	callback();
 	return res;
 }
 
@@ -1162,7 +1163,7 @@ BDDFunction.prototype.Identify = function(vars) {
 		return format_invor(r_or);
 };
 
-BDDFunction.prototype.AnalyzeProperties = function(data, vars, callback) {
+BDDFunction.prototype.AnalyzeProperties = function(data, vars, root, callback) {
 
 	function getLowestUnsigned(res, bits, mustBeZero, maxvar, remap) {
 		try {
@@ -1245,10 +1246,49 @@ BDDFunction.prototype.AnalyzeProperties = function(data, vars, callback) {
 			var eq01 = BDDFunction.eq(v0, v1);
 			var t = getmilitime() + 200;
 			var xorself = bits.map(function (x) {
-				return bdd.xor(x, bdd.incv(x), t);
+				return bdd.xor(x, bdd.incv(x, 1), t);
 			});
 			var iseq = BDDFunction.eq(new BDDFunction(xorself, 0), BDDFunction.constant(0));
 			return bdd.andIsZero(iseq._bits[0], ~eq01._bits[0]);
+		}
+		catch (err) { return null; }
+	}
+
+	function swapVar01(x, t) {
+		var invert = x >> 31;
+		x ^= invert;
+		if (x == 0) return x ^ invert;
+
+		var hash = x % 1048573;
+		if (bdd._memoop[hash] == 0x55 && bdd._memokey1[hash] == x)
+			return bdd._memo[hash] ^ invert;
+
+		if (getmilitime() >= t) throw new "BDD timeout";
+
+		var xv = bdd._v[x];
+		var xlo = bdd._lo[x];
+		var xhi = bdd._hi[x];
+
+		var lo = swapVar01(xlo, t);
+		var hi = swapVar01(xhi, t);
+
+		var plainvar = bdd.mk(xv ^ 1, 0, -1);
+		var value = bdd.mux(plainvar, lo, hi);
+
+		bdd._memoop[hash] = 0x55;
+		bdd._memokey1[hash] = x;
+		bdd._memo[hash] = value;
+
+		return value ^ invert;
+	}
+
+	function isCommutative(bits) {
+		try {
+			var t = getmilitime() + 200;
+			var swapped = bits.map(function (x) {
+				return swapVar01(x, t);
+			});
+			return swapped.every(function (x, i){return x==bits[i];});
 		}
 		catch (err) { return null; }
 	}
@@ -1316,13 +1356,39 @@ BDDFunction.prototype.AnalyzeProperties = function(data, vars, callback) {
 
 	getHighestUnsigned(res, this._bits, mustBeOne, index, remap);
 
-	if (callback)
-		callback(res);
+	if (callback) callback();
+
+	function replaceVars(root) {
+		switch (root.type) {
+		case "var": return new Variable(root.index ^ 1);
+		case "const": return root;
+		case "un": return new Unary(root.op, replaceVars(root.value));
+		case "bin": return new Binary(root.op, replaceVars(root.l), replaceVars(root.r));
+		case "assoc": return new Assoc(root.op, root.operands.map(replaceVars));
+		case "ter": return new Ternary(replaceVars(root.cond), replaceVars(root.t), replaceVars(root.f));
+		case "fun": return new Function(root.fun, root.args.map(replaceVars));
+		default: alert("missing case in bddfunction.replaceVars");
+		}
+	}
 
 	if (vars.length == 1 && !res.inverse && (mustBeOne | mustBeZero) == 0) {
 		var bij = isBijection(this._bits);
 		if (bij != null) {
 			res.invertible = bij;
+			var feq = new Binary(20, root, replaceVars(root));
+			var veq = new Binary(20, new Variable(0), new Variable(1));
+			res.inverseproof = new Binary(ops.indexOf("=>"), feq, veq).print(["x", "y"]);
+			if (callback) callback();
+		}
+	}
+
+	if (vars.length == 2) {
+		var comm = isCommutative(this._bits);
+		if (comm != null) {
+			res.commutative = comm;
+			res.commutativeproof = new Binary(20, root, replaceVars(root)).print(vars);
+
+			if (callback) callback();
 		}
 	}
 
