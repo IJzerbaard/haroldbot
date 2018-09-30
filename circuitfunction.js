@@ -531,13 +531,15 @@ CFunction.prototype.sat = function(varcount) {
 	return null;
 };
 
-CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcallback) {
+CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback) {
 	var res = data;
 	res.msg = "Using SAT fallback";
 
 	function getModel(bit, cb, bannedModels) {
 		if (!bannedModels) bannedModels = [];
 		else if (bannedModels[0] == null) return cb(null);
+		if (bit == 0) return cb(null);
+		if (bit == -1 && bannedModels.length == 0) return cb(new Int32Array(64));
 		var sat = new SAT();
 		circuit.to_cnf(bit, sat);
 		bannedModels.forEach(function (bannedModel) {
