@@ -960,11 +960,21 @@ Let.prototype.print = function (varmap) {
 	var str = "let ";
 	varmap = varmap.slice();
 	for (var i = 0; i < this.pairs.length; i++) {
-		var p = this.pairs[i];		
-		str += p.name + " = " + p.expr.print(varmap);
-		varmap.push(p.name);
+		if (i != 0) str += ", "
+		var p = this.pairs[i];	
+		if (p.name)	{
+			str += p.name + " = " + p.expr.print(varmap);
+			varmap.push(p.name);
+		}
+		else
+			str += p.v.print(varmap) + " = " + p.expr.print(varmap);
 	}
-	return str + " in " + expr.print(varmap);
+	return str + " in " + this.expr.print(varmap);
+};
+
+Let.prototype.constantFold = function(nrec) {
+	this.expr = this.expr.constantFold(nrec);
+	return this;
 };
 
 Node.fromBareObject = function (expr) {
@@ -1034,6 +1044,12 @@ Node.AnalyzeProperties = function(data, vars, expr, callback) {
 	switch (vars.length) {
 		default: return;
 		case 1:
+			function collectAssoc(expr, op) {
+				if (expr.type === "bin" && expr.op === op)
+					return collectAssoc(expr.l).concat(collectAssoc(expr.r));
+				else
+					return [expr];
+			}
 			function invert(expr, inv) {
 				switch (expr.type) {
 					default: return null;
@@ -1093,6 +1109,83 @@ Node.AnalyzeProperties = function(data, vars, expr, callback) {
 							}
 							return null;
 						}
+						// clmul by xor/left-shift, or mirrored variant
+						// or mul by add/left-shift
+						if (expr.op == 3 || expr.op == 4) {
+							var op = expr.op;
+							var parts = collectAssoc(expr, op);
+							// one of the parts needs to be the unshifted version
+							var unshifted = parts.find(function (p) { return p.type != "bin" || (p.op != 6 && p.op != 31); });
+							// and one of the parts needs to be the shifted version
+							var shifted = parts.find(function (p) { return p.type == "bin" && (p.op == 6 || p.op == 31); });
+							if (!unshifted || !shifted) return null;
+							var shiftop = shifted.op;
+							// only XOR can be paired with right shift
+							if (op == 4 && shiftop == 31) return null;
+							// all of the parts need to be either the unshifted version or the shifted version
+							if (parts.every(function (p){
+								if (p.id == unshifted.id || p.equals(unshifted)) return true;
+								else if (p.type != "bin" || p.op != shiftop) return false;
+								else if (p.r.type != "const") return false;
+								else return p.l.equals(unshifted);
+							})) {
+								// find multiplier
+								function xor(a, b) { return a^b; }
+								function add(a, b) { return a+b|0; }
+								var combiner = op == 3 ? xor : add;
+								var M = 0;
+								for (var i = 0; i < parts.length; i++) {
+									var p = parts[i];
+									if (p.id == unshifted.id || p.equals(unshifted))
+										M = combiner(M, 1);
+									else if (p.type == "bin" && p.op == shiftop && p.r.type == "const")
+										M = combiner(M, 1 << p.r.value)
+									else {
+										// shouldn't happen
+										debugger;
+										return null;
+									}
+								}
+								// multiplier must be odd otherwise it has no inverse
+								if ((M & 1) == 0) return null;
+								// for addition/left-shift use a multiply
+								if (op == 4 && shiftop == 6) {
+									var x = mulinv(M);
+									return invert(unshifted, new Binary(11, inv, new Constant(x)));
+								}
+								// for xor with left-shift use clmul, otherwise xor/right shift combo
+								if (op == 3) {
+									function makeOneStepXorshift(M, base, shiftop) {
+										var e = base;
+										M &= -2;
+										while (M != 0) {
+											var m = M & -M;
+											var sh = ctz(m);
+											M &= M - 1;
+											e = new Binary(3, e, new Binary(shiftop, base, new Constant(sh)));
+										}
+										return e;
+									}
+									var x = clinv(M);
+									if (shiftop == 6)
+										return invert(unshifted, new Binary(61, inv, new Constant(x)));
+									else {
+										var f = clfactor(x);
+										var x = inv;
+										if (x.type == "var")
+											x = makeOneStepXorshift(f.shift(), x, shiftop);
+										if (f.length > 0) {
+											var p1 = f.map(function (M){ return makeOneStepXorshift(M, new Variable(2), shiftop); });
+											p1.unshift(x);
+											var last = p1.pop();
+											var p2 = p1.map(function (p){ return {v: new Variable(2), expr: p}; });
+											x = new Let(p2, last);
+										}
+										return invert(unshifted, x);
+									}
+								}
+							}
+						}
 						return null;
 				}
 			}
@@ -1103,6 +1196,7 @@ Node.AnalyzeProperties = function(data, vars, expr, callback) {
 				if (inv.type != "var") {
 					var newvar = data.varmap[0] == "r" ? "x" : "r";
 					data.varmap[1] = newvar;
+					data.varmap[2] = data.varmap[0] == "t" ? "y" : "t";
 					data.properties.inverse = inv;
 					data.properties.inverseproof = "let " + newvar + " = " + expr.print(data.varmap) + " in (" + inv.print(data.varmap) + ") == " + data.varmap[0];
 				}

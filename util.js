@@ -175,15 +175,59 @@ function mulinv(d) {
 }
 
 function clinv(d) {
-    var x = d;
-    x = clmul_u32(x, clmul_u32(d, x));
-    x = clmul_u32(x, clmul_u32(d, x));
-    x = clmul_u32(x, clmul_u32(d, x));
-    x = clmul_u32(x, clmul_u32(d, x));
-    // sanity check
-    if (clmul_u32(x, d) != 1)
-        throw "incorrect multiplicative inverse";
+    var rem = d & -2;
+    var x = 1;
+    while (rem != 0) {
+        var b = rem & -rem;
+        x |= b;
+        rem ^= Math.imul(d, b) & -2;
+    }
     return x;
+}
+
+function clfactor(x) {
+    var res = [x|0];
+    do {
+        x = res[res.length - 1];
+        var w1 = popcnt(x) - 1;
+        var w2 = 10000;
+        var f2 = 0;
+        for (var i = 1; i < 32; i++) {
+            var xdiv = x;
+            for (var j = i; j < 32; j += i)
+                xdiv ^= x << j;
+            var weight = popcnt(xdiv);
+            if (weight < w2) {
+                w2 = weight;
+                f2 = 1 | (1 << i);
+            }
+        }
+        var w3 = 10000;
+        var f3 = null;
+        if (x != Math.imul(x & 15, 0x11111111)) {
+            for (var i = 1; i < 31; i++) {
+                for (var j = i + 1; j < 32; j++) {
+                    var f = 1 | (1 << i) | (1 << j);
+                    var weight = popcnt(clmul_u32(x, clinv(f))) + 1;
+                    if (weight < w3) {
+                        w3 = weight;
+                        f3 = f;
+                    }
+                }
+            }
+        }
+
+        var minw = Math.min(w1, w2, w3);
+        if (minw == w1)
+            return res;
+        else {
+            var f = f2;
+            if (minw == w3)
+                f = f3;
+            res[res.length - 1] = f;
+            res.push(clmul_u32(x, clinv(f)));
+        }
+    } while (true);
 }
 
 function getmilitime() {

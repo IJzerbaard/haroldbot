@@ -340,6 +340,19 @@ function formatexpr(expr, ix, varmap) {
     res.append(")");
     return res;
   }
+  if (expr.type == 'let') {
+    res.append("let ");
+    for (var i = 0; i < expr.pairs.length; i++) {
+      if (i != 0)
+        res.append(", ");
+      res.append(formatexpr(expr.pairs[i].v, ix, varmap));
+      res.append(" = ");
+      res.append(formatexpr(expr.pairs[i].expr, ix, varmap));
+    }
+    res.append(" in ");
+    res.append(formatexpr(expr.expr, ix, varmap));
+    return res;
+  }
   debugger;
 }
 function parseproofstep(proofstep, ix, varmap, prevstep, nextstep) {

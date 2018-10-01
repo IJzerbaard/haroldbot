@@ -2335,8 +2335,65 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 
 			switch (op) {
 			default: break;
+			case 3:
+				// xor
+				// try to turn xors of shifted values into clmul
+				var unshifted = args.find(function (a) { return a.type != "bin" || a.op != 6; });
+				if (unshifted && args.every(function (a) {
+					return a.id == unshifted.id ||
+						(a.type == "bin" && a.op == 6 &&
+						a.r.type == "const" && a.l.equals2(unshifted)); 
+				})) {
+					var M = 0;
+					for (var i = 0; i < args.length; i++) {
+						var a = args[i];
+						if (a.id == unshifted.id) M = M + 1 | 0;
+						else M = M + (1 << a.r.value) | 0;
+					}
+					var res = new Binary(61, unshifted, new Constant(M));
+					if (getPattern) {
+						var rp = new Binary(61, mkvar(0, unshifted.id), res.r);
+						rp.id = res.id;
+						var pp = rebuildTreeLike(root, function (e,a){
+							if (e.equals2(unshifted)) return mkvar(0, 0);
+							else return new Binary(6, mkvar(0, e.l.id), e.r);
+						}, op, -1);
+						var p = new Binary(20, pp, rp);
+						results.push([p, res, [,,,"combine xors into clmul", "split clmul into xors"]]);
+					}
+					else
+						results.push([parent, res, null, backwards, parent[4] + 1, null]);
+				}
+				break;
 			case 4:
 				// addition
+				// try to turn additions of shifted values into multiply
+				var unshifted = args.find(function (a) { return a.type != "bin" || a.op != 6; });
+				if (unshifted && args.every(function (a) {
+					return a.id == unshifted.id ||
+						(a.type == "bin" && a.op == 6 &&
+						a.r.type == "const" && a.l.equals2(unshifted)); 
+				})) {
+					var M = 0;
+					for (var i = 0; i < args.length; i++) {
+						var a = args[i];
+						if (a.id == unshifted.id) M = M + 1 | 0;
+						else M = M + (1 << a.r.value) | 0;
+					}
+					var res = new Binary(11, unshifted, new Constant(M));
+					if (getPattern) {
+						var rp = new Binary(11, mkvar(0, unshifted.id), res.r);
+						rp.id = res.id;
+						var pp = rebuildTreeLike(root, function (e,a){
+							if (e.equals2(unshifted)) return mkvar(0, 0);
+							else return new Binary(6, mkvar(0, e.l.id), e.r);
+						}, op, -1);
+						var p = new Binary(20, pp, rp);
+						results.push([p, res, [,,,"combine additions into multiplication", "split multiplication into additions"]]);
+					}
+					else
+						results.push([parent, res, null, backwards, parent[4] + 1, null]);
+				}
 				// check complementary subsets
 				if (args.some(function (e){ return e.type != 'bin' || e.op != 1 || (e.l.type != 'const' && e.r.type != 'const'); })) break;
 				var values = args.map(function (e){ return e.l.type == 'const' ? e.l.value : e.r.value; });
