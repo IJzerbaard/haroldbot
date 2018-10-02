@@ -898,6 +898,16 @@ function ProofFinder(op, assocmode) {
 			["&", [a(0)], [a(1)]],
 			false, "contiguous mask", ,
 		],
+		[
+			["$pdep", [a(0)], ["$pdep", [a(1)], [a(2)]]],
+			["$pdep", ["$pdep", [a(0)], [a(1)]], [a(2)]],
+			true, "associativity of pdep", ,
+		],
+		[
+			["$pdep", [a(0)], ["<<", [a(1)], [a(2)]]],
+			["<<", ["$pdep", [a(0)], [a(1)]], [a(2)]],
+			true, "move shift out of pdep", "move shift into pdep",
+		],
 		// properties of pext
 		[
 			["$pext", [a(0)], [0]],
@@ -1534,9 +1544,14 @@ function ProofFinder(op, assocmode) {
 			false, "selected bits are put back in their original positions", ,
 		],
 		[
-			["$pdep", [a(0)], ["<<", [a(1)], [a(2)]]],
-			["<<", ["$pdep", [a(0)], [a(1)]], [a(2)]],
-			true, "move shift out of pdep", "move shift into pdep",
+			["$pext", ["$pext", [a(0)], [a(1)]], [a(2)]],
+			["$pext", [a(0)], ["$pdep", [a(2)], [a(1)]]],
+			false, "merge extracts by composing the masks", ,
+		],
+		[
+			["$pext", [a(0)], ["$pdep", [a(1)], [a(2)]]],
+			["$pext", ["$pext", [a(0)], [a(2)]], [a(1)]],
+			false, "split extraction into two steps", ,
 		],
 		// conditional rules
 		[
@@ -2287,8 +2302,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			return v;
 		}
 
-		if (root.type == 'bin' &&
-			associative[root.op] &&
+		if (root.type == 'bin') {
+		if (associative[root.op] &&
 			commutative[root.op]) {
 			var op = root.op;
 			var args = [];
@@ -2416,7 +2431,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 					results.push([parent, res, null, backwards, parent[4] + 1, null]);
 			}
 		}
-		else if (root.type == 'bin' && (root.op == 6 || root.op == 30 || root.op == 31)) {
+		else if (root.op == 6 || root.op == 30 || root.op == 31) {
 			var op = root.op;
 			var args = [];
 
@@ -2470,7 +2485,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				}
 			}
 		}
-		else if (root.type == 'bin' && root.op == 33) {
+		else if (root.op == 33) {
 			// /u
 			if (root.r.type == 'const' && popcnt(root.r.value) == 1) {
 				var res = new Binary(31, root.l, new Constant(ctz(root.r.value)));
@@ -2487,7 +2502,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 					results.push([parent, res, null, backwards, parent[4] + 1, null])
 			}
 		}
-		else if (root.type == 'bin' && root.op == 35) {
+		else if (root.op == 35) {
 			// %u
 			if (root.r.type == 'const' && popcnt(root.r.value) == 1) {
 				var res = new Binary(1, root.l, new Constant(~~(root.r.value - 1)));
@@ -2504,7 +2519,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 					results.push([parent, res, null, backwards, parent[4] + 1, null])
 			}
 		}
-		else if (root.type == 'bin' && root.op == 12) {
+		else if (root.op == 12) {
 			// /e
 			if (root.r.type == 'const' && popcnt(root.r.value) == 1) {
 				var res = new Binary(30, root.l, new Constant(ctz(root.r.value)));
@@ -2521,7 +2536,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 					results.push([parent, res, null, backwards, parent[4] + 1, null])
 			}
 		}
-		else if (root.type == 'bin' && root.op == 13) {
+		else if (root.op == 13) {
 			// %e
 			if (root.r.type == 'const' && popcnt(root.r.value) == 1) {
 				var res = new Binary(1, root.l, new Constant(~~(root.r.value - 1)));
@@ -2538,7 +2553,11 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 					results.push([parent, res, null, backwards, parent[4] + 1, null])
 			}
 		}
-
+		else if (root.op == 50) {
+			// pdep
+			
+		}
+		}
 
 		if (root.type == 'bin' && !mayThrow(root.op) && root.l.type == 'ter' &&
 			root.l.cond.type == 'bin' && binOpResultsInBool(root.l.cond.op)) {
