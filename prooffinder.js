@@ -1139,6 +1139,36 @@ function ProofFinder(op, assocmode) {
 			["$reverse", ["|", [a(0)], [a(1)]]],
 			true, "reverse distributes over or"
 		],
+		[
+			["$pdep", ["&", [a(0)], [a(1)]], [a(2)]],
+			["&", ["$pdep", [a(0)], [a(2)]], ["$pdep", [a(1)], [a(2)]]],
+			false, "pdep distributes over and"
+		],
+		[
+			["&", ["$pdep", [a(0)], [a(1)]], ["$pdep", [a(2)], [a(1)]]],
+			["$pdep", ["&", [a(0)], [a(2)]], [a(1)]],
+			false, "pdep distributes over and"
+		],
+		[
+			["$pdep", ["|", [a(0)], [a(1)]], [a(2)]],
+			["|", ["$pdep", [a(0)], [a(2)]], ["$pdep", [a(1)], [a(2)]]],
+			false, "pdep distributes over or"
+		],
+		[
+			["|", ["$pdep", [a(0)], [a(1)]], ["$pdep", [a(2)], [a(1)]]],
+			["$pdep", ["|", [a(0)], [a(2)]], [a(1)]],
+			false, "pdep distributes over or"
+		],
+		[
+			["$pdep", ["^", [a(0)], [a(1)]], [a(2)]],
+			["^", ["$pdep", [a(0)], [a(2)]], ["$pdep", [a(1)], [a(2)]]],
+			false, "pdep distributes over xor"
+		],
+		[
+			["^", ["$pdep", [a(0)], [a(1)]], ["$pdep", [a(2)], [a(1)]]],
+			["$pdep", ["^", [a(0)], [a(2)]], [a(1)]],
+			false, "pdep distributes over xor"
+		],
 		// shifts over or
 		[
 			["<<", ["|", [a(0)], [a(1)]], [a(2)]],

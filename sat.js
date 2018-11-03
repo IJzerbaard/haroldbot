@@ -41,6 +41,8 @@ SAT.prototype.solve = function (cb) {
             var v = parseInt(parts[i]);
             if (v > 0)
                 r[v - 1] = 1;
+            else
+                r[v - 1] = 2;
         }
         return r;
     }
@@ -52,7 +54,7 @@ SAT.prototype.solve = function (cb) {
             cb(processRes(res.data));
         };
         sw.postMessage(str);
-        window.setTimeout(function(){sw.terminate();}, 5000);
+        window.setTimeout(function(){sw.terminate();}, 10000);
         return null;
     }
     else {
