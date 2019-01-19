@@ -1133,6 +1133,48 @@ BDDFunction.prototype.Identify = function(vars) {
 		// unreachable
 	}
 
+	// identify a function of the form
+	// pdep(v, c1) ^ c2
+	// return: [v, c1, c2]
+	function is_pdepc(bits) {
+		var lastindex = -1, v = -1, c1 = 0, c2 = 0;
+		for (var i = 0; i < bits.length; i++) {
+			var x = bits[i];
+			if (x == 0) continue;
+			if (x == -1) {
+				c2 |= 1 << i;
+				continue;
+			}
+			var inv = x >> 31;
+			x ^= inv;
+			if (v == -1)
+				v = bdd._v[x] & 63;
+			else if (v != (bdd._v[x] & 63))
+				return null;
+			var index = (bdd._v[x] >> 6) ^ 31;
+			if (index != lastindex + 1)
+				return null;
+			else {
+				c1 |= 1 << i;
+				lastindex = index;
+			}
+			var lo = bdd._lo[x] ^ inv;
+			var hi = bdd._hi[x] ^ inv;
+			if (lo == -1 && hi == 0)
+				c2 |= 1 << i;
+			else if (lo != 0 || hi != -1) return null;
+		}
+		if (lastindex < 0 || v < 0) return null;
+		return [v, c1, c2];
+	}
+
+	function format_pdepc(r_pdep) {
+		var node = new Binary(ops.indexOf('$pdep'), new Variable(r_pdep[0]), new Constant(r_pdep[1]));
+		if (r_pdep[2] != 0)
+			node = new Binary(3, node, new Constant(r_pdep[2]));
+		return node;
+	}
+
 	if (this._divideError != 0)
 		return null;
 
@@ -1153,6 +1195,10 @@ BDDFunction.prototype.Identify = function(vars) {
 	if (r_eqc) {
 		return new Binary(ops.indexOf('=='), new Variable(r_eqc[0]), new Constant(r_eqc[1]));
 	}
+
+	var r_pdep = is_pdepc(this._bits);
+	if (r_pdep)
+		return format_pdepc(r_pdep);
 
 	var invbits = new Int32Array(32);
 	for (var i = 0; i < 32; i++)

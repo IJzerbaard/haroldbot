@@ -62,7 +62,7 @@ var bdd = {
 			return lo ^ invert;
 
 		var hash2 = ((((v << 17) - v) ^ ((lo << 13) - lo) ^ ((hi << 16) + hi)) & 0x7fffffff) % 8388593;
-		hash1 = hash2 & -8;
+		var hash1 = hash2 & -8;
 		var upper = (hash1 + 1000) % 8388593;
 
 		if (hash1 == 0)

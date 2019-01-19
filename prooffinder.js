@@ -1169,6 +1169,11 @@ function ProofFinder(op, assocmode) {
 			["$pdep", ["^", [a(0)], [a(2)]], [a(1)]],
 			false, "pdep distributes over xor"
 		],
+		[
+			["$pdep", ["+", [a(0)], [a(1)]], [a(2)]],
+			["&", ["+", ["|", ["$pdep", [a(0)], [a(2)]], ["~", [a(2)]]], ["$pdep", [a(1)], [a(2)]]], [a(2)]],
+			false, "move addition out of pdep"
+		],
 		// shifts over or
 		[
 			["<<", ["|", [a(0)], [a(1)]], [a(2)]],
