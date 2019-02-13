@@ -1207,6 +1207,41 @@ BDDFunction.prototype.Identify = function(vars) {
 		return node;
 	}
 
+	// identify a function of the form
+	// (x >>> c1) & c2
+	// return: [x, c1, c2]
+	function is_ror(bits) {
+		var mask = 0, v = -1, c1 = -1;
+		for (var i = 0; i < bits.length; i++) {
+			var x = bits[i];
+			if (x == 0) continue;
+			if (x == -1) return null;
+			mask |= 1 << i;
+			var inv = x >> 31;
+			x ^= inv;
+			if (v == -1)
+				v = bdd._v[x] & 63;
+			else if (v != (bdd._v[x] & 63))
+				return null;
+			if (c1 == -1)
+				c1 = (bdd._v[x] >> 6) + i & 31;
+			else if (c1 != ((bdd._v[x] >> 6) + i & 31))
+				return null;
+			var lo = bdd._lo[x] ^ inv;
+			var hi = bdd._hi[x] ^ inv;
+			if (lo != 0 || hi != -1) return null;
+		}
+		if (v < 0 || c1 < 0) return null;
+		return [v, c1 ^ 31, mask];
+	}
+
+	function format_ror(r_ror) {
+		var node = new Binary(9, new Variable(r_ror[0]), new Constant(r_ror[1]));
+		if (r_ror[2] != -1)
+			node = new Binary(1, node, new Constant(r_ror[2]));
+		return node;
+	}
+
 	if (this._divideError != 0)
 		return null;
 
@@ -1231,6 +1266,10 @@ BDDFunction.prototype.Identify = function(vars) {
 	var r_pdep = is_pdepc(this._bits);
 	if (r_pdep)
 		return format_pdepc(r_pdep);
+
+	var r_ror = is_ror(this._bits);
+	if (r_ror)
+		return format_ror(r_ror);
 
 	var invbits = new Int32Array(32);
 	for (var i = 0; i < 32; i++)
