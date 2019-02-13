@@ -1192,6 +1192,12 @@ Node.AnalyzeProperties = function(data, vars, expr, callback) {
 								}
 							}
 						}
+						// rotate of invertible by constant
+						if (expr.op == 8 || expr.op == 9) {
+							rcf = rcf || expr.r.constantFold();
+							if (rcf.type == "const")
+								return invert(expr.l, rcf.value == 0 ? inv : new Binary(expr.op ^ 1, inv, rcf));
+						}
 						return null;
 				}
 			}
