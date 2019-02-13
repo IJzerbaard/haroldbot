@@ -1377,6 +1377,27 @@ function ProofFinder(op, assocmode) {
 			["<=s", [a(0)], [a(1)]],
 			false, "reversing a boolean has no effect", ,
 		],
+		// rotates
+		[
+			[">>>", [a(0)], [0]],
+			[a(0)],
+			false, "rotate by zero", ,
+		],
+		[
+			["<<<", [a(0)], [0]],
+			[a(0)],
+			false, "rotate by zero", ,
+		],
+		[
+			[">>>", [a(0)], [a(1)]],
+			["|", [">>u", [a(0)], [a(1)]], ["<<", [a(0)], ["-", [a(1)]]]],
+			true, "split ror into shifts", "combine shifts into ror",
+		],
+		[
+			["<<<", [a(0)], [a(1)]],
+			["|", ["<<", [a(0)], [a(1)]], [">>u", [a(0)], ["-", [a(1)]]]],
+			true, "split rol into shifts", "combine shifts into rol",
+		],
 		// binomials
 		[
 			["*", ["+", [a(0)], [a(1)]], ["+", [a(2)], [a(3)]]],
