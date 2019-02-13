@@ -393,6 +393,8 @@ function binaryToBddFunc(op, l, r) {
 		case 4: return BDDFunction.add(l, r);
 		case 5: return BDDFunction.sub(l, r);
 		case 6: return BDDFunction.shl(l, r);
+		case 8: return BDDFunction.rol(l, r);
+		case 9: return BDDFunction.ror(l, r);
 		case 11: return BDDFunction.mul(l, r);
 		case 12: return BDDFunction.dive(l, r);
 		case 13: return BDDFunction.reme(l, r);
@@ -449,6 +451,8 @@ function binaryToCircuitFunc(op, l, r) {
 		case 4: return CFunction.add(l, r);
 		case 5: return CFunction.sub(l, r);
 		case 6: return CFunction.shl(l, r);
+		case 8: return CFunction.rol(l, r);
+		case 9: return CFunction.ror(l, r);
 		case 11: return CFunction.mul(l, r);
 		case 12: return CFunction.dive(l, r);
 		case 13: return CFunction.reme(l, r);
@@ -532,6 +536,8 @@ function evalBinary(op, l, r) {
 		case 4: return l + r | 0;
 		case 5: return l - r | 0;
 		case 6: return l << (r & 31);
+		case 8: return (l << (r & 31)) | (l >>> (-r & 31));
+		case 9: return (l >>> (r & 31)) | (l << (-r & 31));
 		case 7:
 		case 31: return (l >>> (r & 31)) | 0;
 		case 30: return l >> (r & 31);

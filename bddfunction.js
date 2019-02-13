@@ -251,6 +251,38 @@ BDDFunction.shrs = function(x, y) {
 	return x;
 }
 
+BDDFunction.rolc = function(x, n) {
+	var bits = new Int32Array(32);
+	for (var i = 0; i < 32; i++)
+		bits[i] = x._bits[i - n & 31];
+	return new BDDFunction(bits, x._divideError);
+}
+
+BDDFunction.rorc = function(x, n) {
+	var bits = new Int32Array(32);
+	for (var i = 0; i < 32; i++)
+		bits[i] = x._bits[i + n & 31];
+	return new BDDFunction(bits, x._divideError);
+}
+
+BDDFunction.rol = function(x, y) {
+	for (var i = 0; i < 5; i++) {
+		var mask = BDDFunction.nthbit(y, i);
+		var s = BDDFunction.rolc(x, 1 << i);
+		x = BDDFunction.mux(mask, x, s);
+	}
+	return x;
+}
+
+BDDFunction.ror = function(x, y) {
+	for (var i = 0; i < 5; i++) {
+		var mask = BDDFunction.nthbit(y, i);
+		var s = BDDFunction.rorc(x, 1 << i);
+		x = BDDFunction.mux(mask, x, s);
+	}
+	return x;
+}
+
 BDDFunction.mul = function(x, y) {
 	function countNonconstant(bits) {
 		var count = 0;

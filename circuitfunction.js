@@ -220,6 +220,38 @@ CFunction.shrs = function(x, y) {
 	return x;
 }
 
+CFunction.rolc = function(x, n) {
+	var bits = new Int32Array(32);
+	for (var i = 0; i < 32; i++)
+		bits[i] = x._bits[i - n & 31];
+	return new CFunction(bits, x._divideError);
+}
+
+CFunction.rorc = function(x, n) {
+	var bits = new Int32Array(32);
+	for (var i = 0; i < 32; i++)
+		bits[i] = x._bits[i + n & 31];
+	return new CFunction(bits, x._divideError);
+}
+
+CFunction.rol = function(x, y) {
+	for (var i = 0; i < 5; i++) {
+		var mask = CFunction.nthbit(y, i);
+		var s = CFunction.rolc(x, 1 << i);
+		x = CFunction.mux(mask, x, s);
+	}
+	return x;
+}
+
+CFunction.ror = function(x, y) {
+	for (var i = 0; i < 5; i++) {
+		var mask = CFunction.nthbit(y, i);
+		var s = CFunction.rorc(x, 1 << i);
+		x = CFunction.mux(mask, x, s);
+	}
+	return x;
+}
+
 CFunction.spread = function(x) {
 	var bits = new Int32Array(32);
 	for (var i = 0; i < 32; i += 2)
