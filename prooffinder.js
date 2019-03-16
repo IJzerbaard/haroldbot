@@ -894,6 +894,15 @@ function ProofFinder(op, assocmode) {
 			false, "empty mask", ,
 		],
 		[
+			["$pdep", [a(0)], [-1]],
+			[a(0)],
+			false, "pdep with full mask", ,
+		],
+		[
+			[a(0)],
+			false, "pdep left-identity", ,
+		],
+		[
 			["$pdep", [a(0)], [aex(1, except_non_mersenne)]],
 			["&", [a(0)], [a(1)]],
 			false, "contiguous mask", ,
@@ -1608,6 +1617,11 @@ function ProofFinder(op, assocmode) {
 			["$pext", [a(0)], ["$pdep", [a(1)], [a(2)]]],
 			["$pext", ["$pext", [a(0)], [a(2)]], [a(1)]],
 			false, "split extraction into two steps", ,
+		],
+		[
+			["$pext", ["$pdep", [a(0)], [a(1)]], [a(1)]],
+			["&", [a(0)], ["$pext", [a(1)], [a(1)]]],
+			false, "pseudoinverse of pdep", ,
 		],
 		// conditional rules
 		[
@@ -3041,7 +3055,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 
 		while (q1.length + q2.length > 0 && counter < 10 && (counter == 0 || mode !== 'slow')) {
 			var time = new Date();
-			if (time.getTime() - starttime.getTime() > Math.min(timelimit, 2000)) {
+			if (time.getTime() - starttime.getTime() > Math.min(timelimit, 2000) && mode !== 'slow') {
 				cb(null);
 				return;
 			}
