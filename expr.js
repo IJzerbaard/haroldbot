@@ -1052,7 +1052,7 @@ Node.AnalyzeProperties = function(data, vars, expr, callback) {
 		case 1:
 			function collectAssoc(expr, op) {
 				if (expr.type === "bin" && expr.op === op)
-					return collectAssoc(expr.l).concat(collectAssoc(expr.r));
+					return collectAssoc(expr.l, op).concat(collectAssoc(expr.r, op));
 				else
 					return [expr];
 			}

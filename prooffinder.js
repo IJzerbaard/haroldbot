@@ -899,6 +899,7 @@ function ProofFinder(op, assocmode) {
 			false, "pdep with full mask", ,
 		],
 		[
+			["$pdep", [-1], [a(0)]],
 			[a(0)],
 			false, "pdep left-identity", ,
 		],
