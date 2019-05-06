@@ -633,7 +633,7 @@ CFunction.prototype.AnalyzeTruth = function(data, root, vars, callback) {
 
 	if (!demodel && !fmodel && tmodel) {
 		var resobj = {count: "#always"};
-		if (root.type == 'bin' && ops[root.op] == '==') {
+		if (root.type == 'bin' && root.op == 20) {
 			ProofFinder.proveAsync(root.l, root.r, function (flatproof) {
 				resobj.proof = flatproof;
 				callback();

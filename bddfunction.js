@@ -759,7 +759,7 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback) {
 				count: "#always",
 				proof: undefined
 			};
-			if (root.type == 'bin' && data.quantified.length == 0) {
+			if (root.type == 'bin' && root.op == 20 && data.quantified.length == 0) {
 				ProofFinder.proveAsync(root.l, root.r, function (flatproof) {
 					resobj.proof = flatproof;
 					callback();
