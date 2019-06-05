@@ -2352,7 +2352,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				// try to turn xors of shifted values into clmul
 				var unshifted = args.find(function (a) { return a.type != "bin" || a.op != 6; });
 				if (unshifted && args.every(function (a) {
-					return a.id == unshifted.id ||
+					return (a.id == unshifted.id && a.equals2(unshifted)) ||
 						(a.type == "bin" && a.op == 6 &&
 						a.r.type == "const" && a.l.equals2(unshifted)); 
 				})) {
@@ -2382,14 +2382,14 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				// try to turn additions of shifted values into multiply
 				var unshifted = args.find(function (a) { return a.type != "bin" || a.op != 6; });
 				if (unshifted && args.every(function (a) {
-					return a.id == unshifted.id ||
+					return (a.id == unshifted.id && a.equals2(unshifted)) ||
 						(a.type == "bin" && a.op == 6 &&
 						a.r.type == "const" && a.l.equals2(unshifted)); 
 				})) {
 					var M = 0;
 					for (var i = 0; i < args.length; i++) {
 						var a = args[i];
-						if (a.id == unshifted.id) M = M + 1 | 0;
+						if (a.id == unshifted.id && a.equals2(unshifted)) M = M + 1 | 0;
 						else M = M + (1 << a.r.value) | 0;
 					}
 					var res = new Binary(11, unshifted, new Constant(M));

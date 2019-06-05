@@ -110,6 +110,18 @@ CFunction.subus = function(x, y) {
 	return new CFunction(bits, circuit.or(x._divideError, y._divideError));
 }
 
+CFunction.avg_up = function(x, y) {
+	var bits = new Int32Array(32);
+	var carry = -1;
+	for (var i = 0; i < bits.length; i++) {
+		if (i >= 1)
+			bits[i - 1] = circuit.xor(circuit.xor(x._bits[i], y._bits[i]), carry);
+		carry = circuit.carry(carry, x._bits[i], y._bits[i]);
+	}
+	bits[31] = carry;
+	return new CFunction(bits, circuit.or(x._divideError, y._divideError));
+}
+
 CFunction.bzhi = function(x, y) {
 	y = CFunction.and(y, CFunction.constant(255));
 	var bits = new Int32Array(32);

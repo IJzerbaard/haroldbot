@@ -422,6 +422,7 @@ function binaryToBddFunc(op, l, r) {
 		case 49: return BDDFunction.subus(l, r);
 		case 50: return BDDFunction.pdep(l, r);
 		case 51: return BDDFunction.pext(l, r);
+		case 52: return BDDFunction.avg_up(l, r);
 		case 55: return BDDFunction.mux(BDDFunction.gt(l, r, false), l, r);
 		case 56: return BDDFunction.mux(BDDFunction.gt(l, r, true), l, r);
 		case 57: return BDDFunction.mux(BDDFunction.lt(l, r, false), l, r);

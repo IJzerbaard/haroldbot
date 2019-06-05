@@ -110,6 +110,19 @@ BDDFunction.subus = function(x, y) {
 	return new BDDFunction(bits, bdd.or(x._divideError, y._divideError));
 }
 
+BDDFunction.avg_up = function(x, y) {
+	var timelimit = getmilitime() + 1000;
+	var bits = new Int32Array(32);
+	var carry = -1;
+	for (var i = 0; i < bits.length; i++) {
+		if (i >= 1)
+			bits[i - 1] = bdd.xorxor(x._bits[i], y._bits[i], carry, timelimit);
+		carry = bdd.carry(carry, x._bits[i], y._bits[i], timelimit);
+	}
+	bits[31] = carry;
+	return new BDDFunction(bits, bdd.or(x._divideError, y._divideError));
+}
+
 BDDFunction.abs = function(x) {
 	var m = BDDFunction.nthbit(x, 31);
 	return BDDFunction.xor(BDDFunction.add(x, m), m);
@@ -1236,6 +1249,13 @@ BDDFunction.prototype.Identify = function(vars) {
 	}
 
 	function format_ror(r_ror) {
+		if (clz(r_ror[2]) >= r_ror[1]) {
+			// all upper bits that get "rotated in" are dropped
+			var node = new Binary(7, new Variable(r_ror[0]), new Constant(r_ror[1]));
+			if (r_ror[2] != (-1 >>> r_ror[1]))
+				node = new Binary(1, node, new Constant(r_ror[2]));
+			return node;
+		}
 		var node = new Binary(9, new Variable(r_ror[0]), new Constant(r_ror[1]));
 		if (r_ror[2] != -1)
 			node = new Binary(1, node, new Constant(r_ror[2]));

@@ -302,6 +302,8 @@ function parse(query) {
 			return fun3("fixmul", true);
 		} else if (l("fixscale")) {
 			return fun3("fixscale", false);
+		} else if (l("avg_up")) {
+			return fun2("avg_up", false);
 		} else if (isfun()) {
 			return fun();
 		} else if (query.charAt(pos) >= '0' && query.charAt(pos) <= '9') {
