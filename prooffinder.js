@@ -697,12 +697,12 @@ function ProofFinder(op, assocmode) {
 		[
 			["$addus", [a(0)], [a(1)]],
 			["$addus", [a(1)], [a(0)]],
-			false, "commutativity of (saturating) addition", ,
+			false, "commutativity of addition with unsigned saturation", ,
 		],
 		[
 			["$addus", ["$addus", [a(0)], [a(1)]], [a(2)]],
 			["$addus", [a(0)], ["$addus", [a(1)], [a(2)]]],
-			true, "associativity of (saturating) addition", ,
+			true, "associativity of addition with unsigned saturation", ,
 		],
 		[
 			["$addus", [a(0)], [a(1)]],
@@ -717,7 +717,7 @@ function ProofFinder(op, assocmode) {
 		[
 			["$subus", [a(0)], [a(1)]],
 			["~", ["$addus", ["~", [a(0)]], [a(1)]]],
-			true, "saturating version of a - b == ~(~a + b)", ,
+			true, "unsigned-saturating version of a - b == ~(~a + b)", ,
 		],
 		// properties of BMI stuff
 		[
