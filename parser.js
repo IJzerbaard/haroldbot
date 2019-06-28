@@ -294,6 +294,8 @@ function parse(query) {
 			return fun2("ormul", false);
 		} else if (l("subus")) {
 			return fun2("subus", false);
+		} else if (l("addus")) {
+			return fun2("addus", false);
 		} else if (l("pdep")) {
 			return fun2("pdep", false);
 		} else if (l("pext")) {

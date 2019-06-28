@@ -107,8 +107,8 @@ var bdd = {
 		throw "BDD full";
 	},
 
-	or: function(f, g) {
-		return ~this.and(~f, ~g);
+	or: function(f, g, timelimit) {
+		return ~this.and(~f, ~g, timelimit);
 	},
 
 	and: function(f, g, timelimit) {

@@ -1251,7 +1251,7 @@ BDDFunction.prototype.Identify = function(vars) {
 	function format_ror(r_ror) {
 		if (clz(r_ror[2]) >= r_ror[1]) {
 			// all upper bits that get "rotated in" are dropped
-			var node = new Binary(7, new Variable(r_ror[0]), new Constant(r_ror[1]));
+			var node = new Binary(31, new Variable(r_ror[0]), new Constant(r_ror[1]));
 			if (r_ror[2] != (-1 >>> r_ror[1]))
 				node = new Binary(1, node, new Constant(r_ror[2]));
 			return node;

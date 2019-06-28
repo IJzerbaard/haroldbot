@@ -423,6 +423,7 @@ function binaryToBddFunc(op, l, r) {
 		case 50: return BDDFunction.pdep(l, r);
 		case 51: return BDDFunction.pext(l, r);
 		case 52: return BDDFunction.avg_up(l, r);
+		case 53: return BDDFunction.not(BDDFunction.subus(BDDFunction.not(l), r));
 		case 55: return BDDFunction.mux(BDDFunction.gt(l, r, false), l, r);
 		case 56: return BDDFunction.mux(BDDFunction.gt(l, r, true), l, r);
 		case 57: return BDDFunction.mux(BDDFunction.lt(l, r, false), l, r);
@@ -481,6 +482,8 @@ function binaryToCircuitFunc(op, l, r) {
 		case 49: return CFunction.subus(l, r);
 		case 50: return CFunction.pdep(l, r);
 		case 51: return CFunction.pext(l, r);
+		case 52: return CFunction.avg_up(l, r);
+		case 53: return CFunction.not(CFunction.subus(CFunction.not(l), r));
 		case 55: return CFunction.mux(CFunction.gt(l, r, false), l, r);
 		case 56: return CFunction.mux(CFunction.gt(l, r, true), l, r);
 		case 57: return CFunction.mux(CFunction.lt(l, r, false), l, r);
@@ -574,6 +577,8 @@ function evalBinary(op, l, r) {
 		case 49: return (l >>> 0) < (r >>> 0) ? 0 : (l - r)|0;
 		case 50: return BDDFunction.to_constant(BDDFunction.pdep(BDDFunction.constant(l), BDDFunction.constant(r)));
 		case 51: return BDDFunction.to_constant(BDDFunction.pext(BDDFunction.constant(l), BDDFunction.constant(r)));
+		case 52: return BDDFunction.to_constant(BDDFunction.avg_up(BDDFunction.constant(l), BDDFunction.constant(r)));
+		case 53: return Math.min((l >>> 0) + (r >>> 0), 0xFFFFFFFF) | 0;
 		case 55: return Math.min(l ^ m, r ^ m) ^ m;
 		case 56: return Math.min(l, r) | 0;
 		case 57: return Math.max(l ^ m, r ^ m) ^ m;
