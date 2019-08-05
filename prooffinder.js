@@ -2299,17 +2299,20 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 					}
 					else {
 						if (getPattern) {
-							if (rules[i][5] == "no intersect")
+							if (rules[i][5] == "no intersect" && special_handle(rules[i][5], n, null))
 								results.push([patternNode[0], n, rules[i], new Binary(20, new Binary(1, root.l, root.r), new Constant(0))]);
-							else if (rules[i][5] == "non negative")
+							else if (rules[i][5] == "non negative" && special_handle(rules[i][5], n, null))
 								results.push([patternNode[0], n, rules[i], new Binary(20, new Binary(1, root.value, new Constant(0x80000000)), new Constant(0))]);
-							else
+							else if (rules[i][5] != "no intersect" && rules[i][5] != "non negative")
 								results.push([patternNode[0], n, rules[i]]);
 						}
 						else if (rules[i].length > 5) {
 							if (rules[i][5] == "no intersect" ||
 								rules[i][5] == "non negative")
-								results.push([parent, n, rules[i], backwards, parent[4] + 3, root]);
+							{
+								if (special_handle(rules[i][5], n, null))
+									results.push([parent, n, rules[i], backwards, parent[4] + 3, root]);
+							}
 							else
 								results.push([parent, n, rules[i], backwards, parent[4] + 1, null]);
 						}
@@ -2905,10 +2908,11 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 						return false;
 					}
 
-					return test(ll, rl, rr) ||
+					var r = test(ll, rl, rr) ||
 						   test(lr, rl, rr) ||
 						   test(rl, ll, lr) ||
 						   test(rr, ll, lr);
+					return r;
 				}
 				else if (l.type == 'bin' && r.type == 'bin' && l.op == 49 && r.op == 49) {
 					return l.l.equals2(r.r) && l.r.equals2(r.l);

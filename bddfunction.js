@@ -1060,6 +1060,8 @@ BDDFunction.prototype.Identify = function(vars) {
 			for (var i = 0; i < a.length; i++) {
 				if (a[i] == 0) continue;
 				var v = new Variable(i);
+				if (a[i] != -1)
+					v = new Binary(ops.indexOf('&'), v, new Constant(a[i]));
 				if ((x[i] | ignored) == -1)
 					v = new Unary(0, v);
 				else if (x[i] != 0)
@@ -1092,6 +1094,8 @@ BDDFunction.prototype.Identify = function(vars) {
 			for (var i = 0; i < a.length; i++) {
 				if (a[i] == 0) continue;
 				var v = new Variable(i);
+				if (a[i] != -1)
+					return null;
 				if ((x[i] | ignored) == -1)
 					v = v; // no inversion
 				else if ((x[i] & ~ignored) == 0)
