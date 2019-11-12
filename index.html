@@ -488,6 +488,11 @@ function formatproof(parent, proofarray, varmap) {
       proofcontainer.append(container);
     }
     else {
+      if (proofarray[i].length == 0) {
+        var cheatstep = $j('<span/>').append("the proof engine cheated - please file a bug report");
+        cheatstep.css('color', '#F77');
+        proofcontainer.append($j('<div/>').append(cheatstep));
+      }
       if (!assocsteps && proofarray[i][0] && proofarray[i][0].indexOf('associativity') == 0)
         i++;
       else {

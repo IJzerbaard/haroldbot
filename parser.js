@@ -274,8 +274,12 @@ function parse(query) {
 			return fun1("popcnt");
 		} else if (l("nlz")) {
 			return fun1("nlz");
+		} else if (l("lzcnt")) {
+			return fun1alt("lzcnt", "nlz");
 		} else if (l("ntz")) {
 			return fun1("ntz");
+		} else if (l("tzcnt")) {
+			return fun1alt("tzcnt", "ntz");
 		} else if (l("blsi")) {
 			return fun1("blsi");
 		} else if (l("blsr")) {
@@ -343,6 +347,15 @@ function parse(query) {
 		ws();
 		if (!l(")")) return error("unclosed parenthesis");
 		return new Unary(unops.indexOf("$" + name), a);
+	}
+
+	function fun1alt(name, internalName) {
+		ws();
+		if (!l("(")) return error("'" + name + "' is a function but it is used as a variable");
+		var a = expr();
+		ws();
+		if (!l(")")) return error("unclosed parenthesis");
+		return new Unary(unops.indexOf("$" + internalName), a);
 	}
 
 	function fun2(name, canBeSigned) {

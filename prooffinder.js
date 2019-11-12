@@ -1655,27 +1655,6 @@ function ProofFinder(op, assocmode) {
 			["&", [a(0)], ["$pext", [a(1)], [a(1)]]],
 			false, "pseudoinverse of pdep", ,
 		],
-		// conditional rules
-		[
-			["^", [a(0)], [a(1)]],
-			["|", [a(0)], [a(1)]],
-			true, "xor is or when bits <a class='replace'>don't intersect</a>", , "no intersect"
-		],
-		[
-			["+", [a(0)], [a(1)]],
-			["|", [a(0)], [a(1)]],
-			true, "addition is or when bits <a class='replace'>don't intersect</a>", , "no intersect"
-		],
-		[
-			["^", [a(0)], [a(1)]],
-			["+", [a(0)], [a(1)]],
-			true, "xor is addition when bits <a class='replace'>don't intersect</a>", , "no intersect"
-		],
-		[
-			["$abs", [a(0)]],
-			[a(0)],
-			false, "abs does nothing when the input is <a class='replace'>non-negative</a>", , "non negative"
-		],
 		// special
 		[
 			["&", [a(0)], ["~", [a(1)]]],
@@ -2004,7 +1983,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		return min;
 	}
 
-	function isTopLevelMatch(pattern, expr, wildcards, rev, res_pattern) {
+	function isTopLevelMatch(pattern, expr, wildcards, res_pattern) {
 		var except_not = 1;
 		var except_neg = 2;
 		var except_zero = 3;
@@ -2080,7 +2059,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			}
 			if (expr.type != 'un' || op != expr.op)
 				return false;
-			if (isTopLevelMatch(pattern[1], expr.value, wildcards, rev, res_pattern)) {
+			if (isTopLevelMatch(pattern[1], expr.value, wildcards, res_pattern)) {
 				if (res_pattern) {
 					res_pattern[0] = new Unary(expr.op, res_pattern[0]);
 					res_pattern[0].id = expr.id;
@@ -2092,8 +2071,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				return false;
 			var r_res_pattern = res_pattern ? [null] : null;
 			var backup = wildcards.slice();
-			if (isTopLevelMatch(pattern[1], expr.l, wildcards, rev, res_pattern) &&
-				isTopLevelMatch(pattern[2], expr.r, wildcards, rev, r_res_pattern)) {
+			if (isTopLevelMatch(pattern[1], expr.l, wildcards, res_pattern) &&
+				isTopLevelMatch(pattern[2], expr.r, wildcards, r_res_pattern)) {
 				if (res_pattern) {
 					res_pattern[0] = new Binary(expr.op, res_pattern[0], r_res_pattern[0]);
 					res_pattern[0].id = expr.id;
@@ -2106,9 +2085,9 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			if (expr.type == 'ter') {
 				var t_res_pattern = res_pattern ? [null] : null;
 				var f_res_pattern = res_pattern ? [null] : null;
-				if (isTopLevelMatch(pattern[1], expr.cond, wildcards, rev, res_pattern) &&
-					isTopLevelMatch(pattern[2], expr.t, wildcards, rev, t_res_pattern) &&
-					isTopLevelMatch(pattern[3], expr.f, wildcards, rev, f_res_pattern)) {
+				if (isTopLevelMatch(pattern[1], expr.cond, wildcards, res_pattern) &&
+					isTopLevelMatch(pattern[2], expr.t, wildcards, t_res_pattern) &&
+					isTopLevelMatch(pattern[3], expr.f, wildcards, f_res_pattern)) {
 					if (res_pattern) {
 						res_pattern[0] = new Ternary(res_pattern[0], t_res_pattern[0], f_res_pattern[0]);
 						res_pattern[0].id = expr.id;
@@ -2188,7 +2167,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 	function match(rule, expr, res_pattern) {
 		var wildcards = [];
 		var rev = [];
-		if (isTopLevelMatch(rule[0], expr, wildcards, rev, res_pattern)) {
+		if (isTopLevelMatch(rule[0], expr, wildcards, res_pattern)) {
 			var lhs = res_pattern ? res_pattern[0] : null;
 			var res = rewrite(rule[1], wildcards, rev, res_pattern);
 			if (res == null)
@@ -2204,6 +2183,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 	var opstr = [];
 	opstr[1] = "and";
 	opstr[2] = "or";
+	opstr[3] = "xor";
+	opstr[4] = "add";
 	opstr[55] = "min";
 	opstr[56] = "min";
 	opstr[57] = "max";
@@ -2298,27 +2279,10 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 						}
 					}
 					else {
-						if (getPattern) {
-							if (rules[i][5] == "no intersect" && special_handle(rules[i][5], n, null))
-								results.push([patternNode[0], n, rules[i], new Binary(20, new Binary(1, root.l, root.r), new Constant(0))]);
-							else if (rules[i][5] == "non negative" && special_handle(rules[i][5], n, null))
-								results.push([patternNode[0], n, rules[i], new Binary(20, new Binary(1, root.value, new Constant(0x80000000)), new Constant(0))]);
-							else if (rules[i][5] != "no intersect" && rules[i][5] != "non negative")
-								results.push([patternNode[0], n, rules[i]]);
-						}
-						else if (rules[i].length > 5) {
-							if (rules[i][5] == "no intersect" ||
-								rules[i][5] == "non negative")
-							{
-								if (special_handle(rules[i][5], n, null))
-									results.push([parent, n, rules[i], backwards, parent[4] + 3, root]);
-							}
-							else
-								results.push([parent, n, rules[i], backwards, parent[4] + 1, null]);
-						}
-						else {
+						if (getPattern)
+							results.push([patternNode[0], n, rules[i]]);
+						else
 							results.push([parent, n, rules[i], backwards, parent[4] + 1, null]);
-						}
 					}
 				}
 			}
@@ -2375,6 +2339,58 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 					for (var i = 0; i < j; i++) {
 						//var vroot = new Binary(op, args[i], args[j]);
 						//var hasMatch = checkMatches(vroot, allrules[vroot.hash2], [], null, backwards, getPattern, true);
+					}
+				}
+			}
+
+			if (op == 2 || op == 3 || op == 4) {
+				// |, ^, +
+				// look for non-intersecting bits
+				function noIntersect(l, r) {
+					if (l.type == 'bin' && l.op == 1 /* & */ &&
+						r.type == 'bin' && r.op == 1 /* & */) {
+						var ll = l.l;
+						var lr = l.r;
+						var rl = r.l;
+						var rr = r.r;
+
+						function test(node, l, r) {
+	                        if (node.type == 'const' && l.type == 'const' && (l.value & node.value) == 0)
+	                        	return true;
+	                        if (node.type == 'const' && r.type == 'const' && (r.value & node.value) == 0)
+	                        	return true;
+							if (node.type == 'un' && node.op == 0)
+								return node.value.equals(l) || node.value.equals(r);
+							return false;
+						}
+
+						var r = test(ll, rl, rr) ||
+							   test(lr, rl, rr) ||
+							   test(rl, ll, lr) ||
+							   test(rr, ll, lr);
+						return r;
+					}
+				}
+				var L = root.l;
+				var R = root.r;
+				if (noIntersect(L, R)) {
+					var ops = [2, 3, 4];
+					ops.splice(ops.indexOf(op), 1);
+					for (var i = 0; i < ops.length; i++) {
+						var newOp = ops[i];
+						var res = new Binary(newOp, L, R);
+						if (getPattern) {
+							var pp = new Binary(op, mkvar(0, L.id), mkvar(1, R.id));
+							pp.id = root.id;
+							var rp = new Binary(newOp, mkvar(0, L.id), mkvar(1, R.id));
+							rp.id = res.is;
+							var p = new Binary(20, pp, rp);
+							var descF = opstr[op] + " is " + opstr[newOp] + " when bits <a class='replace'>don't intersect</a>";
+							var descR = opstr[newOp] + " is " + opstr[op] + " when bits <a class='replace'>don't intersect</a>";
+							results.push([p, res, [,,,descF, descR], new Binary(20, new Binary(1, root.l, root.r), new Constant(0))]);
+						}
+						else
+							results.push([parent, res, null, backwards, parent[4] + 2, null]);
 					}
 				}
 			}
@@ -2755,10 +2771,6 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 						continue;
 				}
 			}*/
-			if (p[2] && p[2][5]) {
-				if (!special_handle(p[2][5], p[5], p[2][6]))
-					continue;
-			}
 			if (p[1].weight < maxweight && hash_update(htable, p[1], p)) {
 				heap_add(q, p);
 			}
@@ -2816,18 +2828,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			for (var k = 0; k < forwardSet.length; k++) {
 				if (forwardSet[k] && t.equals2(forwardSet[k][1])) {
 					explanation = forwardSet[k];
-					switch (explanation[2][5]) {
-						case null:
-						case undefined:
-							break;
-						case "no intersect":
-							if (!special_handle(explanation[2][5], explanation[3].l)) { explanation = null; continue; }
-							break;
-						case "non negative":
-							if (!special_handle(explanation[2][5], new Unary(6, explanation[3].l.l))) { explanation = null; continue; }
-							break;
-						default: debugger;
-					}
+					if (explanation[2][5])
+						debugger;
 					if (explanation[0]) fixup_ids_search(explanation[1], t, explanation[0].r)
 					possibleExplanations.push(explanation);
 				}
@@ -2845,18 +2847,8 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 				for (var k = 0; k < backwardSet.length; k++) {
 					if (backwardSet[k] && f.equals2(backwardSet[k][1])) {
 						explanation = backwardSet[k];
-						switch (explanation[2][5]) {
-							case null:
-							case undefined:
-								break;
-							case "no intersect":
-								if (!special_handle(explanation[2][5], explanation[3].l)) { explanation = null; continue; }
-								break;
-							case "non negative":
-								if (!special_handle(explanation[2][5], new Unary(6, explanation[3].l.l))) { explanation = null; continue; }
-								break;
-							default: debugger;
-						}
+						if (explanation[2][5])
+							debugger;
 						explbackwards = true;
 						if (explanation[0]) {
 							var patl = explanation[0].l;
@@ -2879,65 +2871,6 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 		}
 		proofsteps.push(steps[steps.length - 1]);
 		return proofsteps;
-	}
-
-	function special_handle(cond, node, extra) {
-		switch (cond) {
-			default:
-				debugger;
-				return false;
-			case null:
-				return true;
-			case "no intersect":
-				var l = node.l;
-				var r = node.r;
-				if (l.type == 'bin' && l.op == 1 /* & */ &&
-					r.type == 'bin' && r.op == 1 /* & */) {
-					var ll = l.l;
-					var lr = l.r;
-					var rl = r.l;
-					var rr = r.r;
-
-					function test(node, l, r) {
-                        if (node.type == 'const' && l.type == 'const' && (l.value & node.value) == 0)
-                        	return true;
-                        if (node.type == 'const' && r.type == 'const' && (r.value & node.value) == 0)
-                        	return true;
-						if (node.type == 'un' && node.op == 0)
-							return node.value.equals(l) || node.value.equals(r);
-						return false;
-					}
-
-					var r = test(ll, rl, rr) ||
-						   test(lr, rl, rr) ||
-						   test(rl, ll, lr) ||
-						   test(rr, ll, lr);
-					return r;
-				}
-				else if (l.type == 'bin' && r.type == 'bin' && l.op == 49 && r.op == 49) {
-					return l.l.equals2(r.r) && l.r.equals2(r.l);
-				}
-				return false;
-			case "non negative":
-				if (node.type != 'un')
-					return false;
-				var v = node.value;
-				if (v.type == 'bin' &&
-					v.op == 31 &&
-					v.r.type == 'const' &&
-					(v.r.value & 31) > 0)
-					return true;
-				if (v.type == 'bin' &&
-					v.op == 1 &&
-					((v.r.type == 'const' && (v.r.value|0) >= 0) || (v.l.type == 'const' && (v.l.value|0) >= 0)))
-					return true;
-				if (v.type == 'un' && v.op >= 2 && v.op <= 4)
-					return true;
-				return false;
-			case "extra steps":
-				// handled elsewhere
-				return true;
-		}
 	}
 
 	if (to) {

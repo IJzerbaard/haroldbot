@@ -1070,7 +1070,7 @@ BDDFunction.prototype.Identify = function(vars) {
 				res = res ? new Binary(ops.indexOf('|'), res, v) : v;
 			}
 
-			if ((b | d) != -1)
+			if ((b | d) != -1 && a.length > 1)
 				res = new Binary(ops.indexOf('&'), res, new Constant(nicestConstant(b, -1, d)));
 
 			if (d != 0)
