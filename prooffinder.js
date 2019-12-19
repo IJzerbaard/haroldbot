@@ -327,6 +327,11 @@ function ProofFinder(op, assocmode) {
 			["&", ["-", [a(0)], [a(2)]], [aex(1, except_non_mersenne)]],
 			false, "low bits of the result depend only on low bits of the inputs (condition: y is a power of two minus one)", ,
 		],
+		[
+			["&", ["-", ["&", [a(0)], [aex(1, except_non_mersenne)]]], [aex(1, except_non_mersenne)]],
+			["&", ["-", [a(0)]], [a(1)]],
+			false, "low bits of the result depend only on low bits of the input (condition: y is a power of two minus one)", ,
+		],
 		// properties of rbit
 		[
 			["$reverse", ["$reverse", [a(0)]]],
@@ -2383,7 +2388,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 							var pp = new Binary(op, mkvar(0, L.id), mkvar(1, R.id));
 							pp.id = root.id;
 							var rp = new Binary(newOp, mkvar(0, L.id), mkvar(1, R.id));
-							rp.id = res.is;
+							rp.id = res.id;
 							var p = new Binary(20, pp, rp);
 							var descF = opstr[op] + " is " + opstr[newOp] + " when bits <a class='replace'>don't intersect</a>";
 							var descR = opstr[newOp] + " is " + opstr[op] + " when bits <a class='replace'>don't intersect</a>";
@@ -3028,6 +3033,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 			}
 			// forward step only
 			var pn = removeMin(q1);
+			if (debugcallback) debugcallback(pn[1], false, pn[0]);
 			if (pn[1].weight < best.w) {
 				best.w = pn[1].weight;
 				best.n = pn;
@@ -3048,7 +3054,7 @@ ProofFinder.prototype.Search = function(from, to, callback, debugcallback, mode,
 	return;
 };
 
-ProofFinder.proveAsync = function(from, to, cb) {
+ProofFinder.proveAsync = function(from, to, cb, debugcb) {
   if (window.Worker && window.location.protocol != 'file:') {
     var pfw = new Worker('pfworker.js');
     pfw.onmessage = function(e) {
@@ -3061,6 +3067,6 @@ ProofFinder.proveAsync = function(from, to, cb) {
     var pf = new ProofFinder(20);
     pf.Search(from, to, function (steps, res) {
       cb(steps, res);
-    }, null, 2000);
+    }, debugcb, 2000);
   }
 };

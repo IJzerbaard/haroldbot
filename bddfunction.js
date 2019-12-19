@@ -686,6 +686,36 @@ BDDFunction.pext = function (value, mask) {
 	return res;
 };
 
+BDDFunction.gf2affine = function (x, m1, m0) {
+	function repbyte(x, k) {
+		var t = BDDFunction.shruc(BDDFunction.shlc(x, k * 8), 24);
+		t = BDDFunction.or(t, BDDFunction.shlc(t, 8));
+		t = BDDFunction.or(t, BDDFunction.shlc(t, 16));
+		return t;
+	}
+	var bytes = [];
+	bytes.push(repbyte(m1, 0));
+	bytes.push(repbyte(m1, 1));
+	bytes.push(repbyte(m1, 2));
+	bytes.push(repbyte(m1, 3));
+	bytes.push(repbyte(m0, 0));
+	bytes.push(repbyte(m0, 1));
+	bytes.push(repbyte(m0, 2));
+	bytes.push(repbyte(m0, 3));
+
+	var res = BDDFunction.constant(0);
+	var m = BDDFunction.constant(0x01010101);
+	for (var i = 0; i < 8; i++) {
+		var t = BDDFunction.and(x, bytes[i]);
+		t = BDDFunction.xor(t, BDDFunction.shruc(t, 4));
+		t = BDDFunction.xor(t, BDDFunction.shruc(t, 2));
+		t = BDDFunction.xor(t, BDDFunction.shruc(t, 1));
+		t = BDDFunction.and(t, m);
+		res = BDDFunction.or(res, BDDFunction.shlc(t, i));
+	}
+	return res;
+};
+
 BDDFunction.quantU = function (f, q, varmap) {
 	var bits = f._bits.slice();
 	var de = f._divideError;

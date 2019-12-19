@@ -310,6 +310,8 @@ function parse(query) {
 			return fun3("fixscale", false);
 		} else if (l("avg_up")) {
 			return fun2("avg_up", false);
+		} else if (l("gf2affine")) {
+			return fun3("gf2affine", false);
 		} else if (isfun()) {
 			return fun();
 		} else if (query.charAt(pos) >= '0' && query.charAt(pos) <= '9') {

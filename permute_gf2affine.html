@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>GF2P8AFFINE permute</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<link rel="shortcut icon" href="/favicon.ico" />
+<link rel="stylesheet" type="text/css" href="mainstyle.css" />
+<script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="util.js"></script>
+<script type="text/javascript">
+var $j = jQuery.noConflict();
+var data = null;
+
+function route_maskSrc1(bitpos) {
+  var mask = new Int8Array(64);
+  var byteperm = new Int32Array(8);
+  byteperm.fill(-1);
+  for (var i = 0; i < bitpos.length; i++) {
+    if (bitpos[i] >= 0) {
+      if ((bitpos[i] >> 3) != (i >> 3))
+        return null;
+      if (byteperm[i & 7] == -1) {
+        byteperm[i & 7] = bitpos[i] & 7;
+        mask[(7 - (i & 7)) * 8 + (bitpos[i] & 7)] = 1;
+      }
+      else if (byteperm[i & 7] != (bitpos[i] & 7))
+        return null;
+    }
+  }
+  data.gf2affineSrc1 = { mask: mask };
+  return mask;
+}
+
+function route_maskDst(bitpos) {
+  var mask = new Int8Array(64);
+  var byteperm = new Int32Array(8);
+  byteperm.fill(-1);
+  for (var i = 0; i < bitpos.length; i++) {
+    if (bitpos[i] >= 0) {
+      if ((bitpos[i] >> 3) != 7 - (i & 7))
+        return null;
+      if (byteperm[i >> 3] == -1) {
+        byteperm[i >> 3] = bitpos[i] & 7;
+        mask[(i & 0x38) + (bitpos[i] & 7)] = 1;
+      }
+      else if (byteperm[i >> 3] != (bitpos[i] & 7))
+        return null;
+    }
+  }
+  data.gf2affineDst = { mask: mask };
+  return mask;
+}
+
+function route_maskDstSrc1(bitpos) {
+  var mask1 = new Int8Array(64);
+  var mask2 = new Int8Array(64);
+  var byteperm = new Int32Array(8);
+  byteperm.fill(-1);
+  for (var i = 0; i < bitpos.length; i++) {
+    if (bitpos[i] >= 0) {
+      if (byteperm[i >> 3] == -1) {
+        byteperm[i >> 3] = bitpos[i] & 7;
+        mask1[(i & 0x38) + (bitpos[i] & 7)] = 1;
+      }
+      else if (byteperm[i >> 3] != (bitpos[i] & 7))
+        return null;
+    }
+  }
+
+  return mask;
+}
+
+function performQuery(permute) {
+  data = {};
+  var parts = permute.split(" ");
+  var bitpos = new Int32Array(64);
+  bitpos.fill(-1);
+  var bitidx = 0;
+  for (var i = 0; i < parts.length && i < 64; i++) {
+    if (parts[i] == "*") {
+      bitidx++;
+      continue;
+    }
+    else if (parts[i].indexOf("..") >= 0) {
+      var p = parts[i];
+      var step = 1;
+      var fst = NaN;
+      if (parts[i].indexOf(",") >= 0) {
+        var spl = p.split(",");
+        p = spl[1];
+        fst = parseInt(spl[0]);
+      }
+      var bounds = p.split("..");
+      var l = parseInt(bounds[0]);
+      var h = parseInt(bounds[1]);
+      if (!isNaN(fst)) {
+        step = l - fst;
+        l = fst;
+      }
+      else {
+        step = 1;
+      }
+      if (l < 0 || h < 0 || isNaN(l) || isNaN(h) || l > 63 || h > 63 || step == 0) {
+        data.msg = "bad index";
+        update();
+        return;
+      }
+      if (l <= h) {
+        for (var j = l; j <= h; j += step)
+          bitpos[bitidx++] = j;
+      }
+      else {
+        for (var j = l; j >= h; j += step)
+          bitpos[bitidx++] = j;
+      }
+    }
+    else {
+      var val = parseInt(parts[i]);
+      if (val < 0 || isNaN(val) || val > 63) {
+        data.msg = "bad index";
+        update();
+        return;
+      }
+      bitpos[bitidx++] = val;
+    }
+  }
+
+  data.input = bitpos;
+
+  var rol_dist = 0;
+  for (var i = 0; i < 64; i++) {
+    if (bitpos[i] >= 0) {
+      rol_dist = (i - bitpos[i]) & 63;
+      break;
+    }
+  }
+
+  if (bitpos.every(function (p, i) { return p == -1 || p == ((i - rol_dist) & 63); })) {
+    data.rol_dist = { dist: rol_dist };
+    update();
+    return;
+  }
+
+  if (route_maskSrc1(bitpos)) {
+    update();
+    return;
+  }
+
+  if (route_maskDst(bitpos)) {
+    update();
+    return;
+  }
+
+  update();
+}
+
+function update() {
+  parens = $j('#explicitparens').is(':checked');
+  $j('#resultDiv').empty();
+  
+  if (data == null || data == undefined) {
+    $j('#resultDiv').append("Query Failed");
+    return;
+  }
+
+  if (data.msg) {
+    $j('#resultDiv').append(data.msg);
+    return;
+  }
+
+  function formatMask(bits) {
+    var r = "0x";
+    for (var nib = 15; nib >= 0; nib--) {
+      var n = 0;
+      for (var i = 0; i < 4; i++)
+        n += bits[nib * 4 + i] << i;
+      r += n.toString(16);
+    }
+    return r;
+  }
+
+  if (data.rol_dist) {
+    var code = "";
+    if (data.rol_dist.dist != 0)
+      code = "x = (x << " + data.rol_dist.dist + ") | (x >> " + (64 - data.rol_dist.dist) + ");\n";
+    else
+      code = "Identity permutation";
+    var cb = $j("<pre/>").text(code).addClass("bigger");
+    $j('#resultDiv').append(cb);
+  }
+  else if (data.gf2affineSrc1 || data.gf2affineDst) {
+    var code = "";
+    if (data.gf2affineDst)
+      code += "x = gf2affine(" + formatMask(data.gf2affineDst.mask) + ", x);\n";
+    if (data.gf2affineSrc1)
+      code += "x = gf2affine(x, " + formatMask(data.gf2affineSrc1.mask) + ");\n";
+    var cb = $j("<pre/>").text(code).addClass("bigger");
+    $j('#resultDiv').append(cb);
+  }
+  else {
+    $j('#resultDiv').append("Could not route bits");
+  }
+}
+
+function doquery(q) {
+  if (q === undefined || q == null || q.length == 0 || q === 0)
+    return;
+  $j('#q').val(decodeURIComponent(q.replace(/\+/g, " ")));
+  $j('#resultDiv').empty();
+  $j('#resultDiv').text('Waiting for result...');
+  performQuery(decodeURIComponent(q.replace(/\+/g, " ")));
+}
+$j(document).ready(function(){
+  doquery(urlParam('q'));
+});
+</script>
+</head>
+<body>
+<div id="header"><h1>GF2P8AFFINEQB permutation tool</h1>
+</div>
+<div id="querybar">
+  <div id="querybox">
+    <form method="get">
+      <input type="text" placeholder="permutation" name="q" id="q" autofocus/>
+      <input type="submit" value="compute" id="submit"/>
+    </form>
+  </div>
+</div>
+<div id="page">
+  <div id="query-printback"></div>
+  <div id="resultDiv"></div>
+  <div id="examples">
+    <h2>Examples</h2>
+    <p>Simple bit-swap<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute_gf2affine.html?q=1+0+2..7"><tt>1 0 2..7</tt></a></p>
+    <p>mirrorHorizontal(transpose 8x8)<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute_gf2affine.html?q=56%2C48..0+57%2C49..1+58%2C50..2+59%2C51..3+60%2C52..4+61%2C53..5+62%2C54..6+63%2C55..7"><tt>56,48..0 57,49..1 58,50..2 59,51..3 60,52..4 61,53..5 62,54..6 63,55..7</tt></a></p>
+    <p>Transpose 8x8<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;<a href="permute_gf2affine.html?q=0%2C8..56+1%2C9..57+2%2C10..58+3%2C11..59+4%2C12..60+5%2C13..61+6%2C14..62+7%2C15..63"><tt>0,8..56 1,9..57 2,10..58 3,11..59 4,12..60 5,13..61 6,14..62 7,15..63</tt></a></p>
+  </div>
+  <div>
+    <!--<h2>Notes</h2>-->
+  </div>
+</div>
+</body>
+</html>

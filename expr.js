@@ -883,6 +883,8 @@ Fun.prototype.toBddFunc = function() {
 			return BDDFunction.fixscale(a[0], a[1], a[2]);
 		case "$fixmul_u":
 			return BDDFunction.fixmul(a[0], a[1], a[2], false);
+		case "$gf2affine":
+			return BDDFunction.gf2affine(a[0], a[1], a[2]);
 		default:
 			throw "unimplemented function";
 	}
@@ -946,6 +948,8 @@ Fun.prototype.eval = function(vars) {
 			return BDDFunction.to_constant(BDDFunction.fixscale(a[0], a[1], a[2]));
 		case "$fixmul_u":
 			return BDDFunction.to_constant(BDDFunction.fixmul(a[0], a[1], a[2]));
+		case "$gf2affine":
+			return BDDFunction.to_constant(BDDFunction.gf2affine(a[0], a[1], a[2]));
 		default:
 			throw "unimplemented function";
 	}
