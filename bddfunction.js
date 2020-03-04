@@ -824,6 +824,7 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback) {
 				examples: function(ix) {
 					var values = bdd.indexedSat(~bit0, ix, index, remap);
 					if (!makeExamples) return values;
+					if (!values) return values;
 					var len = vars.length;
 					var res = new Int32Array(len + 2);
 					for (var i = 0; i < len; i++)
