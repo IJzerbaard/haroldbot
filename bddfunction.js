@@ -1179,8 +1179,6 @@ BDDFunction.prototype.Identify = function(vars) {
 	// v == c
 	// returns: [v, c]
 	function is_eqc(bits) {
-		// TODO: fix
-		return null;
 		for (var i = 1; i < bits.length; i++)
 			if (bits[0] != bits[i])
 				return null;
@@ -1188,6 +1186,9 @@ BDDFunction.prototype.Identify = function(vars) {
 		var c = 0;
 		var x = bits[0];
 		for (var i = 0; i < 32; i++) {
+			if ((x ^ (x >> 31)) == 0)
+				return null;
+
 			var inv = x >> 31;
 			x ^= inv;
 			var vv = bdd._v[x];
@@ -1196,23 +1197,17 @@ BDDFunction.prototype.Identify = function(vars) {
 				return null;
 			var lo = bdd._lo[x] ^ inv;
 			var hi = bdd._hi[x] ^ inv;
-			if (i == 31) {
-				if (lo == 0)
-					c |= 1;
-				else if (lo != -1)
-					return null;
-				return [v, c];
+			if (lo == 0 || hi == 0) {
+				if (lo == 0) {
+					x = hi;
+					c |= 1 << (i ^ 31);
+				}
+				else
+					x = lo;
 			}
-			if (lo == -1 || hi == -1 || (lo | hi) == 0)
-				return null;
-			if (lo == 0) {
-				x = hi;
-				c |= 1 << (i ^ 31);
-			}
-			else
-				x = lo;
+			else return null;
 		}
-		// unreachable
+		return [v, c];
 	}
 
 	// identify a function of the form
