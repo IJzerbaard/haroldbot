@@ -769,7 +769,7 @@ BDDFunction.IdentifyPredicate = function(bit, negated) {
 	return null;
 };
 
-BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback) {
+BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback, debugcb) {
 	var res = data;
 
 	var remap = new Array(2048);
@@ -806,7 +806,7 @@ BDDFunction.prototype.AnalyzeTruth = function(data, root, vars, callback) {
 				ProofFinder.proveAsync(root.l, root.r, function (flatproof) {
 					resobj.proof = flatproof;
 					callback();
-				});
+				}, debugcb);
 			}
 			res.true = resobj;
 		} else {
@@ -1179,6 +1179,8 @@ BDDFunction.prototype.Identify = function(vars) {
 	// v == c
 	// returns: [v, c]
 	function is_eqc(bits) {
+		// TODO: fix
+		return null;
 		for (var i = 1; i < bits.length; i++)
 			if (bits[0] != bits[i])
 				return null;

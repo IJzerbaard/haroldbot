@@ -2,3 +2,6 @@
 *.sublime-workspace
 brd.js
 ez80.html
+.vs/ProjectSettings.json
+.vs/VSWorkspaceState.json
+.vs/slnx.sqlite
