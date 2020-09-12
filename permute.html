@@ -187,6 +187,102 @@ function solve(cb) {
     return r;
 }
 
+function tryAllBPC() {
+  function permute(permutation) {
+    var length = permutation.length,
+        result = [permutation.slice()],
+        c = new Array(length).fill(0),
+        i = 1, k, p;
+
+    while (i < length) {
+      if (c[i] < i) {
+        k = i % 2 && c[i];
+        p = permutation[i];
+        permutation[i] = permutation[k];
+        permutation[k] = p;
+        ++c[i];
+        i = 1;
+        result.push(permutation.slice());
+      } else {
+        c[i] = 0;
+        ++i;
+      }
+    }
+    return result;
+  }
+
+  var permutations = permute([0, 1, 2, 3, 4, 5]);  
+  permutations.forEach(function (order) {
+    var bitpos = new Int8Array(64);
+    for (var m = 0; m < 64; m++) {
+      for (var i = 0; i < 64; i++) {
+        var index = 0;
+        for (var j = 0; j < 6; j++)
+          index += (((i >> order[j]) ^ (m >> j)) & 1) << j;
+        bitpos[index] = i;
+      }
+
+      var bitorder = extract_bit_indexes(bitpos);
+      for (var i = 0; i < 6; i++) {
+        if (bitorder[i] != (order[i] ^ -((m >> i) & 1)))
+          console.log("bad order");
+      }
+
+      data = {};
+      if (route_bpc(bitpos)) {
+        verifyResult(bitpos, data);
+        if (data.verified != 'true') {
+          console.log(bitpos);
+          debugger;
+        }
+      }
+      else {
+        console.log(bitpos);
+        debugger;
+      }
+    }
+  });
+
+  debugger;
+}
+
+function extract_bit_indexes(bitpos) {
+  var inv = new Int8Array(64);
+  inv.fill(-1);
+  for (var i = 0; i < 64; i++)
+    if (bitpos[i] >= 0)
+      inv[bitpos[i]] = i;
+  var indexes = new Int8Array(6);
+  var had = 0;
+  for (var i = 0; i < 6; i++) {
+    var s = 0xFFF & ~had;
+    for (var j = 0; j < 64; j++) {
+      if (inv[j] < 0)
+        continue;
+
+      var bit_i_of_actual = (inv[j] >> i) & 1;
+      for (var m = 0; m < 12; m++) {
+        var bit_m_of_j = ((j >> (m >> 1)) ^ m) & 1;
+        if (bit_i_of_actual != bit_m_of_j)
+          s &= ~(1 << m);
+      }
+      
+      if (s == 0)
+        return null;
+    }
+
+    if (s == 0)
+      return null;
+
+    var t = ctz(s);
+    had |= 3 << (t & -2);
+    t = (t >> 1) ^ -(t & 1);
+    indexes[i] = t;
+  }
+
+  return indexes;
+}
+
 function route_bpc(bitpos) {
 
   function AND(a, b) {
@@ -203,37 +299,15 @@ function route_bpc(bitpos) {
     return r;
   }
 
-  function obs(x) {
-    return x ^ (x >> 31);
+  function shl(data, k) {
+    var r = new Int8Array(64);
+    r.set(data.slice(0, 64 - k), k);
+    return r;
   }
 
-  var indexes = new Int8Array(6);
-  var had = 0;
-  for (var i = 0; i < 6; i++) {
-    var s = 0xFFF & ~had;
-    for (var j = 0; j < 64; j++) {
-      if (bitpos[j] < 0)
-        continue;
-
-      var bit_i_of_actual = (bitpos[j] >> i) & 1;
-      for (var m = 0; m < 12; m++) {
-        var bit_m_of_j = ((j >> (m >> 1)) ^ m) & 1;
-        if (bit_i_of_actual != bit_m_of_j)
-          s &= ~(1 << m);
-      }
-      
-      if (s == 0)
-        return false;
-    }
-
-    if (s == 0)
-      return false;
-
-    var t = ctz(s);
-    had |= s & -s;
-    t = (t >> 1) ^ -(t & 1);
-    indexes[i] = t;
-  }
+  var indexes_raw = extract_bit_indexes(bitpos);
+  if (indexes_raw == null)
+    return false;
 
   var bflymask = [];
   for (var i = 0; i <= 6; i++) {
@@ -244,51 +318,74 @@ function route_bpc(bitpos) {
     bflymask.push(msk);
   }
 
+  var complement = 0;
+  indexes_raw.forEach(function (i) { if (i < 0) complement |= 1 << ~i; });
+
+  var indexes = indexes_raw.map(function (i) { return i ^ (i >> 31); });
+  var state = new Int8Array(6);
+  for (var i = 0; i < state.length; i++) {
+    state[i] = i;
+  }
+
+  var compl = new Int8Array(6);
+  for (var i = 0; i < compl.length; i++)
+    compl[i] = (complement >> i) & 1;
+
   var masks = [];
   var shifts = [];
-  var visited = 0;
-  for (var i = 0; i < 6; i++) {
-    if ((visited & (1 << i)) != 0)
-      continue;
-
-    if (indexes[i] == ~i) {
-      shifts.push(1 << i);
-      masks.push(bflymask[i]);
-      visited |= 1 << i;
-      continue;
+  for (var i = 0; i < state.length; i++) {
+    var s = state[i];
+    var m = 1 << s;
+    if (indexes[i] == s) {
+      if (compl[s] != 0) {
+        shifts.push(m);
+        masks.push(bflymask[s]);
+        compl[s] ^= 1;
+        //console.log("compl " + s);
+      }
     }
-
-    var c = i;
-    do {
-      visited |= 1 << c;
-
-      var n = indexes[c];
-      if (n < 0) {
-        if ((visited & (1 << obs(n))) != 0) {
-          shifts.push(1 << ~n);
-          masks.push(bflymask[~n]);
-          break;
-        }
-        shifts.push((1 << ~n) + (1 << c));
-        masks.push(AND(bflymask[c], bflymask[~n]));
-        c = ~n;
-        indexes[c] ^= -1;
+    else {
+      var t = state.indexOf(indexes[i]);
+      if (complement[t] || complement[i]) {
+        shifts.push((1 << Math.max(i, t)) + (1 << Math.min(i, t)));
+        masks.push(AND(bflymask[Math.max(i, t)], bflymask[Math.min(i, t)]));
+        compl[i] ^= 1;
+        compl[t] ^= 1;
+        //console.log("swap-compl " + i + " " + t);
       }
       else {
-        if ((visited & (1 << obs(n))) != 0)
-          break;
-        shifts.push((1 << Math.max(c, n)) - (1 << Math.min(c, n)));
-        masks.push(ANDN(bflymask[Math.max(c, n)], bflymask[Math.min(c, n)]));
-        c = n;
+        shifts.push((1 << Math.max(i, t)) - (1 << Math.min(i, t)));
+        masks.push(ANDN(bflymask[Math.max(i, t)], bflymask[Math.min(i, t)]));
+        //console.log("swap " + i + " " + t);
       }
-    } while (c != i);
+
+      var tmp = state[i];
+      state[i] = state[t];
+      state[t] = tmp;
+      tmp = compl[i];
+      compl[i] = compl[t];
+      compl[t] = tmp;
+    }
+  }
+
+  for (var i = 0; i < state.length; i++) {
+    var s = state[i];
+    var m = 1 << s;
+    if (indexes[i] == s) {
+      if (compl[s] != 0) {
+        shifts.push(m);
+        masks.push(bflymask[s]);
+        compl[s] ^= 1;
+        //console.log("compl " + s);
+      }
+    }
   }
 
   d = {
     masks: masks,
     shiftseq: shifts,
     rol_dist: 0,
-    indexes: indexes
+    indexes: indexes_raw
   };
   data = d;
   return true;
@@ -485,6 +582,14 @@ function route_deltaswaps(bitpos, stages, shiftseq) {
     for (var i = 0; i < stages; i++) {
       d.shiftseq[i] = resultToInt(result, distances[i]);
       d.masks[i] = result.subarray(maskvars[i][0], maskvars[i][0] + 64);
+    }
+
+    for (var i = 0; i < d.shiftseq.length; i++) {
+      if (d.shiftseq[i] == 0) {
+        d.shiftseq.splice(i, 1);
+        d.masks.splice(i, 1);
+        i--;
+      }
     }
 
     var changed = true;
@@ -684,9 +789,11 @@ function performQuery(permute) {
       break;
     }
   }
+
+  return;
   
   window.setTimeout(function() {
-    if (route_deltaswaps(bitpos, 3, [7, 9, 14, 16, 18, 28, 36])) {
+    if (route_deltaswaps(bitpos, 3, [1, 7, 9, 14, 16, 18, 28, 36])) {
       verifyResult(bitpos, data);
       update();
     }
