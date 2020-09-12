@@ -758,7 +758,41 @@ BDDFunction.IdentifyPredicate = function(bit, negated) {
 		return [vindex, m, c];
 	}
 
-	var t = isAndEqConst(bit);
+	function isLtuConst(x) {
+		var v = bdd._v[x ^ (x >> 31)] & 63;
+		var c = 0;
+		for (var i = 0; i < 32; i++) {
+			if ((x ^ (x >> 31)) == 0)
+				return null;
+
+			var inv = x >> 31;
+			x ^= inv;
+			var vv = bdd._v[x];
+			if ((vv & 63) != v ||
+				(vv >> 6) != i)
+				return null;
+			var lo = bdd._lo[x] ^ inv;
+			var hi = bdd._hi[x] ^ inv;
+			if (hi == 0) {
+				x = lo;
+				if (lo == -1)
+					return [v, c | (1 << (i ^ 31))];
+			}
+			else {
+				x = hi;
+				c |= (1 << (i ^ 31));
+				if (lo != -1)
+					return null;
+			}
+		}
+		return null;
+	}
+
+	var t = isLtuConst(bit);
+	if (t)
+		return new Binary(negated ? 45 : 43, new Variable(t[0]), new Constant(t[1]));
+
+	t = isAndEqConst(bit);
 	if (t) {
 		var x = new Variable(t[0]);
 		if (t[1] != -1)
@@ -1211,6 +1245,43 @@ BDDFunction.prototype.Identify = function(vars) {
 	}
 
 	// identify a function of the form
+	// v <u c
+	// returns: [v, c]
+	function is_ltuc(bits) {
+		for (var i = 1; i < bits.length; i++)
+			if (bits[0] != bits[i])
+				return null;
+		var x = bits[0];
+		var v = bdd._v[x ^ (x >> 31)] & 63;
+		var c = 0;
+		for (var i = 0; i < 32; i++) {
+			if ((x ^ (x >> 31)) == 0)
+				return null;
+
+			var inv = x >> 31;
+			x ^= inv;
+			var vv = bdd._v[x];
+			if ((vv & 63) != v ||
+				(vv >> 6) != i)
+				return null;
+			var lo = bdd._lo[x] ^ inv;
+			var hi = bdd._hi[x] ^ inv;
+			if (hi == 0) {
+				x = lo;
+				if (lo == -1)
+					return [v, c | (1 << (i ^ 31))];
+			}
+			else {
+				x = hi;
+				c |= (1 << (i ^ 31));
+				if (lo != -1)
+					return null;
+			}
+		}
+		return null;
+	}
+
+	// identify a function of the form
 	// pdep(v, c1) ^ c2
 	// return: [v, c1, c2]
 	function is_pdepc(bits) {
@@ -1313,6 +1384,11 @@ BDDFunction.prototype.Identify = function(vars) {
 	var r_eqc = is_eqc(this._bits);
 	if (r_eqc) {
 		return new Binary(ops.indexOf('=='), new Variable(r_eqc[0]), new Constant(r_eqc[1]));
+	}
+
+	var r_ltuc = is_ltuc(this._bits);
+	if (r_ltuc) {
+		return new Binary(ops.indexOf('<u'), new Variable(r_ltuc[0]), new Constant(r_ltuc[1]));
 	}
 
 	var r_pdep = is_pdepc(this._bits);

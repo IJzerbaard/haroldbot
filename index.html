@@ -116,6 +116,12 @@ function performQuery(input) {
 
   if (expr.type == 'bin' && binOpResultsInBool(expr.op)) {
     // comparison
+    if (bddf && !quantified) {
+      data.simp = bddf.Identify(varmap);
+      if (data.simp && data.simp.equals(expr))
+        data.simp = null;
+    }
+
     (bddf||circuitf).AnalyzeTruth(data, expr.removeDummy(), varmap, update, null);
   }
   else {

@@ -475,6 +475,43 @@ CFunction.hmul = function(x, y, signed) {
 	return new CFunction(bits, circuit.or(x._divideError, y._divideError));
 };
 
+CFunction.fixscale = function(x, n, d) {
+	// FIXME
+	var prod = cf_mul64(x._bits, n._bits, false);
+	var diverror = circuit.or(CFunction.eqz(d), circuit.or(circuit.or(x._divideError, n._divideError), d._divideError));
+	var P = new Int32Array(128);
+	for (var i = 0; i < 64; i++)
+		P[i] = prod[i];
+	var D = new Int32Array(128);
+	for (var i = 0; i < 32; i++)
+		D[i + 64] = d._bits[i];
+	var bits = new Int32Array(32);
+
+	for (var i = 63; i >= 0; i--) {
+		for (var j = P.length - 1; j > 0; j--)
+			P[j] = P[j - 1];
+		P[0] = 0;
+		var borrow = new Int32Array(128);
+		var newP = new Int32Array(128);
+		for (var j = 0; j < P.length; j++) {
+			var ab = circuit.xor(P[j], D[j]);
+			newP[j] = ab;
+			if (j > 0) {
+				newP[j] = circuit.xor(newP[j], borrow[j - 1]);
+				borrow[j] = circuit.or(circuit.and(~ab, borrow[j - 1]), circuit.and(~P[j], D[j]));
+			}
+			else
+				borrow[j] = circuit.and(~P[j], D[j]);
+		}
+		for (var j = 127; j > 0; j--)
+			P[j] = circuit.or(circuit.and(newP[j], ~borrow[127]), circuit.and(P[j], borrow[127]));
+	}
+
+	for (var i = 0; i < 32; i++)
+		bits[i] = P[i + 64];
+	return new CFunction(bits, diverror);
+};
+
 CFunction.ctz = function (x) {
 	x = CFunction.and(CFunction.not(x), CFunction.add(x, CFunction.constant(-1)));
 	return CFunction.popcnt(x);
