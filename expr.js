@@ -761,7 +761,7 @@ function Ternary(cond, t, f) {
 	this.f = f;
 	this.type = 'ter';
 
-	this.weight = 1.0 + cond.weight + t.weight + f.weight;
+	this.weight = 2.0 + cond.weight + t.weight + f.weight;
 }
 
 Ternary.prototype = Object.create(Node.prototype);

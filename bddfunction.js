@@ -1373,6 +1373,9 @@ BDDFunction.prototype.Identify = function(vars) {
 		return new Constant(r_constant);
 	}
 
+	// TODO: fix
+	return null;
+
 	var r_or = is_or(this._bits);
 	if (r_or)
 		return format_or(r_or);
