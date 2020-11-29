@@ -1368,47 +1368,62 @@ BDDFunction.prototype.Identify = function(vars) {
 	if (this._divideError != 0)
 		return null;
 
-	var r_constant = is_constant(this._bits);
-	if (r_constant != null) {
-		return new Constant(r_constant);
+	function inner(bits) {
+		var r_constant = is_constant(bits);
+		if (r_constant != null) {
+			return new Constant(r_constant);
+		}
+
+		var r_or = is_or(bits);
+		if (r_or)
+			return format_or(r_or);
+
+		var r_xor = is_xor(bits);
+		if (r_xor)
+			return format_xor(r_xor);
+
+		var r_eqc = is_eqc(bits);
+		if (r_eqc) {
+			return new Binary(ops.indexOf('=='), new Variable(r_eqc[0]), new Constant(r_eqc[1]));
+		}
+
+		var r_ltuc = is_ltuc(bits);
+		if (r_ltuc) {
+			return new Binary(ops.indexOf('<u'), new Variable(r_ltuc[0]), new Constant(r_ltuc[1]));
+		}
+
+		var r_pdep = is_pdepc(bits);
+		if (r_pdep)
+			return format_pdepc(r_pdep);
+
+		var r_ror = is_ror(bits);
+		if (r_ror)
+			return format_ror(r_ror);
+
+		var invbits = new Int32Array(32);
+		for (var i = 0; i < 32; i++)
+			invbits[i] = ~bits[i];
+
+		r_or = is_or(invbits);
+		if (r_or)
+			return format_invor(r_or);
 	}
 
-	// TODO: fix
+	var identified = inner(this._bits);
+	if (identified) {
+		try {
+			var idbdd = identified.toBddFunc();
+			for (var i = 0; i < this._bits.length; i++) {
+				if (this._bits[i] != idbdd[i]) {
+					console.log("BDDFunction.Identify check failed");
+					return null;
+				}
+			}
+			return identified;
+		}
+		catch (ex) { }
+	}
 	return null;
-
-	var r_or = is_or(this._bits);
-	if (r_or)
-		return format_or(r_or);
-
-	var r_xor = is_xor(this._bits);
-	if (r_xor)
-		return format_xor(r_xor);
-
-	var r_eqc = is_eqc(this._bits);
-	if (r_eqc) {
-		return new Binary(ops.indexOf('=='), new Variable(r_eqc[0]), new Constant(r_eqc[1]));
-	}
-
-	var r_ltuc = is_ltuc(this._bits);
-	if (r_ltuc) {
-		return new Binary(ops.indexOf('<u'), new Variable(r_ltuc[0]), new Constant(r_ltuc[1]));
-	}
-
-	var r_pdep = is_pdepc(this._bits);
-	if (r_pdep)
-		return format_pdepc(r_pdep);
-
-	var r_ror = is_ror(this._bits);
-	if (r_ror)
-		return format_ror(r_ror);
-
-	var invbits = new Int32Array(32);
-	for (var i = 0; i < 32; i++)
-		invbits[i] = ~this._bits[i];
-
-	r_or = is_or(invbits);
-	if (r_or)
-		return format_invor(r_or);
 };
 
 BDDFunction.prototype.AnalyzeProperties = function(data, vars, root, callback) {
