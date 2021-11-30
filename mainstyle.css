@@ -125,3 +125,42 @@ fieldset {
 .bigger {
   font-size: 150%;
 }
+
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: #eee;
+    background-color: #222;
+  }
+  a {
+    color: rgb(88, 166, 255);
+  }
+  a:visited {
+    color: rgb(166, 88, 255);
+  }
+  #querybar {
+    background-color: #333;
+    box-shadow:0px 5px 10px #444;
+  }
+  #page {
+    background-color: #333;
+    box-shadow:0px 5px 10px #444;
+  }
+  #footer {
+    color:#555;
+  }
+  #querybox {
+    background-color: #333;
+    color: #333;
+  }
+  #q {
+    background-color: #222;
+    color: #eee;
+  }
+  .varassignment tr:nth-child(even) td {
+    background-color: #444;
+  }
+  .varassignment tr:hover td {
+    background-color: #556;
+  }
+}

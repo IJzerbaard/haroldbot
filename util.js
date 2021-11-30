@@ -247,11 +247,13 @@ function insertionSort(array, cmp) {
 }
 
 var randh = Math.random();
-function randomColor() {
+function randomColor(makeDarkmodeColor) {
     do {
         randh += 0.618033988749895;
         randh %= 1;
     } while (randh > 0.75 && randh < 0.945);
+    if (makeDarkmodeColor)
+        return hsvToRgb(randh, 0.70, 0.55);    
     return hsvToRgb(randh, 0.5, 0.95);
 }
 function hsvToRgb(h, s, v) {
